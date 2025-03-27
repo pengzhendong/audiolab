@@ -12,12 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from io import BytesIO
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import av
 import numpy as np
 from av import AudioFrame
 from av.filter import Graph
+from lhotse.caching import AudioCache
+from lhotse.utils import SmartOpen
+
+
+def load_url(url: str) -> BytesIO:
+    audio_bytes = AudioCache.try_cache(url)
+    if not audio_bytes:
+        with SmartOpen.open(url, "rb") as f:
+            audio_bytes = f.read()
+        AudioCache.add_to_cache(url, audio_bytes)
+    return BytesIO(audio_bytes)
 
 
 def build_graph(stream: av.AudioStream, filters: Optional[List[Tuple[str, str]]] = None) -> Graph:

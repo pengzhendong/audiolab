@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import errno
 from typing import Any, Generator, List, Optional, Tuple
 
 import av
 from av import AudioFifo, AudioFrame
 
-from .utils import build_graph, to_ndarray
+from .utils import build_graph, load_url, to_ndarray
 
 
 class Reader:
@@ -30,12 +31,12 @@ class Reader:
         duration: float = None,
         filters: Optional[List[Tuple[str, str]]] = None,
     ):
+        # Open and seek url by ffmpeg may cause some issues.
+        if isinstance(file, str) and "://" in file:
+            file = load_url(file)
+
         self.container = av.open(file)
         self.stream = self.container.streams.audio[stream_id]
-        self.bit_rate = self.stream.bit_rate
-        self.channels = self.stream.channels
-        self.codec = self.stream.codec_context.codec.name
-        self.rate = self.stream.rate
 
         self.block_size = block_size
         self.start_time = int(offset / self.stream.time_base)
@@ -49,7 +50,9 @@ class Reader:
     def resize(self, frame: AudioFrame) -> Generator[AudioFrame]:
         self.fifo.write(frame)
         while self.fifo.samples >= self.block_size:
-            yield self.fifo.read(self.block_size)
+            frame = self.fifo.read(self.block_size)
+            print(frame.rate)
+            yield to_ndarray(frame), frame.rate
 
     def __iter__(self):
         for frame in self.container.decode(self.stream):
@@ -62,10 +65,12 @@ class Reader:
             while True:
                 try:
                     frame = self.graph.pull()
-                except (av.BlockingIOError, av.EOFError):
+                    yield from self.resize(frame)
+                except EOFError:
                     break
-                for frame in self.resize(frame):
-                    yield to_ndarray(frame), frame.rate
+                except av.FFmpegError as e:
+                    if e.errno != errno.EAGAIN:
+                        raise
 
         if self.fifo.samples > 0:
             frame = self.fifo.read(self.fifo.samples, partial=True)

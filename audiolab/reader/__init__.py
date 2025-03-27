@@ -13,10 +13,13 @@
 # limitations under the License.
 
 import sys
-from typing import Any, List, Optional, Tuple
+from typing import Any, Iterator, List, Optional, Tuple, Union
+
+import numpy as np
 
 from . import filters
 from .reader import Reader
+from .utils import load_url
 
 
 def load_audio(
@@ -26,7 +29,7 @@ def load_audio(
     offset: float = 0.0,
     duration: float = None,
     filters: Optional[List[Tuple[str, str]]] = None,
-) -> Reader:
+) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
     reader = Reader(file, stream_id, block_size, offset, duration, filters)
     generator = reader.__iter__()
     if block_size < sys.maxsize:
@@ -34,4 +37,4 @@ def load_audio(
     return next(generator)
 
 
-__all__ = ["Reader", "load_audio", "filters"]
+__all__ = ["Reader", "filters", "load_audio", "load_url"]
