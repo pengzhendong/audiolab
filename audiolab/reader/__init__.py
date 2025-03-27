@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, List, Tuple, Union
+import sys
+from typing import Any, List, Optional, Tuple
 
 from . import filters
 from .reader import Reader
@@ -21,12 +22,16 @@ from .reader import Reader
 def load_audio(
     file: Any,
     stream_id: int = 0,
-    block_size: int = 1024,
+    block_size: int = sys.maxsize,
     offset: float = 0.0,
     duration: float = None,
-    filters: List[Union[str, Tuple[str, str]]] = None,
+    filters: Optional[List[Tuple[str, str]]] = None,
 ) -> Reader:
-    return Reader(file, stream_id, block_size, offset, duration, filters)
+    reader = Reader(file, stream_id, block_size, offset, duration, filters)
+    generator = reader.__iter__()
+    if block_size < sys.maxsize:
+        return generator
+    return next(generator)
 
 
 __all__ = ["Reader", "load_audio", "filters"]

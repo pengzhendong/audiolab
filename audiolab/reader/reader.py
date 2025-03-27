@@ -32,7 +32,7 @@ class Reader:
     ):
         self.container = av.open(file)
         self.stream = self.container.streams.audio[stream_id]
-        self.bit_rate = self.stream.bit_rate // 1000
+        self.bit_rate = self.stream.bit_rate
         self.channels = self.stream.channels
         self.codec = self.stream.codec_context.codec.name
         self.rate = self.stream.rate
@@ -40,7 +40,8 @@ class Reader:
         self.block_size = block_size
         self.start_time = int(offset / self.stream.time_base)
         self.end_time = offset + duration if duration is not None else float("inf")
-        self.container.seek(self.start_time, any_frame=True, stream=self.stream)
+        if self.start_time > 0:
+            self.container.seek(self.start_time, any_frame=True, stream=self.stream)
 
         self.fifo = AudioFifo()
         self.graph = build_graph(self.stream, filters)
@@ -55,7 +56,7 @@ class Reader:
             assert frame.time == float(frame.pts * self.stream.time_base)
             if frame.time > self.end_time:
                 break
-            if frame.pts is not None:
+            if frame.pts is not None and self.start_time > 0:
                 frame.pts -= self.start_time
             self.graph.push(frame)
             while True:
@@ -64,8 +65,11 @@ class Reader:
                 except (av.BlockingIOError, av.EOFError):
                     break
                 for frame in self.resize(frame):
-                    ndarray = to_ndarray(frame)
-                    yield ndarray, frame.rate
+                    yield to_ndarray(frame), frame.rate
+
+        if self.fifo.samples > 0:
+            frame = self.fifo.read(self.fifo.samples, partial=True)
+            yield to_ndarray(frame), frame.rate
 
     def __del__(self):
         self.container.close()
