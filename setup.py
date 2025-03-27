@@ -18,14 +18,14 @@ with open("requirements.txt", encoding="utf8") as f:
     requirements = f.readlines()
 
 setup(
-    name="audio-tools",
+    name="audiolab",
     version=open("VERSION", encoding="utf8").read(),
     author="Zhendong Peng",
     author_email="pzd17@tsinghua.org.cn",
     long_description=open("README.md", encoding="utf8").read(),
     long_description_content_type="text/markdown",
-    description="Audio Tools",
-    url="https://github.com/pengzhendong/audio-tools",
+    description="Audio Lab",
+    url="https://github.com/pengzhendong/audiolab",
     packages=find_packages(),
     include_package_data=True,
     install_requires=requirements,
