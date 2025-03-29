@@ -1,3 +1,4 @@
 av
+jinja2
 lhotse
 smart_open

@@ -13,12 +13,11 @@
 # limitations under the License.
 
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Tuple
 
-import av
 import numpy as np
 from av import AudioFrame
-from av.filter import Graph
+from lhotse import Seconds
 from lhotse.caching import AudioCache
 from lhotse.utils import SmartOpen
 
@@ -32,50 +31,28 @@ def load_url(url: str) -> BytesIO:
     return BytesIO(audio_bytes)
 
 
-def build_graph(stream: av.AudioStream, filters: Optional[List[Tuple[str, str]]] = None) -> Graph:
-    graph = Graph()
-    graph.link_nodes(
-        graph.add_abuffer(template=stream),
-        *[graph.add(filter[0], filter[1]) for filter in filters] if filters else [],
-        graph.add("abuffersink"),
-    ).configure()
-    return graph
-
-
-def db_to_linear(db):
-    """
-    Convert decibels (dB) to linear amplitude ratio.
-    """
-    return 10 ** (db / 20)
-
-
-def parse_frequency(frequency: Union[str, int]) -> int:
-    if isinstance(frequency, str):
-        if frequency.endswith(("k", "K")):
-            frequency = int(frequency[:-1]) * 1000
-        else:
-            frequency = int(frequency)
-    return frequency
-
-
-def parse_threshold(threshold: Union[str, int]) -> int:
-    if isinstance(threshold, str):
-        if threshold.endswith("dB"):
-            threshold = db_to_linear(float(threshold[:-2]))
-        else:
-            threshold = float(threshold)
-    return threshold
-
-
-def format_options(options: Union[Dict[str, Any], List[Union[str, Tuple[str, Any]]]]) -> str:
-    if isinstance(options, dict):
-        return ":".join(f"{k}={v}" for k, v in options.items())
-    else:
-        return ":".join(opt if isinstance(opt, str) else f"{opt[0]}={opt[1]}" for opt in options)
-
-
 def to_ndarray(frame: AudioFrame) -> np.ndarray:
     ndarray = frame.to_ndarray()
     if frame.format.is_packed:
         ndarray = ndarray.reshape(-1, frame.layout.nb_channels).T
     return ndarray
+
+
+def split_audio_frame(frame: AudioFrame, offset: Seconds) -> Tuple[AudioFrame, AudioFrame]:
+    offset = int(offset * frame.rate)
+    if offset <= 0:
+        return frame, None
+    # Number of audio samples (per channel).
+    if offset > frame.samples:
+        return None, frame
+
+    ndarray = to_ndarray(frame)
+    left, right = ndarray[:, :offset], ndarray[:, offset:]
+    if frame.format.is_packed:
+        left, right = left.T.reshape(1, -1), right.T.reshape(1, -1)
+    left = AudioFrame.from_ndarray(left, format=frame.format.name, layout=frame.layout)
+    right = AudioFrame.from_ndarray(right, format=frame.format.name, layout=frame.layout)
+    left.pts, right.pts = frame.pts, frame.pts + offset
+    left.rate, right.rate = frame.rate, frame.rate
+    left.time_base, right.time_base = frame.time_base, frame.time_base
+    return left, right

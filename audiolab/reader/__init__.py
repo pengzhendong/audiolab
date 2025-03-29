@@ -12,27 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
-from typing import Any, Iterator, List, Optional, Tuple, Union
+from typing import Any, Iterator, List, Tuple, Union
 
 import numpy as np
 
-from . import filters
+from .filters import Filter
 from .reader import Reader
 from .utils import load_url
+
+UINT32MAX = 2**32 - 1
 
 
 def load_audio(
     file: Any,
     stream_id: int = 0,
-    block_size: int = sys.maxsize,
     offset: float = 0.0,
     duration: float = None,
-    filters: Optional[List[Tuple[str, str]]] = None,
+    filters: List[Filter] = [],
+    frame_size: Union[int, str] = UINT32MAX,
 ) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
-    reader = Reader(file, stream_id, block_size, offset, duration, filters)
+    reader = Reader(file, stream_id, offset, duration, filters, frame_size)
     generator = reader.__iter__()
-    if block_size < sys.maxsize:
+    if frame_size < UINT32MAX:
         return generator
     return next(generator)
 
