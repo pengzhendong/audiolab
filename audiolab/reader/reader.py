@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, List, Union
+from typing import Any, List, Optional, Union
 
 import av
 from lhotse import Seconds
@@ -30,19 +30,21 @@ class Reader:
         offset: Seconds = 0.0,
         duration: Seconds = None,
         filters: List[Filter] = [],
+        format: Optional[str] = None,
         frame_size: Union[int, str] = None,
+        return_ndarray: bool = True,
     ):
         # Open and seek url by ffmpeg may cause some issues.
         if isinstance(file, str) and "://" in file:
             file = load_url(file)
 
-        self.container = av.open(file)
+        self.container = av.open(file, format=format)
         self.stream = self.container.streams.audio[stream_id]
         self.start_time = int(offset / self.stream.time_base)
         self.end_time = offset + duration if duration is not None else Seconds("inf")
         if self.start_time > 0:
             self.container.seek(self.start_time, any_frame=True, stream=self.stream)
-        self.graph = AudioGraph(self.stream, filters, frame_size)
+        self.graph = AudioGraph(self.stream, filters, frame_size, return_ndarray)
 
     def __iter__(self):
         for frame in self.container.decode(self.stream):

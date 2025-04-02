@@ -15,7 +15,8 @@
 import errno
 from typing import List
 
-from av import AudioFrame, AudioStream, FFmpegError
+import av
+from av import AudioFrame, AudioStream
 from av.filter import Graph
 
 from .filters import Filter
@@ -28,6 +29,7 @@ class AudioGraph:
         stream: AudioStream,
         filters: List[Filter],
         frame_size: int,
+        return_ndarray: bool = True,
     ):
         self.graph = Graph()
         nodes = [self.graph.add_abuffer(template=stream)]
@@ -42,6 +44,7 @@ class AudioGraph:
         frame_size = int(frame_size) if frame_size is not None else 0
         if frame_size > 0:
             self.graph.set_audio_frame_size(frame_size)
+        self.return_ndarray = return_ndarray
 
     def push(self, frame: AudioFrame):
         self.graph.push(frame)
@@ -52,10 +55,13 @@ class AudioGraph:
         while True:
             try:
                 frame = self.graph.pull()
-                yield to_ndarray(frame), frame.rate
-            except EOFError:
+                if self.return_ndarray:
+                    yield to_ndarray(frame), frame.rate
+                else:
+                    yield frame
+            except av.EOFError:
                 break
-            except FFmpegError as e:
+            except av.FFmpegError as e:
                 if e.errno != errno.EAGAIN:
                     raise
                 break

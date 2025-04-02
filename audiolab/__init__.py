@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .reader import Reader, filters, load_audio, load_url
+from .reader import Reader, StreamReader, filters, load_audio, load_url
 
-__all__ = ["Reader", "filters", "load_audio", "load_url"]
+__all__ = ["Reader", "StreamReader", "filters", "load_audio", "load_url"]
