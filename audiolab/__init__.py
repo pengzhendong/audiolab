@@ -13,5 +13,6 @@
 # limitations under the License.
 
 from .reader import Reader, StreamReader, filters, load_audio, load_url
+from .writer import Writer, save_audio
 
-__all__ = ["Reader", "StreamReader", "filters", "load_audio", "load_url"]
+__all__ = ["Reader", "StreamReader", "filters", "load_audio", "load_url", "Writer", "save_audio"]

@@ -35,7 +35,7 @@ def to_ndarray(frame: AudioFrame) -> np.ndarray:
     ndarray = frame.to_ndarray()
     if frame.format.is_packed:
         ndarray = ndarray.reshape(-1, frame.layout.nb_channels).T
-    return ndarray
+    return ndarray  # [num_channels, num_samples]
 
 
 def split_audio_frame(frame: AudioFrame, offset: Seconds) -> Tuple[AudioFrame, AudioFrame]:
