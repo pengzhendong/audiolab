@@ -58,16 +58,27 @@ class StreamReader:
                 self.graph = AudioGraph(stream, self.filters, self.frame_size, self.return_ndarray)
 
             container.seek(self.offset, any_frame=True, stream=stream)
-            # Skip the last frame because it needs to be decoded by the next push.
             frames = list(container.decode(stream))
-            for frame in frames[:-1]:
-                self.offset = frame.pts + int(frame.samples / stream.sample_rate / stream.time_base)
+            frames = frames[1:] if self.offset > 0 else frames
+            frames = frames[:-1] if not partial else frames
+            # Overlap frames to avoid discontinuities.
+            # +---+---+---+---+
+            # |   |   |   | x |
+            # +---+---+---+---+
+            #         +---+---+---+---+
+            #         | x |   |   | x |
+            #         +---+---+---+---+
+            #                 +---+---+---+---+
+            #                 | x |   |   | x |
+            #                 +---+---+---+---+
+            #                         ↑
+            #                         self.offset = frames[:-1][-1].pts
+            for frame in frames:
+                self.offset = frame.pts
                 self.graph.push(frame)
                 yield from self.graph.pull()
-            if partial:
-                self.graph.push(frames[-1])
             yield from self.graph.pull(partial=partial)
-        except (av.EOFError, av.InvalidDataError, av.OSError):
+        except (av.EOFError, av.InvalidDataError, av.OSError, av.PermissionError):
             pass
 
     def reset(self):
