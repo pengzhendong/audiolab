@@ -25,21 +25,20 @@ def save_audio(
     file: Any,
     frame: Union[AudioFrame, np.ndarray],
     rate: Optional[Union[int, Fraction]] = None,
+    codec_name: Optional[str] = None,
     options: Optional[Dict[str, str]] = None,
     **kwargs
 ):
-    if isinstance(frame, np.ndarray):
-        assert frame.dtype in [np.int16, np.float32]
-        assert frame.ndim == 2 and frame.shape[0] in [1, 2]
+    if isinstance(frame, AudioFrame):
+        frame = frame.to_ndarray()
+    assert frame.dtype in (np.int16, np.float32)
+    assert frame.ndim == 2 and frame.shape[0] in (1, 2)
+    format = "s16" if frame.dtype == np.int16 else "flt"
+    layout = "mono" if frame.shape[0] == 1 else "stereo"
+    if codec_name is None and str(file).endswith(".wav"):
         codec_name = "pcm_s16le" if frame.dtype == np.int16 else "pcm_f32le"
-        format = "s16" if frame.dtype == np.int16 else "flt"
-        layout = "mono" if frame.shape[0] == 1 else "stereo"
     else:
-        assert frame.format.name in ["s16", "flt"]
-        assert frame.layout.name in ["mono", "stereo"]
-        codec_name = "pcm_s16le" if frame.format.name == "s16" else "pcm_f32le"
-        format = frame.format.name
-        layout = frame.layout
+        codec_name = str(file).split(".")[-1]
     writer = Writer(file, codec_name, rate, options, format=format, layout=layout, **kwargs)
     writer.write(frame)
     writer.close()

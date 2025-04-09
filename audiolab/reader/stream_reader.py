@@ -29,60 +29,90 @@ class StreamReader:
         frame_size: Union[int, str] = 1024,
         return_ndarray: bool = True,
     ):
-        self.increment = 0
+        self._codec_context = None
+        self._graph = None
         self.bytestream = BytesIO()
+        self.bytes_per_decode_attempt = 0
         self.filters = filters
         self.format = format
         self.frame_size = frame_size
-        self.graph = None
-        self.offset = 0
+        self.offset = None
         self.return_ndarray = return_ndarray
+        self.packet = None
 
-    def push(self, data: bytes):
-        self.increment += len(data)
-        self.bytestream.write(data)
+    @property
+    def codec_context(self):
+        if self._codec_context is None:
+            if self.packet is None:
+                return None
+            self._codec_context = self.packet.stream.codec_context
+        return self._codec_context
+
+    @property
+    def graph(self):
+        if self._graph is None:
+            if self.packet is None:
+                return None
+            self._graph = AudioGraph(self.packet.stream, self.filters, self.frame_size, self.return_ndarray)
+        return self._graph
+
+    @property
+    def is_decoded(self):
+        # x: decoded frames
+        # o: current frame
+        # pts: self.offset, frame.pts, packet.pts
+        # +---+---+---+---+---+
+        # | x | x | x | o |   |
+        # +---+---+---+---+---+
+        #             ↑
+        #             pts
+        if self.offset is None:
+            return False
+        if self.packet.pts is None:
+            return False
+        if self.offset <= self.packet.pts:
+            return False
+        return True
+
+    def should_decode(self, partial: bool = False):
+        if partial:
+            return True
+        if self.bytes_per_decode_attempt * 2 < self.frame_size:
+            return False
+        self.bytes_per_decode_attempt = 0
+        return True
+
+    def ready_for_decode(self, partial: bool = False):
+        if self.packet.pts is None and not partial:
+            return False
+        return not self.is_decoded
+
+    def push(self, chunk: bytes):
+        self.bytestream.write(chunk)
+        self.bytes_per_decode_attempt += len(chunk)
 
     def pull(self, partial: bool = False):
-        # Attempt decoding every `self.increment` bytes.
-        if self.increment * 2 < self.frame_size and not partial:
+        if not self.should_decode(partial):
             return
-        self.increment = 0
         try:
             self.bytestream.seek(0)
             container = av.open(self.bytestream, format=self.format)
-            stream = container.streams.audio[0]
-            # The bytestream is too short to determine the sample rate.
-            if stream.sample_rate == 0:
-                return
-            if self.graph is None:
-                self.graph = AudioGraph(stream, self.filters, self.frame_size, self.return_ndarray)
-
-            container.seek(self.offset, any_frame=True, stream=stream)
-            frames = list(container.decode(stream))
-            frames = frames[1:] if self.offset > 0 else frames
-            frames = frames[:-1] if not partial else frames
-            # Overlap frames to avoid discontinuities.
-            # +---+---+---+---+
-            # |   |   |   | x |
-            # +---+---+---+---+
-            #         +---+---+---+---+
-            #         | x |   |   | x |
-            #         +---+---+---+---+
-            #                 +---+---+---+---+
-            #                 | x |   |   | x |
-            #                 +---+---+---+---+
-            #                         ↑
-            #                         self.offset = frames[:-1][-1].pts
-            for frame in frames:
-                self.offset = frame.pts
-                self.graph.push(frame)
-                yield from self.graph.pull()
-            yield from self.graph.pull(partial=partial)
+            for packet in container.demux():
+                self.packet = packet
+                if not self.ready_for_decode(partial):
+                    continue
+                for frame in self.codec_context.decode(packet):
+                    self.offset = frame.pts + int(frame.samples / packet.stream.sample_rate / packet.stream.time_base)
+                    self.graph.push(frame)
+                    yield from self.graph.pull()
+                yield from self.graph.pull(partial=partial)
         except (av.EOFError, av.InvalidDataError, av.OSError, av.PermissionError):
             pass
 
     def reset(self):
-        self.increment = 0
+        self._codec_context = None
+        self._graph = None
         self.bytestream = BytesIO()
-        self.graph = None
-        self.offset = 0
+        self.bytes_per_decode_attempt = 0
+        self.offset = None
+        self.packet = None
