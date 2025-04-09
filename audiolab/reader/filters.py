@@ -36,11 +36,13 @@ See Also:
 
 for name in filter.filters_available:
 
-    globals()[name] = lambda name=name, args=None, **kwargs: (
-        name,
-        str(args) if args is not None else None,
-        {k: str(v) for k, v in kwargs.items()},
-    )
+    globals()[name] = (
+        lambda name: lambda args=None, **kwargs: (
+            name,
+            str(args) if args is not None else None,
+            {k: str(v) for k, v in kwargs.items()},
+        )
+    )(name)
     globals()[name].__name__ = name
 
     options = []
