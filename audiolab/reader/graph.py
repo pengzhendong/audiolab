@@ -21,8 +21,8 @@ import numpy as np
 from av import AudioFormat, AudioFrame, AudioLayout, AudioStream
 from av.filter import Graph
 
+from ..utils import from_ndarray, to_ndarray
 from .filters import Filter
-from .utils import to_ndarray
 
 
 class AudioGraph:
@@ -68,8 +68,8 @@ class AudioGraph:
 
     def push(self, frame: Union[AudioFrame, np.ndarray]):
         if isinstance(frame, np.ndarray):
-            frame = AudioFrame.from_ndarray(frame, format=self.format, layout=self.layout)
-            frame.rate = self.rate
+            # [num_channels, num_samples]
+            frame = from_ndarray(frame, self.format, self.layout, self.rate)
         self.graph.push(frame)
 
     def pull(self, partial: bool = False):
@@ -79,6 +79,7 @@ class AudioGraph:
             try:
                 frame = self.graph.pull()
                 if self.return_ndarray:
+                    # [num_channels, num_samples]
                     yield to_ndarray(frame), frame.rate
                 else:
                     yield frame

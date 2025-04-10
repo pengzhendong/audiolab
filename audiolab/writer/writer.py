@@ -19,6 +19,8 @@ import av
 import numpy as np
 from av import AudioFrame
 
+from ..utils import from_ndarray
+
 
 class Writer:
     def __init__(
@@ -34,8 +36,7 @@ class Writer:
 
     def write(self, frame: Union[AudioFrame, np.ndarray]):
         if isinstance(frame, np.ndarray):
-            frame = AudioFrame.from_ndarray(frame, format=self.stream.format.name, layout=self.stream.layout)
-            frame.rate = self.stream.rate
+            frame = from_ndarray(frame, self.stream.format.name, self.stream.layout, self.stream.rate)
         for packet in self.stream.encode(frame):
             self.container.mux(packet)
 

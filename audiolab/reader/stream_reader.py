@@ -103,7 +103,6 @@ class StreamReader:
             self.bytestream.seek(0)
             container = av.open(self.bytestream, format=self.format)
             for packet in container.demux():
-                print(packet.is_corrupt, packet.is_disposable, packet.is_discard)
                 self.packet = packet
                 if not self.ready_for_decode(partial):
                     continue

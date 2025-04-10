@@ -15,11 +15,12 @@
 from io import BytesIO
 from typing import Tuple
 
-import numpy as np
 from av import AudioFrame
 from lhotse import Seconds
 from lhotse.caching import AudioCache
 from lhotse.utils import SmartOpen
+
+from ..utils import to_ndarray
 
 
 def load_url(url: str) -> BytesIO:
@@ -29,13 +30,6 @@ def load_url(url: str) -> BytesIO:
             audio_bytes = f.read()
         AudioCache.add_to_cache(url, audio_bytes)
     return BytesIO(audio_bytes)
-
-
-def to_ndarray(frame: AudioFrame) -> np.ndarray:
-    ndarray = frame.to_ndarray()
-    if frame.format.is_packed:
-        ndarray = ndarray.reshape(-1, frame.layout.nb_channels).T
-    return ndarray  # [num_channels, num_samples]
 
 
 def split_audio_frame(frame: AudioFrame, offset: Seconds) -> Tuple[AudioFrame, AudioFrame]:

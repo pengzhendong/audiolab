@@ -12,42 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import base64
-from pathlib import Path
-from typing import Optional, Union
+from typing import Union
 
 import numpy as np
-import torch
-from IPython.display import Audio
-from lhotse import Recording
-from lhotse.cut import Cut
-
-from .reader import filters, load_audio
+from av import AudioFormat, AudioFrame, AudioLayout
 
 
-def encode(
-    audio: Union[str, Path, np.ndarray, torch.Tensor, Cut, Recording],
-    rate: Optional[int] = None,
-    sample_fmt: str = "flt",
-    channel_layout: Union[int, str] = "mono",
-    make_wav: bool = True,
-):
-    """Transform an audio to a PCM bytestring"""
-    if isinstance(audio, (str, Path)):
-        if rate is None:
-            aformat = filters.aformat(sample_fmts=sample_fmt, channel_layouts=channel_layout)
-        else:
-            aformat = filters.aformat(sample_fmts=sample_fmt, sample_rates=rate, channel_layouts=channel_layout)
-        audio, rate = load_audio(audio, filters=[aformat])
-    elif isinstance(audio, (Cut, Recording)):
-        if rate is not None:
-            audio = audio.resample(rate)
-        rate = audio.sampling_rate
-        audio = audio.load_audio()
-    if make_wav:
-        return Audio(audio, rate=rate).src_attr(), rate
-    if audio.dtype == np.int16:
-        audio = audio.astype(np.float32) / 32768
-    # float32 to int16 bytes (Do not normalize for streaming chunks)
-    audio, _ = Audio._validate_and_normalize_with_numpy(np.clip(audio, -1, 1), False)
-    return base64.b64encode(audio).decode("ascii"), rate
+def from_ndarray(
+    ndarray: np.ndarray, format: Union[str, AudioFormat], layout: Union[str, AudioLayout], rate: int
+) -> AudioFrame:
+    if isinstance(format, str):
+        format = AudioFormat(format)
+    if isinstance(layout, str):
+        layout = AudioLayout(layout)
+    if format.is_packed:
+        # [num_channels, num_samples] => [1, num_channels * num_samples]
+        ndarray = ndarray.T.reshape(1, -1)
+    frame = AudioFrame.from_ndarray(ndarray, format=format.name, layout=layout)
+    frame.rate = rate
+    return frame
+
+
+def to_ndarray(frame: AudioFrame) -> np.ndarray:
+    # packed: [num_channels, num_samples]
+    # planar: [1, num_channels * num_samples]
+    ndarray = frame.to_ndarray()
+    if frame.format.is_packed:
+        ndarray = ndarray.reshape(-1, frame.layout.nb_channels).T
+    return ndarray  # [num_channels, num_samples]

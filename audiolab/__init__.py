@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .reader import AudioGraph, Reader, StreamReader, filters, load_audio, load_url
-from .utils import encode
+from .reader import AudioGraph, Reader, StreamReader, encode, filters, load_audio, load_url
 from .writer import Writer, save_audio
 
 __all__ = [
