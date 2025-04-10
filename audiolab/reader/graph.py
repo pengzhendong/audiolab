@@ -13,10 +13,12 @@
 # limitations under the License.
 
 import errno
-from typing import List
+from fractions import Fraction
+from typing import List, Optional, Union
 
 import av
-from av import AudioFrame, AudioStream
+import numpy as np
+from av import AudioFormat, AudioFrame, AudioLayout, AudioStream
 from av.filter import Graph
 
 from .filters import Filter
@@ -26,13 +28,31 @@ from .utils import to_ndarray
 class AudioGraph:
     def __init__(
         self,
-        stream: AudioStream,
-        filters: List[Filter],
-        frame_size: int,
+        stream: Optional[AudioStream] = None,
+        rate: Optional[int] = None,
+        format: Optional[Union[str, AudioFormat]] = None,
+        layout: Optional[Union[str, AudioLayout]] = None,
+        channels: Optional[int] = None,
+        name: Optional[str] = None,
+        time_base: Optional[Fraction] = None,
+        filters: List[Filter] = [],
+        frame_size: int = -1,
         return_ndarray: bool = True,
     ):
         self.graph = Graph()
-        nodes = [self.graph.add_abuffer(template=stream)]
+        if stream is None:
+            abuffer = self.graph.add_abuffer(
+                sample_rate=rate, format=format, layout=layout, channels=channels, name=name, time_base=time_base
+            )
+            self.rate = rate
+            self.format = format.name if isinstance(format, AudioFormat) else format
+            self.layout = layout
+        else:
+            abuffer = self.graph.add_abuffer(template=stream)
+            self.rate = stream.rate
+            self.format = stream.format.name
+            self.layout = stream.layout
+        nodes = [abuffer]
         for _filter in filters:
             name, args, kwargs = (
                 (_filter, None, {}) if isinstance(_filter, str) else ((*_filter, {}) if len(_filter) == 2 else _filter)
@@ -46,7 +66,10 @@ class AudioGraph:
             self.graph.set_audio_frame_size(frame_size)
         self.return_ndarray = return_ndarray
 
-    def push(self, frame: AudioFrame):
+    def push(self, frame: Union[AudioFrame, np.ndarray]):
+        if isinstance(frame, np.ndarray):
+            frame = AudioFrame.from_ndarray(frame, format=self.format, layout=self.layout)
+            frame.rate = self.rate
         self.graph.push(frame)
 
     def pull(self, partial: bool = False):

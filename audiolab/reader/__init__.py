@@ -17,6 +17,7 @@ from typing import Any, Iterator, List, Optional, Tuple, Union
 import numpy as np
 
 from .filters import Filter
+from .graph import AudioGraph
 from .reader import Reader
 from .stream_reader import StreamReader
 from .utils import load_url
@@ -28,7 +29,7 @@ def load_audio(
     file: Any,
     stream_id: int = 0,
     offset: float = 0.0,
-    duration: float = None,
+    duration: Optional[float] = None,
     filters: List[Filter] = [],
     format: Optional[str] = None,
     frame_size: Union[int, str] = UINT32MAX,
@@ -41,4 +42,4 @@ def load_audio(
     return next(generator)
 
 
-__all__ = ["Reader", "StreamReader", "filters", "load_audio", "load_url"]
+__all__ = ["AudioGraph", "Reader", "StreamReader", "filters", "load_audio", "load_url"]

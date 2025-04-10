@@ -53,7 +53,12 @@ class StreamReader:
         if self._graph is None:
             if self.packet is None:
                 return None
-            self._graph = AudioGraph(self.packet.stream, self.filters, self.frame_size, self.return_ndarray)
+            self._graph = AudioGraph(
+                stream=self.packet.stream,
+                filters=self.filters,
+                frame_size=self.frame_size,
+                return_ndarray=self.return_ndarray,
+            )
         return self._graph
 
     @property
@@ -98,6 +103,7 @@ class StreamReader:
             self.bytestream.seek(0)
             container = av.open(self.bytestream, format=self.format)
             for packet in container.demux():
+                print(packet.is_corrupt, packet.is_disposable, packet.is_discard)
                 self.packet = packet
                 if not self.ready_for_decode(partial):
                     continue

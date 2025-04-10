@@ -12,8 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .reader import Reader, StreamReader, filters, load_audio, load_url
+from .reader import AudioGraph, Reader, StreamReader, filters, load_audio, load_url
 from .utils import encode
 from .writer import Writer, save_audio
 
-__all__ = ["Reader", "StreamReader", "filters", "load_audio", "load_url", "Writer", "save_audio", "encode"]
+__all__ = [
+    "AudioGraph",
+    "Reader",
+    "StreamReader",
+    "filters",
+    "load_audio",
+    "load_url",
+    "Writer",
+    "save_audio",
+    "encode",
+]

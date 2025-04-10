@@ -28,10 +28,10 @@ class Reader:
         file: Any,
         stream_id: int = 0,
         offset: Seconds = 0.0,
-        duration: Seconds = None,
+        duration: Optional[Seconds] = None,
         filters: List[Filter] = [],
         format: Optional[str] = None,
-        frame_size: Union[int, str] = None,
+        frame_size: Optional[Union[int, str]] = None,
         return_ndarray: bool = True,
     ):
         # Open and seek url by ffmpeg may cause some issues.
@@ -44,7 +44,9 @@ class Reader:
         self.end_time = offset + duration if duration is not None else Seconds("inf")
         if self.start_time > 0:
             self.container.seek(self.start_time, any_frame=True, stream=self.stream)
-        self.graph = AudioGraph(self.stream, filters, frame_size, return_ndarray)
+        self.graph = AudioGraph(
+            stream=self.stream, filters=filters, frame_size=frame_size, return_ndarray=return_ndarray
+        )
 
     def __iter__(self):
         for frame in self.container.decode(self.stream):
