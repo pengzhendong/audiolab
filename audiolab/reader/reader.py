@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import math
 from typing import Any, List, Optional, Union
 
 import av
@@ -32,6 +33,7 @@ class Reader:
         filters: List[Filter] = [],
         format: Optional[str] = None,
         frame_size: Optional[Union[int, str]] = None,
+        frame_size_ms: Optional[int] = None,
         return_ndarray: bool = True,
     ):
         # Open and seek url by ffmpeg may cause some issues.
@@ -44,9 +46,34 @@ class Reader:
         self.end_time = offset + duration if duration is not None else Seconds("inf")
         if self.start_time > 0:
             self.container.seek(self.start_time, any_frame=True, stream=self.stream)
+        if frame_size is None and frame_size_ms is not None:
+            frame_size = frame_size_ms * self.stream.rate / 1000
+        self.frame_size = frame_size
         self.graph = AudioGraph(
             stream=self.stream, filters=filters, frame_size=frame_size, return_ndarray=return_ndarray
         )
+
+    @property
+    def codec(self) -> str:
+        return self.stream.codec.name
+
+    @property
+    def duration(self) -> Seconds:
+        # self.stream.duration: number of samples per channel
+        return Seconds(self.stream.duration / self.stream.rate)
+
+    @property
+    def num_frames(self) -> int:
+        # original number of frames(without aformat, aresample, etc.)
+        return math.ceil(self.stream.duration / self.frame_size)
+
+    @property
+    def rate(self) -> int:
+        return self.stream.rate
+
+    @property
+    def sample_rate(self) -> int:
+        return self.stream.sample_rate
 
     def __iter__(self):
         for frame in self.container.decode(self.stream):

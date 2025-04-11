@@ -61,7 +61,6 @@ class AudioGraph:
         nodes.append(self.graph.add("abuffersink"))
         self.graph.link_nodes(*nodes).configure()
 
-        frame_size = int(frame_size) if frame_size is not None else 0
         if frame_size > 0:
             self.graph.set_audio_frame_size(frame_size)
         self.return_ndarray = return_ndarray
