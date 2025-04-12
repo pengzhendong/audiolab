@@ -37,7 +37,11 @@ class Info:
 
     @property
     def num_seconds(self) -> Seconds:
-        return Seconds(self.stream.duration * self.stream.time_base)
+        if self.stream.duration:
+            start_time = self.stream.start_time or 0
+            return Seconds((self.stream.duration + start_time) * self.stream.time_base)
+        start_time = self.container.start_time or 0
+        return Seconds((self.container.duration + start_time) / av.time_base)
 
     @property
     def num_cdda_sectors(self) -> float:
