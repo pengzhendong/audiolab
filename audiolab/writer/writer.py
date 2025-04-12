@@ -17,7 +17,7 @@ from typing import Any, Dict, Optional, Union
 
 import av
 import numpy as np
-from av import AudioFrame
+from av import AudioFrame, AudioLayout
 
 from ..utils import from_ndarray
 
@@ -28,11 +28,15 @@ class Writer:
         file: Any,
         codec_name: str,
         rate: Optional[Union[int, Fraction]] = None,
+        layout: Optional[Union[int, str, AudioLayout]] = None,
         options: Optional[Dict[str, str]] = None,
         **kwargs
     ):
         self.container = av.open(file, "w")
-        self.stream = self.container.add_stream(codec_name, rate, options, **kwargs)
+        if isinstance(layout, int):
+            assert layout in (1, 2)
+            layout = "mono" if layout == 1 else "stereo"
+        self.stream = self.container.add_stream(codec_name, rate, options, layout=layout, **kwargs)
 
     def write(self, frame: Union[AudioFrame, np.ndarray]):
         if isinstance(frame, np.ndarray):

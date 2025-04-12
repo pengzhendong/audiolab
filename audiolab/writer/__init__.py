@@ -39,7 +39,7 @@ def save_audio(
         codec_name = "pcm_s16le" if frame.dtype == np.int16 else "pcm_f32le"
     else:
         codec_name = str(file).split(".")[-1]
-    writer = Writer(file, codec_name, rate, options, format=format, layout=layout, **kwargs)
+    writer = Writer(file, codec_name, rate, layout, options, format=format, **kwargs)
     writer.write(frame)
     writer.close()
 

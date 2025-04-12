@@ -19,6 +19,7 @@ import av
 
 from .filters import Filter
 from .graph import AudioGraph
+from .info import Info
 
 
 class StreamReader:
@@ -46,6 +47,7 @@ class StreamReader:
             if self.packet is None:
                 return None
             self._codec_context = self.packet.stream.codec_context
+            assert Info.is_streamable(self._codec_context), "Only support streamable codec"
         return self._codec_context
 
     @property

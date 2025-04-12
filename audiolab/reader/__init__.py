@@ -39,11 +39,10 @@ def load_audio(
     offset: float = 0.0,
     duration: Optional[float] = None,
     filters: List[Filter] = [],
-    format: Optional[str] = None,
     frame_size: Union[int, str] = UINT32MAX,
     return_ndarray: bool = True,
 ) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
-    reader = Reader(file, stream_id, offset, duration, filters, format, frame_size, return_ndarray)
+    reader = Reader(file, stream_id, offset, duration, filters, frame_size, return_ndarray)
     generator = reader.__iter__()
     if frame_size < UINT32MAX:
         return generator

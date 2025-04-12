@@ -15,15 +15,15 @@
 import math
 from typing import Any, List, Optional, Union
 
-import av
 from lhotse import Seconds
 
 from .filters import Filter
 from .graph import AudioGraph
+from .info import Info
 from .utils import load_url, split_audio_frame
 
 
-class Reader:
+class Reader(Info):
     def __init__(
         self,
         file: Any,
@@ -31,7 +31,6 @@ class Reader:
         offset: Seconds = 0.0,
         duration: Optional[Seconds] = None,
         filters: List[Filter] = [],
-        format: Optional[str] = None,
         frame_size: Optional[Union[int, str]] = None,
         frame_size_ms: Optional[int] = None,
         return_ndarray: bool = True,
@@ -40,8 +39,7 @@ class Reader:
         if isinstance(file, str) and "://" in file:
             file = load_url(file)
 
-        self.container = av.open(file, format=format)
-        self.stream = self.container.streams.audio[stream_id]
+        super().__init__(file, stream_id)
         self.start_time = int(offset / self.stream.time_base)
         self.end_time = offset + duration if duration is not None else Seconds("inf")
         if self.start_time > 0:
@@ -54,26 +52,9 @@ class Reader:
         )
 
     @property
-    def codec(self) -> str:
-        return self.stream.codec.name
-
-    @property
-    def duration(self) -> Seconds:
-        # self.stream.duration: number of samples per channel
-        return Seconds(self.stream.duration / self.stream.rate)
-
-    @property
     def num_frames(self) -> int:
         # original number of frames(without aformat, aresample, etc.)
-        return math.ceil(self.stream.duration / self.frame_size)
-
-    @property
-    def rate(self) -> int:
-        return self.stream.rate
-
-    @property
-    def sample_rate(self) -> int:
-        return self.stream.sample_rate
+        return math.ceil(self.duration * self.rate / self.frame_size)
 
     def __iter__(self):
         for frame in self.container.decode(self.stream):

@@ -29,14 +29,25 @@ class Info:
         self.container = av.open(file)
         self.stream = self.container.streams.audio[stream_id]
         self.channels = self.stream.channels
+        self.codec = self.stream.codec
         self.rate = self.stream.rate
         self.sample_rate = self.stream.sample_rate
         self.precision = self.stream.format.bits
         self.bit_rate = self.stream.bit_rate or self.container.bit_rate
         self.metadata = self.stream.metadata
+        self.is_streamable = Info.is_streamable(self.stream.codec_context)
+
+    @staticmethod
+    def is_streamable(codec_context: av.AudioCodecContext) -> bool:
+        # https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/avcodec.h#L1045-L1051
+        """
+        Each submitted frame except the last must contain exactly frame_size samples per channel.
+        May be 0 when the codec has AV_CODEC_CAP_VARIABLE_FRAME_SIZE set, then the frame size is not restricted.
+        """
+        return codec_context.frame_size in (0, 1)
 
     @property
-    def num_seconds(self) -> Seconds:
+    def duration(self) -> Seconds:
         if self.stream.duration:
             start_time = self.stream.start_time or 0
             return Seconds((self.stream.duration + start_time) * self.stream.time_base)
@@ -45,34 +56,31 @@ class Info:
 
     @property
     def num_cdda_sectors(self) -> float:
-        return round(self.num_seconds * 75, 2)
+        return round(self.duration * 75, 2)
 
     @property
     def num_samples(self) -> int:
         # Number of samples per channel
-        return int(self.num_seconds * self.stream.rate)
-
-    @property
-    def duration(self):
-        hours, rest = divmod(self.num_seconds, 3600)
-        minutes, seconds = divmod(rest, 60)
-        return f"{int(hours):02d}:{int(minutes):02d}:{seconds:06.3f}"
+        return int(self.duration * self.stream.rate)
 
     @staticmethod
     def rstrip_zeros(s: str) -> str:
         return " ".join(x.rstrip("0").rstrip(".") for x in s.split())
 
     def __str__(self):
+        hours, rest = divmod(self.duration, 3600)
+        minutes, seconds = divmod(rest, 60)
+        duration = f"{int(hours):02d}:{int(minutes):02d}:{seconds:06.3f}"
         return template.render(
             name=self.container.name,
             channels=self.channels,
             rate=self.rate,
             precision=self.precision,
-            duration=Info.rstrip_zeros(self.duration),
+            duration=Info.rstrip_zeros(duration),
             num_samples=self.num_samples,
             num_cdda_sectors=Info.rstrip_zeros(str(self.num_cdda_sectors)),
             size=Info.rstrip_zeros(naturalsize(self.container.size)),
             bit_rate=Info.rstrip_zeros(naturalsize(self.bit_rate).rstrip("B")),
-            codec=self.stream.codec.long_name,
+            codec=self.codec.long_name,
             metadata=self.metadata,
         )
