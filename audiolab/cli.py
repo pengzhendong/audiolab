@@ -12,18 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .reader import AudioGraph, Reader, StreamReader, encode, filters, info, load_audio, load_url
-from .writer import Writer, save_audio
+from typing import Any
 
-__all__ = [
-    "AudioGraph",
-    "Reader",
-    "StreamReader",
-    "filters",
-    "load_audio",
-    "load_url",
-    "Writer",
-    "save_audio",
-    "encode",
-    "info",
-]
+import click
+
+from . import reader
+
+
+@click.command()
+@click.argument("audio-path", type=click.Path(exists=True, file_okay=True))
+@click.option("--stream-id", type=int, default=0)
+def info(audio_path: Any, stream_id: int = 0):
+    print(reader.info(audio_path, stream_id))

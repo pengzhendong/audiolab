@@ -1,0 +1,12 @@
+{{ description }}
+
+Args:
+{%- for option in options %}
+    {{ option.name }} ({{ option.type }})
+    {%- if option.help %}{{ ": " + option.help }}{% endif %}
+    {%- if option.default != "" %} (default {{ option.default }}){% endif %}
+{%- endfor %}
+
+See Also:
+    - Run `ffmpeg -h filter={{ name }}` for all CLI options
+    - [{{ name }}](https://ffmpeg.org/ffmpeg-filters.html#{{ name }})

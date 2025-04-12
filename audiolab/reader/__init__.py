@@ -25,6 +25,7 @@ from lhotse.cut import Cut
 from . import filters
 from .filters import Filter
 from .graph import AudioGraph
+from .info import Info
 from .reader import Reader
 from .stream_reader import StreamReader
 from .utils import load_url
@@ -55,7 +56,7 @@ def encode(
     sample_fmt: str = "flt",
     channel_layout: Union[int, str] = "mono",
     make_wav: bool = True,
-):
+) -> Tuple[str, int]:
     """Transform an audio to a PCM bytestring"""
     if isinstance(audio, (str, Path)):
         if rate is None:
@@ -77,4 +78,8 @@ def encode(
     return b64encode(audio).decode("ascii"), rate
 
 
-__all__ = ["AudioGraph", "Reader", "StreamReader", "filters", "load_audio", "load_url"]
+def info(file: Any, stream_id: int = 0) -> Info:
+    return Info(file, stream_id)
+
+
+__all__ = ["AudioGraph", "Reader", "StreamReader", "filters", "load_audio", "load_url", "info"]

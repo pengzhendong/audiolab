@@ -12,27 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from importlib.resources import files
 from typing import Dict, Tuple, TypeAlias, Union
 
 from av import filter
 from av.option import OptionType
-from jinja2 import Template
+from jinja2 import Environment, FileSystemLoader
 
 Filter: TypeAlias = Union[str, Tuple[str, str], Tuple[str, Dict[str, str]], Tuple[str, str, Dict[str, str]]]
+loader = FileSystemLoader(files("audiolab.reader").joinpath("templates"))
+template = Environment(loader=loader).get_template("filter.txt")
 
-template = """{{ description }}
-
-Args:
-{%- for option in options %}
-    {{ option.name }} ({{ option.type }})
-    {%- if option.help %}{{ ": " + option.help }}{% endif %}
-    {%- if option.default != "" %} (default {{ option.default }}){% endif %}
-{%- endfor %}
-
-See Also:
-    - Run `ffmpeg -h filter={{ name }}` for all CLI options
-    - [{{ name }}](https://ffmpeg.org/ffmpeg-filters.html#{{ name }})
-"""
 
 for name in filter.filters_available:
 
@@ -61,6 +51,4 @@ for name in filter.filters_available:
                     "help": opt.help if opt.name != "temp" else "set temperature °C",
                 }
             )
-    globals()[name].__doc__ = Template(template).render(
-        name=_filter.name, description=_filter.description, options=options
-    )
+    globals()[name].__doc__ = template.render(name=_filter.name, description=_filter.description, options=options)
