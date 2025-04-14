@@ -21,9 +21,8 @@ import numpy as np
 from av import AudioFormat, AudioFrame, AudioLayout, AudioStream
 from av.filter import Graph
 
-from ..utils import from_ndarray, to_ndarray
-from .filters import Filter
-from .utils import dtypes
+from audiolab.pyav.filters import Filter
+from audiolab.pyav.utils import dtypes, from_ndarray, to_ndarray
 
 
 class AudioGraph:

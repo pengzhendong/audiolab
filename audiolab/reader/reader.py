@@ -18,10 +18,7 @@ from typing import Any, List, Optional, Union
 import numpy as np
 from lhotse import Seconds
 
-from .filters import Filter
-from .graph import AudioGraph
-from .info import Info
-from .utils import aformat, load_url, split_audio_frame
+from audiolab.pyav import AudioGraph, Filter, Info, aformat, load_url, split_audio_frame
 
 
 class Reader(Info):

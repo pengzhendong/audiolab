@@ -12,16 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from importlib.resources import files
 from typing import Any
 
 import av
 from humanize import naturalsize
-from jinja2 import Environment, FileSystemLoader
 from lhotse.utils import Seconds
 
-loader = FileSystemLoader(files("audiolab.reader").joinpath("templates"))
-template = Environment(loader=loader).get_template("info.txt")
+from audiolab.pyav.utils import get_template
 
 
 class Info:
@@ -72,7 +69,7 @@ class Info:
         hours, rest = divmod(self.duration, 3600)
         minutes, seconds = divmod(rest, 60)
         duration = f"{int(hours):02d}:{int(minutes):02d}:{seconds:06.3f}"
-        return template.render(
+        return get_template("info").render(
             name=self.container.name,
             channels=self.channels,
             rate=self.rate,

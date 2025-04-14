@@ -12,19 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .reader import AudioGraph, Reader, StreamReader, aformat, encode, filters, info, load_audio, load_url
-from .writer import Writer, save_audio
+
+from audiolab.pyav import AudioCodec, AudioFormat, AudioGraph, codecs, filters, formats, info
+from audiolab.reader import Reader, StreamReader, encode, load_audio
+from audiolab.writer import Writer, save_audio
 
 __all__ = [
+    "AudioCodec",
+    "AudioFormat",
     "AudioGraph",
     "Reader",
     "StreamReader",
     "Writer",
-    "aformat",
+    "codecs",
     "encode",
     "filters",
+    "formats",
     "info",
     "load_audio",
-    "load_url",
     "save_audio",
 ]

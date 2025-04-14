@@ -19,7 +19,7 @@ import av
 import numpy as np
 from av import AudioFrame, AudioLayout
 
-from ..utils import from_ndarray
+from audiolab.pyav import from_ndarray
 
 
 class Writer:
@@ -38,7 +38,8 @@ class Writer:
         if isinstance(layout, int):
             assert layout in (1, 2)
             layout = "mono" if layout == 1 else "stereo"
-        self.stream = self.container.add_stream(codec, rate, options, layout=layout, **kwargs)
+        kwargs["layout"] = layout
+        self.stream = self.container.add_stream(codec, rate, options, **kwargs)
 
     def write(self, frame: Union[AudioFrame, np.ndarray]):
         if isinstance(frame, np.ndarray):

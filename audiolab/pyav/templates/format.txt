@@ -1,0 +1,16 @@
++------+------+-------+--------+------------+
+| Name | Bits | Bytes | Layout | Dtype      |
+|------|------|-------|--------|------------|
+{%- set name = "%-4s" | format(format.name) %}
+{%- set bits = "%-4s" | format(format.bits) %}
+{%- set bytes = "%-5s" | format(format.bytes) %}
+{%- set layout = "%-6s" | format("Planar" if format.is_planar else "Packed") %}
+{%- set dtype = "%-7s" | format(dtype) %}
+| {{ name }} | {{ bits }} | {{ bytes }} | {{ layout }} | np.{{ dtype }} |
++------+------+-------+--------+------------+
+
+Supported Codecs:
+{%- set codecs = codecs | sort(attribute="name") %}
+{%- for codec in codecs %}
+  - {{ codec.name }} ({{ codec.long_name }})
+{%- endfor %}

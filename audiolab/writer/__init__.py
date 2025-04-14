@@ -18,7 +18,7 @@ from typing import Any, Dict, Optional, Union
 import numpy as np
 from av import AudioFrame
 
-from .writer import Writer
+from audiolab.writer.writer import Writer
 
 
 def save_audio(

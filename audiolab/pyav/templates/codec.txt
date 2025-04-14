@@ -1,0 +1,6 @@
+{{ codec.long_name }}
+
+Supported formats:
+{%- for format in formats %}
+  - {{ format.name }} (np.{{ format.dtype }})
+{%- endfor %}

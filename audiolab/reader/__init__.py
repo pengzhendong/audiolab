@@ -22,32 +22,9 @@ from IPython.display import Audio
 from lhotse import Recording
 from lhotse.cut import Cut
 
-from . import filters
-from .filters import Filter
-from .graph import AudioGraph
-from .info import Info
-from .reader import Reader
-from .stream_reader import StreamReader
-from .utils import aformat, load_url
-
-
-def load_audio(
-    file: Any,
-    stream_id: int = 0,
-    offset: float = 0.0,
-    duration: Optional[float] = None,
-    filters: List[Filter] = [],
-    dtype: Optional[np.dtype] = None,
-    rate: Optional[int] = None,
-    to_mono: bool = False,
-    frame_size: Union[int, str] = np.iinfo(np.uint32).max,
-    return_ndarray: bool = True,
-) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
-    reader = Reader(file, stream_id, offset, duration, filters, dtype, rate, to_mono, frame_size, return_ndarray)
-    generator = reader.__iter__()
-    if frame_size < np.iinfo(np.uint32).max:
-        return generator
-    return next(generator)
+from audiolab.pyav import Filter
+from audiolab.reader.reader import Reader
+from audiolab.reader.stream_reader import StreamReader
 
 
 def encode(
@@ -74,8 +51,23 @@ def encode(
     return b64encode(audio).decode("ascii"), rate
 
 
-def info(file: Any, stream_id: int = 0) -> Info:
-    return Info(file, stream_id)
+def load_audio(
+    file: Any,
+    stream_id: int = 0,
+    offset: float = 0.0,
+    duration: Optional[float] = None,
+    filters: List[Filter] = [],
+    dtype: Optional[np.dtype] = None,
+    rate: Optional[int] = None,
+    to_mono: bool = False,
+    frame_size: Union[int, str] = np.iinfo(np.uint32).max,
+    return_ndarray: bool = True,
+) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
+    reader = Reader(file, stream_id, offset, duration, filters, dtype, rate, to_mono, frame_size, return_ndarray)
+    generator = reader.__iter__()
+    if frame_size < np.iinfo(np.uint32).max:
+        return generator
+    return next(generator)
 
 
-__all__ = ["AudioGraph", "Reader", "StreamReader", "aformat", "encode", "filters", "info", "load_audio", "load_url"]
+__all__ = ["Reader", "StreamReader", "encode", "load_audio"]

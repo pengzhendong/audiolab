@@ -18,10 +18,7 @@ from typing import List, Optional, Union
 import av
 import numpy as np
 
-from .filters import Filter
-from .graph import AudioGraph
-from .info import Info
-from .utils import aformat
+from audiolab.pyav import AudioGraph, Filter, Info, aformat
 
 
 class StreamReader:

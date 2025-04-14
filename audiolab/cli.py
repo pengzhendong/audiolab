@@ -16,7 +16,7 @@ from typing import Any
 
 import click
 
-from . import reader
+from audiolab import reader
 
 
 @click.command()
