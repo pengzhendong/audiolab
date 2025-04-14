@@ -32,6 +32,7 @@ class Info:
         self.codec = self.stream.codec
         self.rate = self.stream.rate
         self.sample_rate = self.stream.sample_rate
+        self.layout = self.stream.layout
         self.precision = self.stream.format.bits
         self.bit_rate = self.stream.bit_rate or self.container.bit_rate
         self.metadata = self.stream.metadata

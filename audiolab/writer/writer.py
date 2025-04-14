@@ -26,17 +26,19 @@ class Writer:
     def __init__(
         self,
         file: Any,
-        codec_name: str,
+        codec: Union[str, av.Codec],
         rate: Optional[Union[int, Fraction]] = None,
         layout: Optional[Union[int, str, AudioLayout]] = None,
         options: Optional[Dict[str, str]] = None,
         **kwargs
     ):
         self.container = av.open(file, "w")
+        if isinstance(codec, av.Codec):
+            codec = codec.name
         if isinstance(layout, int):
             assert layout in (1, 2)
             layout = "mono" if layout == 1 else "stereo"
-        self.stream = self.container.add_stream(codec_name, rate, options, layout=layout, **kwargs)
+        self.stream = self.container.add_stream(codec, rate, options, layout=layout, **kwargs)
 
     def write(self, frame: Union[AudioFrame, np.ndarray]):
         if isinstance(frame, np.ndarray):

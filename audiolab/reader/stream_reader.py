@@ -109,7 +109,7 @@ class StreamReader:
                 if not self.ready_for_decode(partial):
                     continue
                 for frame in self.codec_context.decode(packet):
-                    self.offset = frame.pts + int(frame.samples / packet.stream.sample_rate / packet.stream.time_base)
+                    self.offset = frame.pts + int(frame.samples / packet.stream.rate / packet.stream.time_base)
                     self.graph.push(frame)
                     yield from self.graph.pull()
                 yield from self.graph.pull(partial=partial)

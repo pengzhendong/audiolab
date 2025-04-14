@@ -12,10 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from typing import Union
 
 import numpy as np
 from av import AudioFormat, AudioFrame, AudioLayout
+from av.audio.frame import format_dtypes
+
+logger = logging.getLogger(__name__)
 
 
 def from_ndarray(
@@ -28,6 +32,17 @@ def from_ndarray(
     if format.is_packed:
         # [num_channels, num_samples] => [1, num_channels * num_samples]
         ndarray = ndarray.T.reshape(1, -1)
+
+    if ndarray.dtype.kind == "f" and (np.any(ndarray < -1) or np.any(ndarray >= 1)):
+        logger.warning(f"Floating-point array out of range: {ndarray.min()} ~ {ndarray.max()}")
+        ndarray = np.clip(ndarray, -1, 1)
+    # Convert to the target dtype
+    dtype = format_dtypes[format.name]
+    if ndarray.dtype != dtype:
+        if ndarray.dtype.kind in ("i", "u"):
+            ndarray = ndarray / (np.iinfo(ndarray.dtype).max + 1)
+        ndarray = (ndarray * np.iinfo(dtype).max).astype(dtype)
+
     frame = AudioFrame.from_ndarray(ndarray, format=format.name, layout=layout)
     frame.rate = rate
     return frame
