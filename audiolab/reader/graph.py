@@ -23,6 +23,7 @@ from av.filter import Graph
 
 from ..utils import from_ndarray, to_ndarray
 from .filters import Filter
+from .utils import dtypes
 
 
 class AudioGraph:
@@ -30,6 +31,7 @@ class AudioGraph:
         self,
         stream: Optional[AudioStream] = None,
         rate: Optional[int] = None,
+        dtype: Optional[np.dtype] = None,
         format: Optional[Union[str, AudioFormat]] = None,
         layout: Optional[Union[str, AudioLayout]] = None,
         channels: Optional[int] = None,
@@ -39,6 +41,9 @@ class AudioGraph:
         frame_size: int = -1,
         return_ndarray: bool = True,
     ):
+        if dtype is not None:
+            format = dtypes[np.dtype(dtype)]
+        self.filters = filters
         self.graph = Graph()
         if stream is None:
             abuffer = self.graph.add_abuffer(
@@ -53,7 +58,7 @@ class AudioGraph:
             self.format = stream.format.name
             self.layout = stream.layout
         nodes = [abuffer]
-        for _filter in filters:
+        for _filter in self.filters:
             name, args, kwargs = (
                 (_filter, None, {}) if isinstance(_filter, str) else ((*_filter, {}) if len(_filter) == 2 else _filter)
             )

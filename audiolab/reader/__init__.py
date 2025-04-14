@@ -28,9 +28,7 @@ from .graph import AudioGraph
 from .info import Info
 from .reader import Reader
 from .stream_reader import StreamReader
-from .utils import load_url
-
-UINT32MAX = 2**32 - 1
+from .utils import aformat, load_url
 
 
 def load_audio(
@@ -39,30 +37,29 @@ def load_audio(
     offset: float = 0.0,
     duration: Optional[float] = None,
     filters: List[Filter] = [],
-    frame_size: Union[int, str] = UINT32MAX,
+    dtype: Optional[np.dtype] = None,
+    rate: Optional[int] = None,
+    to_mono: bool = False,
+    frame_size: Union[int, str] = np.iinfo(np.uint32).max,
     return_ndarray: bool = True,
 ) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
-    reader = Reader(file, stream_id, offset, duration, filters, frame_size, return_ndarray)
+    reader = Reader(file, stream_id, offset, duration, filters, dtype, rate, to_mono, frame_size, return_ndarray)
     generator = reader.__iter__()
-    if frame_size < UINT32MAX:
+    if frame_size < np.iinfo(np.uint32).max:
         return generator
     return next(generator)
 
 
 def encode(
     audio: Union[str, Path, np.ndarray, torch.Tensor, Cut, Recording],
+    dtype: Optional[np.dtype] = None,
     rate: Optional[int] = None,
-    sample_fmt: str = "flt",
-    channel_layout: Union[int, str] = "mono",
+    to_mono: bool = False,
     make_wav: bool = True,
 ) -> Tuple[str, int]:
     """Transform an audio to a PCM bytestring"""
     if isinstance(audio, (str, Path)):
-        if rate is None:
-            aformat = filters.aformat(sample_fmts=sample_fmt, channel_layouts=channel_layout)
-        else:
-            aformat = filters.aformat(sample_fmts=sample_fmt, sample_rates=rate, channel_layouts=channel_layout)
-        audio, rate = load_audio(audio, filters=[aformat])
+        audio, rate = load_audio(audio, dtype=dtype, rate=rate, to_mono=to_mono)
     elif isinstance(audio, (Cut, Recording)):
         if rate is not None:
             audio = audio.resample(rate)
@@ -81,4 +78,4 @@ def info(file: Any, stream_id: int = 0) -> Info:
     return Info(file, stream_id)
 
 
-__all__ = ["AudioGraph", "Reader", "StreamReader", "filters", "load_audio", "load_url", "info"]
+__all__ = ["AudioGraph", "Reader", "StreamReader", "aformat", "encode", "filters", "info", "load_audio", "load_url"]

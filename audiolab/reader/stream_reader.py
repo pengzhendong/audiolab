@@ -16,17 +16,21 @@ from io import BytesIO
 from typing import List, Optional, Union
 
 import av
+import numpy as np
 
 from .filters import Filter
 from .graph import AudioGraph
 from .info import Info
+from .utils import aformat
 
 
 class StreamReader:
     def __init__(
         self,
         filters: List[Filter] = [],
-        format: Optional[str] = None,
+        dtype: Optional[np.dtype] = None,
+        rate: Optional[int] = None,
+        to_mono: bool = False,
         frame_size: Union[int, str] = 1024,
         return_ndarray: bool = True,
     ):
@@ -34,8 +38,8 @@ class StreamReader:
         self._graph = None
         self.bytestream = BytesIO()
         self.bytes_per_decode_attempt = 0
+        filters.append(aformat(dtype, rate, to_mono))
         self.filters = filters
-        self.format = format
         self.frame_size = frame_size
         self.offset = None
         self.return_ndarray = return_ndarray
@@ -103,7 +107,7 @@ class StreamReader:
             return
         try:
             self.bytestream.seek(0)
-            container = av.open(self.bytestream, format=self.format)
+            container = av.open(self.bytestream)
             for packet in container.demux():
                 self.packet = packet
                 if not self.ready_for_decode(partial):

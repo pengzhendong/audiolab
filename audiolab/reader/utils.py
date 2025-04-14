@@ -15,12 +15,28 @@
 from io import BytesIO
 from typing import Tuple
 
+import numpy as np
 from av import AudioFrame
+from av.audio.frame import format_dtypes
 from lhotse import Seconds
 from lhotse.caching import AudioCache
 from lhotse.utils import SmartOpen
 
 from ..utils import to_ndarray
+from . import filters
+
+dtypes = {np.dtype(v): k for k, v in format_dtypes.items() if "p" not in k}
+
+
+def aformat(dtype: np.dtype = None, rate: int = None, to_mono: bool = False):
+    kwargs = {}
+    if dtype is not None:
+        kwargs["sample_fmts"] = dtypes[np.dtype(dtype)]
+    if rate is not None:
+        kwargs["sample_rates"] = rate
+    if to_mono:
+        kwargs["channel_layouts"] = "mono"
+    return filters.aformat(**kwargs)
 
 
 def load_url(url: str) -> BytesIO:

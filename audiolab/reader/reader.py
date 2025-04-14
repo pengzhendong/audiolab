@@ -15,12 +15,13 @@
 import math
 from typing import Any, List, Optional, Union
 
+import numpy as np
 from lhotse import Seconds
 
 from .filters import Filter
 from .graph import AudioGraph
 from .info import Info
-from .utils import load_url, split_audio_frame
+from .utils import aformat, load_url, split_audio_frame
 
 
 class Reader(Info):
@@ -31,6 +32,9 @@ class Reader(Info):
         offset: Seconds = 0.0,
         duration: Optional[Seconds] = None,
         filters: List[Filter] = [],
+        dtype: Optional[np.dtype] = None,
+        rate: Optional[int] = None,
+        to_mono: bool = False,
         frame_size: Optional[Union[int, str]] = None,
         frame_size_ms: Optional[int] = None,
         return_ndarray: bool = True,
@@ -44,6 +48,8 @@ class Reader(Info):
         self.end_time = offset + duration if duration is not None else Seconds("inf")
         if self.start_time > 0:
             self.container.seek(self.start_time, any_frame=True, stream=self.stream)
+
+        filters.append(aformat(dtype, rate, to_mono))
         if frame_size is None and frame_size_ms is not None:
             frame_size = frame_size_ms * self.stream.rate / 1000
         self.frame_size = frame_size
