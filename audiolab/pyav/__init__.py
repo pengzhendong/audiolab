@@ -18,12 +18,13 @@ import numpy as np
 from av import Codec, codecs_available
 from av.codec.codec import UnknownCodecError
 
-from audiolab.pyav import codecs, filters, formats
+from audiolab.pyav import codecs, filters, formats, layouts
 from audiolab.pyav.codecs import AudioCodec
 from audiolab.pyav.filters import Filter
 from audiolab.pyav.formats import AudioFormat
 from audiolab.pyav.graph import AudioGraph
 from audiolab.pyav.info import Info
+from audiolab.pyav.layouts import AudioLayout, standard_channel_layouts
 from audiolab.pyav.utils import dtypes, from_ndarray, load_url, split_audio_frame, to_ndarray
 
 
@@ -65,12 +66,20 @@ for codec in codecs_available:
         pass
 
 
+_layouts = {}
+for layout in standard_channel_layouts:
+    _layouts[layout] = AudioLayout(layout)
+    layouts.__dict__[layout] = _layouts[layout]
+layouts.__dict__["layouts"] = _layouts
+
+
 __all__ = [
     "AudioCodec",
     "AudioFormat",
     "AudioGraph",
     "Filter",
     "Info",
+    "AudioLayout",
     "aformat",
     "info",
     "load_url",

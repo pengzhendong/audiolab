@@ -22,6 +22,13 @@ from audiolab.pyav.utils import get_template
 
 
 class Info:
+    stream: av.AudioStream
+    channels: int
+    codec: av.Codec
+    rate: int
+    sample_rate: int
+    layout: av.AudioLayout
+
     def __init__(self, file: Any, stream_id: int = 0):
         self.container = av.open(file)
         self.stream = self.container.streams.audio[stream_id]

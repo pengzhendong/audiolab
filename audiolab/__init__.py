@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from audiolab.pyav import AudioCodec, AudioFormat, AudioGraph, codecs, filters, formats, info
+from audiolab.pyav import AudioCodec, AudioFormat, AudioGraph, AudioLayout, codecs, filters, formats, info, layouts
 from audiolab.reader import Reader, StreamReader, encode, load_audio
 from audiolab.writer import Writer, save_audio
 
@@ -21,6 +21,7 @@ __all__ = [
     "AudioCodec",
     "AudioFormat",
     "AudioGraph",
+    "AudioLayout",
     "Reader",
     "StreamReader",
     "Writer",
@@ -29,6 +30,7 @@ __all__ = [
     "filters",
     "formats",
     "info",
+    "layouts",
     "load_audio",
     "save_audio",
 ]

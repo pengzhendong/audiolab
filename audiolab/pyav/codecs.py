@@ -21,6 +21,11 @@ from audiolab.pyav.utils import get_template
 
 
 class AudioCodec:
+    name: str
+    codec: av.Codec
+    formats: set[av.AudioFormat]
+    long_name: str
+
     def __init__(self, name: Union[str, av.Codec], mode: Literal["r", "w"] = "r"):
         if isinstance(name, str):
             self.name = name

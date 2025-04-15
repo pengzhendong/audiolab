@@ -16,11 +16,11 @@ from typing import Any
 
 import click
 
-from audiolab import reader
+import audiolab
 
 
 @click.command()
 @click.argument("audio-path", type=click.Path(exists=True, file_okay=True))
 @click.option("--stream-id", type=int, default=0)
 def info(audio_path: Any, stream_id: int = 0):
-    print(reader.info(audio_path, stream_id))
+    print(audiolab.info(audio_path, stream_id))

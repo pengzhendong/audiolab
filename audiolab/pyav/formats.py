@@ -21,6 +21,13 @@ from audiolab.pyav.utils import format_dtypes, get_template
 
 
 class AudioFormat:
+    name: str
+    format: av.AudioFormat
+    codecs: set[av.Codec]
+    bits: int
+    bytes: int
+    dtype: np.dtype
+
     def __init__(self, name: Union[str, av.AudioFormat]):
         if isinstance(name, str):
             self.name = name
