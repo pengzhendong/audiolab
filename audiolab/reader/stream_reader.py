@@ -13,29 +13,32 @@
 # limitations under the License.
 
 from io import BytesIO
-from typing import List, Optional, Union
+from typing import List, Optional
 
-import av
-import numpy as np
+import bv
 
-from audiolab.pyav import AudioGraph, Filter, Info, aformat
+from audiolab.av import AudioGraph, Info, aformat
+from audiolab.av.typing import AudioFormat, Dtype, Filter
 
 
 class StreamReader:
     def __init__(
         self,
         filters: List[Filter] = [],
-        dtype: Optional[np.dtype] = None,
+        dtype: Optional[Dtype] = None,
+        is_planar: bool = False,
+        format: Optional[AudioFormat] = None,
         rate: Optional[int] = None,
         to_mono: bool = False,
-        frame_size: Union[int, str] = 1024,
+        frame_size: Optional[int] = 1024,
         return_ndarray: bool = True,
     ):
         self._codec_context = None
         self._graph = None
         self.bytestream = BytesIO()
         self.bytes_per_decode_attempt = 0
-        filters.append(aformat(dtype, rate, to_mono))
+        if not all([dtype is None, format is None, rate is None, to_mono is None]):
+            filters.append(aformat(dtype, is_planar, format, rate, to_mono))
         self.filters = filters
         self.frame_size = frame_size
         self.offset = None
@@ -104,7 +107,7 @@ class StreamReader:
             return
         try:
             self.bytestream.seek(0)
-            container = av.open(self.bytestream)
+            container = bv.open(self.bytestream)
             for packet in container.demux():
                 self.packet = packet
                 if not self.ready_for_decode(partial):
@@ -114,7 +117,7 @@ class StreamReader:
                     self.graph.push(frame)
                     yield from self.graph.pull()
                 yield from self.graph.pull(partial=partial)
-        except (av.EOFError, av.InvalidDataError, av.OSError, av.PermissionError):
+        except (bv.EOFError, bv.InvalidDataError, bv.OSError, bv.PermissionError):
             pass
 
     def reset(self):

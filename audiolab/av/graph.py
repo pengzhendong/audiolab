@@ -14,25 +14,26 @@
 
 import errno
 from fractions import Fraction
-from typing import List, Optional, Union
+from typing import List, Optional
 
-import av
+import bv
 import numpy as np
-from av import AudioFormat, AudioFrame, AudioLayout, AudioStream
-from av.filter import Graph
+from bv.filter import Graph
 
-from audiolab.pyav.filters import Filter
-from audiolab.pyav.utils import dtypes, from_ndarray, to_ndarray
+from audiolab.av.format import get_format
+from audiolab.av.frame import from_ndarray, to_ndarray
+from audiolab.av.typing import AudioFormat, AudioFrame, AudioLayout, Dtype, Filter
 
 
 class AudioGraph:
     def __init__(
         self,
-        stream: Optional[AudioStream] = None,
+        stream: Optional[bv.AudioStream] = None,
         rate: Optional[int] = None,
-        dtype: Optional[np.dtype] = None,
-        format: Optional[Union[str, AudioFormat]] = None,
-        layout: Optional[Union[str, AudioLayout]] = None,
+        dtype: Optional[Dtype] = None,
+        is_planar: bool = False,
+        format: Optional[AudioFormat] = None,
+        layout: Optional[AudioLayout] = None,
         channels: Optional[int] = None,
         name: Optional[str] = None,
         time_base: Optional[Fraction] = None,
@@ -40,16 +41,16 @@ class AudioGraph:
         frame_size: int = -1,
         return_ndarray: bool = True,
     ):
-        if dtype is not None:
-            format = dtypes[np.dtype(dtype)]
         self.filters = filters
         self.graph = Graph()
         if stream is None:
+            if format is None:
+                format = get_format(dtype, is_planar)
             abuffer = self.graph.add_abuffer(
                 sample_rate=rate, format=format, layout=layout, channels=channels, name=name, time_base=time_base
             )
             self.rate = rate
-            self.format = format.name if isinstance(format, AudioFormat) else format
+            self.format = format.name if isinstance(format, bv.AudioFormat) else format
             self.layout = layout
         else:
             abuffer = self.graph.add_abuffer(template=stream)
@@ -69,7 +70,7 @@ class AudioGraph:
             self.graph.set_audio_frame_size(frame_size)
         self.return_ndarray = return_ndarray
 
-    def push(self, frame: Union[AudioFrame, np.ndarray]):
+    def push(self, frame: AudioFrame):
         if isinstance(frame, np.ndarray):
             # [num_channels, num_samples]
             frame = from_ndarray(frame, self.format, self.layout, self.rate)
@@ -86,9 +87,9 @@ class AudioGraph:
                     yield to_ndarray(frame), frame.rate
                 else:
                     yield frame
-            except av.EOFError:
+            except bv.EOFError:
                 break
-            except av.FFmpegError as e:
+            except bv.FFmpegError as e:
                 if e.errno != errno.EAGAIN:
                     raise
                 break

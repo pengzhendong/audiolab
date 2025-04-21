@@ -1,6 +1,0 @@
-{{ layout.name }} ({{ layout.nb_channels }} channels)
-
-{%- for channel in layout.channels %}
-  - {{ channel.name }} ({{ channel.description }})
-{%- endfor %}
-

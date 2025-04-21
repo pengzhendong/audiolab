@@ -12,34 +12,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from fractions import Fraction
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
-import numpy as np
-from av import AudioFrame
+import bv
 
+from audiolab.av.format import get_format_dtype
+from audiolab.av.frame import to_ndarray
+from audiolab.av.typing import AudioFormat, AudioFrame, AudioLayout, Codec, ContainerFormat, Dtype
 from audiolab.writer.writer import Writer
 
 
 def save_audio(
     file: Any,
-    frame: Union[AudioFrame, np.ndarray],
-    rate: Optional[Union[int, Fraction]] = None,
-    codec_name: Optional[str] = None,
+    frame: AudioFrame,
+    rate: int,
+    codec: Optional[Codec] = None,
+    channels: Optional[int] = None,
+    dtype: Optional[Dtype] = None,
+    is_planar: Optional[bool] = None,
+    format: Optional[AudioFormat] = None,
+    layout: Optional[AudioLayout] = None,
+    container_format: Optional[ContainerFormat] = None,
     options: Optional[Dict[str, str]] = None,
     **kwargs
 ):
-    if isinstance(frame, AudioFrame):
-        frame = frame.to_ndarray()
-    assert frame.dtype in (np.int16, np.float32)
-    assert frame.ndim == 2 and frame.shape[0] in (1, 2)
-    format = "s16" if frame.dtype == np.int16 else "flt"
-    layout = "mono" if frame.shape[0] == 1 else "stereo"
-    if codec_name is None and str(file).endswith(".wav"):
-        codec_name = "pcm_s16le" if frame.dtype == np.int16 else "pcm_f32le"
-    else:
-        codec_name = str(file).split(".")[-1]
-    writer = Writer(file, codec_name, rate, layout, options, format=format, **kwargs)
+    if isinstance(frame, bv.AudioFrame):
+        if format is None:
+            dtype = dtype or get_format_dtype(frame.format)
+            is_planar = is_planar or frame.format.is_planar
+        frame = to_ndarray(frame)
+    channels = frame.shape[0]
+    assert frame.ndim == 2 and channels in (1, 2)
+    writer = Writer(file, rate, codec, channels, dtype, is_planar, format, layout, container_format, options, **kwargs)
     writer.write(frame)
     writer.close()
 

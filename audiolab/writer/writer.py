@@ -12,36 +12,63 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from fractions import Fraction
-from typing import Any, Dict, Optional, Union
+import logging
+from io import BytesIO
+from typing import Any, Dict, Optional
 
-import av
+import bv
 import numpy as np
-from av import AudioFrame, AudioLayout
 
-from audiolab.pyav import from_ndarray
+from audiolab.av import from_ndarray
+from audiolab.av.format import get_format
+from audiolab.av.typing import AudioFormat, AudioFrame, AudioLayout, Codec, ContainerFormat, Dtype
+
+logger = logging.getLogger(__name__)
 
 
 class Writer:
     def __init__(
         self,
         file: Any,
-        codec: Union[str, av.Codec],
-        rate: Optional[Union[int, Fraction]] = None,
-        layout: Optional[Union[int, str, AudioLayout]] = None,
+        rate: int,
+        codec: Optional[Codec] = None,
+        channels: Optional[int] = None,
+        dtype: Optional[Dtype] = None,
+        is_planar: Optional[bool] = None,
+        format: Optional[AudioFormat] = None,
+        layout: Optional[AudioLayout] = None,
+        container_format: Optional[ContainerFormat] = None,
         options: Optional[Dict[str, str]] = None,
-        **kwargs
+        **kwargs,
     ):
-        self.container = av.open(file, "w")
-        if isinstance(codec, av.Codec):
-            codec = codec.name
-        if isinstance(layout, int):
-            assert layout in (1, 2)
-            layout = "mono" if layout == 1 else "stereo"
-        kwargs["layout"] = layout
-        self.stream = self.container.add_stream(codec, rate, options, **kwargs)
+        if isinstance(file, BytesIO):
+            assert container_format is not None
+            if isinstance(container_format, bv.ContainerFormat):
+                container_format = container_format.name
+            self.container = bv.open(file, "w", container_format)
+        else:
+            self.container = bv.open(file, "w")
+        # set and check codec
+        codec = codec or self.container.default_audio_codec
+        if isinstance(codec, str):
+            codec = bv.Codec(codec, "w")
+        assert codec.name in self.container.supported_codecs
+        # set and check format
+        if dtype is not None:
+            format = get_format(dtype, is_planar, codec.audio_formats)
+        else:
+            format = format or codec.audio_formats[0]
+        if isinstance(format, bv.AudioFormat):
+            format = format.name
+        assert format in set(format.name for format in codec.audio_formats)
+        if layout is None:
+            assert channels in (1, 2)
+            layout = "mono" if channels == 1 else "stereo"
 
-    def write(self, frame: Union[AudioFrame, np.ndarray]):
+        kwargs = {**kwargs, **{"format": format, "layout": layout}}
+        self.stream = self.container.add_stream(codec.name, rate, options, **kwargs)
+
+    def write(self, frame: AudioFrame):
         if isinstance(frame, np.ndarray):
             frame = from_ndarray(frame, self.stream.format.name, self.stream.layout, self.stream.rate)
         for packet in self.stream.encode(frame):

@@ -1,0 +1,6 @@
+{{ format.name }} ({{ format.long_name }})
+
+Supported Extensions:
+{%- for extension in format.extensions %}
+  - {{ extension }}
+{%- endfor %}

@@ -13,12 +13,12 @@
 # limitations under the License.
 
 import math
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional
 
-import numpy as np
 from lhotse import Seconds
 
-from audiolab.pyav import AudioGraph, Filter, Info, aformat, load_url, split_audio_frame
+from audiolab.av import AudioGraph, Info, aformat, load_url, split_audio_frame
+from audiolab.av.typing import AudioFormat, Dtype, Filter
 
 
 class Reader(Info):
@@ -29,10 +29,12 @@ class Reader(Info):
         offset: Seconds = 0.0,
         duration: Optional[Seconds] = None,
         filters: List[Filter] = [],
-        dtype: Optional[np.dtype] = None,
+        dtype: Optional[Dtype] = None,
+        is_planar: bool = False,
+        format: Optional[AudioFormat] = None,
         rate: Optional[int] = None,
         to_mono: bool = False,
-        frame_size: Optional[Union[int, str]] = None,
+        frame_size: Optional[int] = None,
         frame_size_ms: Optional[int] = None,
         return_ndarray: bool = True,
     ):
@@ -46,7 +48,8 @@ class Reader(Info):
         if self.start_time > 0:
             self.container.seek(self.start_time, any_frame=True, stream=self.stream)
 
-        filters.append(aformat(dtype, rate, to_mono))
+        if not all([dtype is None, format is None, rate is None, to_mono is None]):
+            filters.append(aformat(dtype, is_planar, format, rate, to_mono))
         if frame_size is None and frame_size_ms is not None:
             frame_size = frame_size_ms * self.stream.rate / 1000
         self.frame_size = frame_size
@@ -69,6 +72,3 @@ class Reader(Info):
             self.graph.push(frame)
             yield from self.graph.pull()
         yield from self.graph.pull(partial=True)
-
-    def __del__(self):
-        self.container.close()

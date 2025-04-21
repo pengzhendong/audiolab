@@ -31,7 +31,7 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "audioinfo = audiolab.cli:info",
+            "audioi = audiolab.cli:info",
         ]
     },
     classifiers=[

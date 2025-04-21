@@ -1,0 +1,13 @@
+{{ format.name }} (np.{{ dtype }}, {{ "Planar" if format.is_planar else "Packed" }})
+
+Supported DeCodecs:
+{%- set codecs = decodecs | sort(attribute="name") %}
+{%- for codec in codecs %}
+  - {{ codec.canonical_name }} ({{ codec.long_name }})
+{%- endfor %}
+
+Supported EnCodecs:
+{%- set codecs = encodecs | sort(attribute="name") %}
+{%- for codec in codecs %}
+  - {{ codec.name }} ({{ codec.long_name }})
+{%- endfor %}

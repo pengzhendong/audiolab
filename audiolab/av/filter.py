@@ -12,14 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Tuple, TypeAlias, Union
+from bv import filter
+from bv.descriptor import OptionType
 
-from av import filter
-from av.option import OptionType
-
-from audiolab.pyav.utils import get_template
-
-Filter: TypeAlias = Union[str, Tuple[str, str], Tuple[str, Dict[str, str]], Tuple[str, str, Dict[str, str]]]
+from audiolab.av.utils import get_template
 
 filters = []
 for name in filter.filters_available:

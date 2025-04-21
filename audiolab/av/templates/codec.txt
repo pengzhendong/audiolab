@@ -1,0 +1,17 @@
+{{ codec.canonical_name }} ({{ codec.long_name }})
+
+Supported Formats:
+{%- set formats = codec.audio_formats | sort(attribute="name") %}
+{%- for format in formats %}
+  {%- set name = format.name %}
+  {%- set dtype = np.dtype(format_dtypes[name]) %}
+  {%- set layout = "Planar" if format.is_planar else "Packed" %}
+  - {{ name }} (np.{{ dtype }}, {{ layout }})
+{%- endfor %}
+{% if codec.audio_rates %}
+Supported Rates (Hz):
+{%- set rates = codec.audio_rates | sort %}
+  {%- for rate in rates %}
+  - {{ rate }}
+  {%- endfor %}
+{%- endif %}

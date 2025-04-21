@@ -14,23 +14,24 @@
 
 from typing import Any
 
-import av
+import bv
+from bv import AudioCodecContext, AudioLayout, AudioStream, Codec, time_base
 from humanize import naturalsize
-from lhotse.utils import Seconds
+from lhotse import Seconds
 
-from audiolab.pyav.utils import get_template
+from audiolab.av.utils import get_template
 
 
 class Info:
-    stream: av.AudioStream
+    stream: AudioStream
     channels: int
-    codec: av.Codec
+    codec: Codec
     rate: int
     sample_rate: int
-    layout: av.AudioLayout
+    layout: AudioLayout
 
     def __init__(self, file: Any, stream_id: int = 0):
-        self.container = av.open(file)
+        self.container = bv.open(file)
         self.stream = self.container.streams.audio[stream_id]
         self.channels = self.stream.channels
         self.codec = self.stream.codec
@@ -43,7 +44,7 @@ class Info:
         self.is_streamable = Info.is_streamable(self.stream.codec_context)
 
     @staticmethod
-    def is_streamable(codec_context: av.AudioCodecContext) -> bool:
+    def is_streamable(codec_context: AudioCodecContext) -> bool:
         # https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/avcodec.h#L1045-L1051
         """
         Each submitted frame except the last must contain exactly frame_size samples per channel.
@@ -57,7 +58,7 @@ class Info:
             start_time = self.stream.start_time or 0
             return Seconds((self.stream.duration + start_time) * self.stream.time_base)
         start_time = self.container.start_time or 0
-        return Seconds((self.container.duration + start_time) / av.time_base)
+        return Seconds((self.container.duration + start_time) / time_base)
 
     @property
     def num_cdda_sectors(self) -> float:

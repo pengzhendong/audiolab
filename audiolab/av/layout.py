@@ -12,40 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from typing import Dict
 
-import av
-from av.audio.layout import AudioChannel
+import bv
 
-from audiolab.pyav.utils import get_template
+from audiolab.av.typing import AudioLayoutEnum
 
-
-class AudioLayout:
-    name: str
-    layout: av.AudioLayout
-    channels: list[AudioChannel]
-    nb_channels: int
-
-    def __init__(self, layout: Union[str, av.AudioLayout]):
-        if isinstance(layout, str):
-            self.name = layout
-            self.layout = av.AudioLayout(layout)
-        else:
-            self.name = layout.name
-            self.layout = layout
-        self.channels = self.layout.channels
-        self.nb_channels = self.layout.nb_channels
-
-    @property
-    def __doc__(self):
-        return get_template("layout").render(layout=self.layout)
-
-    def __repr__(self):
-        channels = [channel.name for channel in self.channels]
-        return f"{self.layout} ({', '.join(channels)})"
-
-
-# ffmpeg -layouts
+"""
+$ ffmpeg -layouts
+"""
 standard_channel_layouts = (
     "mono",
     "stereo",
@@ -85,3 +60,5 @@ standard_channel_layouts = (
     "downmix",
     "22.2",
 )
+audio_layouts: Dict[str, bv.AudioLayout] = {name: bv.AudioLayout(name) for name in standard_channel_layouts}
+AudioLayout = AudioLayoutEnum("AudioLayout", audio_layouts)
