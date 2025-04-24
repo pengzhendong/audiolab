@@ -36,7 +36,7 @@ def encode(
     format: Optional[AudioFormat] = None,
     to_mono: bool = False,
     make_wav: bool = True,
-    container_format: ContainerFormat = "opus",
+    container_format: ContainerFormat = "wav",
 ) -> Tuple[str, int]:
     """Transform an audio to a PCM bytestring"""
     if isinstance(audio, (str, Path)):
