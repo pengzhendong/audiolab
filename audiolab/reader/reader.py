@@ -15,6 +15,7 @@
 import math
 from typing import Any, List, Optional
 
+import numpy as np
 from lhotse import Seconds
 
 from audiolab.av import AudioGraph, Info, aformat, load_url, split_audio_frame
@@ -28,7 +29,7 @@ class Reader(Info):
         stream_id: int = 0,
         offset: Seconds = 0.0,
         duration: Optional[Seconds] = None,
-        filters: List[Filter] = [],
+        filters: Optional[List[Filter]] = None,
         dtype: Optional[Dtype] = None,
         is_planar: bool = False,
         format: Optional[AudioFormat] = None,
@@ -49,10 +50,11 @@ class Reader(Info):
             self.container.seek(self.start_time, any_frame=True, stream=self.stream)
 
         if not all([dtype is None, format is None, rate is None, to_mono is None]):
+            filters = filters or []
             filters.append(aformat(dtype, is_planar, format, rate, to_mono))
         if frame_size is None and frame_size_ms is not None:
             frame_size = frame_size_ms * self.stream.rate / 1000
-        self.frame_size = frame_size
+        self.frame_size = min(frame_size, np.iinfo(np.uint32).max)
         self.graph = AudioGraph(
             stream=self.stream, filters=filters, frame_size=frame_size, return_ndarray=return_ndarray
         )

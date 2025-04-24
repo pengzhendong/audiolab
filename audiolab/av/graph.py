@@ -37,11 +37,11 @@ class AudioGraph:
         channels: Optional[int] = None,
         name: Optional[str] = None,
         time_base: Optional[Fraction] = None,
-        filters: List[Filter] = [],
+        filters: Optional[List[Filter]] = None,
         frame_size: int = -1,
         return_ndarray: bool = True,
     ):
-        self.filters = filters
+        self.filters = filters or []
         self.graph = Graph()
         if stream is None:
             if format is None:

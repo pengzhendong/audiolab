@@ -27,31 +27,35 @@ def load_audio(
     stream_id: int = 0,
     offset: Seconds = 0.0,
     duration: Optional[Seconds] = None,
-    filters: List[Filter] = [],
+    filters: Optional[List[Filter]] = None,
     dtype: Optional[Dtype] = None,
     is_planar: bool = False,
     format: Optional[AudioFormat] = None,
     rate: Optional[int] = None,
     to_mono: bool = False,
-    frame_size: int = np.iinfo(np.uint32).max,
+    frame_size: Optional[int] = None,
+    frame_size_ms: Optional[int] = None,
     return_ndarray: bool = True,
 ) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
+    if frame_size_ms is None:
+        frame_size = frame_size or np.iinfo(np.uint32).max
     reader = Reader(
         file,
         stream_id,
         offset,
         duration,
-        filters,
+        filters or [],
         dtype,
         is_planar,
         format,
         rate,
         to_mono,
         frame_size,
+        frame_size_ms,
         return_ndarray,
     )
     generator = reader.__iter__()
-    if frame_size < np.iinfo(np.uint32).max:
+    if reader.frame_size < np.iinfo(np.uint32).max:
         return generator
     return next(generator)
 
