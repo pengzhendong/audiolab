@@ -56,6 +56,7 @@ def encode(
         audio = b64encode(bytestream.getvalue()).decode("ascii")
         audio = f"data:audio/{container_format};base64,{audio}"
     else:
+        audio = np.ascontiguousarray(audio)
         audio = b64encode(audio).decode("ascii")
     return audio, rate
 
