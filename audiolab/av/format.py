@@ -19,14 +19,26 @@ from typing import Dict, Iterable, Literal, Optional, Set, Union
 import bv
 import numpy as np
 from bv import Codec, codecs_available
-from bv.audio.frame import format_dtypes
 from bv.codec.codec import UnknownCodecError
 
 from audiolab.av import typing
 from audiolab.av.utils import get_template
 
 logger = logging.getLogger(__name__)
-format_dtypes = {**format_dtypes, "s64": "i8", "s64p": "i8"}
+format_dtypes = {
+    "dbl": "f8",
+    "dblp": "f8",
+    "flt": "f4",
+    "fltp": "f4",
+    "s16": "i2",
+    "s16p": "i2",
+    "s32": "i4",
+    "s32p": "i4",
+    "s64": "i8",
+    "s64p": "i8",
+    "u8": "u1",
+    "u8p": "u1",
+}
 dtype_formats = {np.dtype(dtype): name for name, dtype in format_dtypes.items() if not name.endswith("p")}
 audio_formats: Dict[str, bv.AudioFormat] = {name: bv.AudioFormat(name) for name in format_dtypes.keys()}
 AudioFormat = typing.AudioFormatEnum("AudioFormat", audio_formats)
