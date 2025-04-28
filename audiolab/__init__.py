@@ -40,13 +40,15 @@ def encode(
 ) -> Tuple[str, int]:
     """Transform an audio to a PCM bytestring"""
     if isinstance(audio, (str, Path)):
-        audio, rate = load_audio(audio, dtype=dtype, is_planar=is_planar, format=format, rate=rate, to_mono=to_mono)
+        audio, rate = load_audio(audio, dtype=dtype, is_planar=is_planar, format=format, rate=rate)
     elif isinstance(audio, (Cut, Recording)):
         if rate is not None:
             audio = audio.resample(rate)
         rate = audio.sampling_rate
         audio = audio.load_audio()
     audio = clip(audio, np.int16)
+    if to_mono and audio.ndim == 2 and audio.shape[0] > 1:
+        audio = audio.mean(axis=0, keepdims=True).astype(audio.dtype)
     if make_wav:
         assert rate is not None
         bytestream = BytesIO()
