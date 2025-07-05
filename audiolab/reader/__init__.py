@@ -36,6 +36,7 @@ def load_audio(
     frame_size: Optional[int] = None,
     frame_size_ms: Optional[int] = None,
     return_ndarray: bool = True,
+    cache_url: bool = True,
 ) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
     if frame_size_ms is None:
         frame_size = frame_size or np.iinfo(np.uint32).max
@@ -53,6 +54,7 @@ def load_audio(
         frame_size,
         frame_size_ms,
         return_ndarray,
+        cache_url,
     )
     generator = reader.__iter__()
     if reader.frame_size < np.iinfo(np.uint32).max:

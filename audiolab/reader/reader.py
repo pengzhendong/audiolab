@@ -38,9 +38,9 @@ class Reader(Info):
         frame_size: Optional[int] = None,
         frame_size_ms: Optional[int] = None,
         return_ndarray: bool = True,
+        cache_url: bool = True,
     ):
-        # Open and seek url by ffmpeg may cause some issues.
-        if isinstance(file, str) and "://" in file:
+        if isinstance(file, str) and "://" in file and cache_url:
             file = load_url(file)
 
         super().__init__(file, stream_id)
