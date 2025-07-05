@@ -43,6 +43,25 @@ class Info:
         self.metadata = self.stream.metadata
         self.is_streamable = Info.is_streamable(self.stream.codec_context)
 
+        # Number of samples per channel
+        self.num_samples = 0
+        if self.stream.duration:
+            start_time = self.stream.start_time or 0
+            self.duration = Seconds((self.stream.duration + start_time) * self.stream.time_base)
+            self.num_samples = int(self.duration * self.stream.rate)
+        elif self.container.duration:
+            start_time = self.container.start_time or 0
+            self.duration = Seconds((self.container.duration + start_time) / time_base)
+            self.num_samples = int(self.duration * self.stream.rate)
+        else:
+            for frame in self.container.decode(self.stream):
+                self.num_samples += frame.samples
+            self.duration = Seconds(self.num_samples / self.stream.rate)
+
+        if self.bit_rate is None or self.bit_rate == 0:
+            # bytes * 8 / seconds
+            self.bit_rate = self.container.size * 8 / self.duration
+
     @staticmethod
     def is_streamable(codec_context: AudioCodecContext) -> bool:
         # https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/avcodec.h#L1045-L1051
@@ -53,21 +72,8 @@ class Info:
         return codec_context.frame_size in (0, 1)
 
     @property
-    def duration(self) -> Seconds:
-        if self.stream.duration:
-            start_time = self.stream.start_time or 0
-            return Seconds((self.stream.duration + start_time) * self.stream.time_base)
-        start_time = self.container.start_time or 0
-        return Seconds((self.container.duration + start_time) / time_base)
-
-    @property
     def num_cdda_sectors(self) -> float:
         return round(self.duration * 75, 2)
-
-    @property
-    def num_samples(self) -> int:
-        # Number of samples per channel
-        return int(self.duration * self.stream.rate)
 
     @staticmethod
     def rstrip_zeros(s: str) -> str:
