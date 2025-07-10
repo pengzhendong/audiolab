@@ -38,8 +38,6 @@ def load_audio(
     return_ndarray: bool = True,
     cache_url: bool = True,
 ) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
-    if frame_size_ms is None:
-        frame_size = frame_size or np.iinfo(np.uint32).max
     reader = Reader(
         file,
         stream_id,

@@ -45,15 +45,18 @@ class Reader(Info):
 
         super().__init__(file, stream_id)
         self.start_time = int(offset / self.stream.time_base)
-        self.end_time = offset + duration if duration is not None else Seconds("inf")
+        self.end_time = Seconds("inf") if duration is None else offset + duration
         if self.start_time > 0:
             self.container.seek(self.start_time, any_frame=True, stream=self.stream)
 
         if not all([dtype is None, format is None, rate is None, to_mono is None]):
             filters = filters or []
             filters.append(aformat(dtype, is_planar, format, rate, to_mono))
-        if frame_size is None and frame_size_ms is not None:
+
+        if frame_size_ms is not None:
             frame_size = frame_size_ms * self.stream.rate / 1000
+        else:
+            frame_size = frame_size or np.iinfo(np.uint32).max
         self.frame_size = min(frame_size, np.iinfo(np.uint32).max)
         self.graph = AudioGraph(
             stream=self.stream, filters=filters, frame_size=frame_size, return_ndarray=return_ndarray

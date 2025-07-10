@@ -23,7 +23,7 @@ for name in filter.filters_available:
     globals()[name] = (
         lambda name: lambda args=None, **kwargs: (
             name,
-            str(args) if args is not None else None,
+            None if args is None else str(args),
             {k: str(v) for k, v in kwargs.items()},
         )
     )(name)

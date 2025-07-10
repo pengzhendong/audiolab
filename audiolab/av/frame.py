@@ -91,7 +91,7 @@ def split_audio_frame(frame: bv.AudioFrame, offset: Seconds) -> Tuple[bv.AudioFr
     offset = int(offset * frame.rate)
     if offset <= 0:
         return None, frame
-    # Number of audio samples (per channel).
+    # number of audio samples (per channel)
     if offset > frame.samples:
         return frame, None
 

@@ -1,11 +1,11 @@
 
-Input File     : '{{ name }}'
+Input File     : {{ name }}
 Channels       : {{ channels }}
 Sample Rate    : {{ rate }}
 Precision      : {{ precision }}-bit
 Duration       : {{ duration }} = {{ num_samples }} samples ~ {{ num_cdda_sectors }} CDDA sectors
 File Size      : {{ size }}
-Bit Rate       : {{ bit_rate }}bps
+Bit Rate       : {{ bit_rate }}
 Sample Encoding: {{ codec }}
 {%- if metadata %}
 Comments       :

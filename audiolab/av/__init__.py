@@ -49,8 +49,8 @@ def aformat(
     return filter.aformat(**kwargs)
 
 
-def info(file: Any, stream_id: int = 0) -> Info:
-    return Info(file, stream_id)
+def info(file: Any, stream_id: int = 0, force_duration: bool = False) -> Info:
+    return Info(file, stream_id, force_duration)
 
 
 __all__ = [

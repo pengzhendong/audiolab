@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from io import BytesIO
 from typing import Any
 
 import click
@@ -20,7 +21,10 @@ import audiolab
 
 
 @click.command()
-@click.argument("audio-path", type=click.Path(exists=True, file_okay=True))
+@click.argument("audio-file", type=click.File(mode="rb"), default="-")
 @click.option("--stream-id", type=int, default=0)
-def info(audio_path: Any, stream_id: int = 0):
-    print(audiolab.info(audio_path, stream_id))
+@click.option("--force-duration", "-f", is_flag=True)
+def info(audio_file: Any, stream_id: int = 0, force_duration: bool = False):
+    if audio_file.name == "-":
+        audio_file = BytesIO(audio_file.read())
+    print(audiolab.info(audio_file, stream_id, force_duration))
