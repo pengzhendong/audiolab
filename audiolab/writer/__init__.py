@@ -36,6 +36,14 @@ def save_audio(
     options: Optional[Dict[str, str]] = None,
     **kwargs
 ):
+    """
+    Save an audio frame to a file.
+
+    Args:
+        file: The output audio file, path to audio file, bytes, etc.
+        frame: The audio frame to save.
+        rate: The sample rate of the audio frame.
+    """
     if isinstance(frame, bv.AudioFrame):
         if format is None:
             dtype = dtype or get_format_dtype(frame.format)

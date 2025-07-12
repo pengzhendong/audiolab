@@ -33,6 +33,21 @@ class StreamReader:
         frame_size: Optional[int] = 1024,
         return_ndarray: bool = True,
     ):
+        """
+        Create a StreamReader object.
+
+        Args:
+            filters: The filters to apply to the audio stream.
+            dtype: The data type of the output audio frames.
+            is_planar: Whether the output audio frames are planar.
+            format: The format of the output audio frames.
+            rate: The sample rate of the output audio frames.
+            to_mono: Whether to convert the output audio frames to mono.
+            frame_size: The frame size of the audio frames.
+            return_ndarray: Whether to return the audio frames as ndarrays.
+        Returns:
+            The StreamReader object.
+        """
         self._codec_context = None
         self._graph = None
         self.bytestream = BytesIO()
@@ -48,6 +63,12 @@ class StreamReader:
 
     @property
     def codec_context(self):
+        """
+        Get the codec context of the audio stream.
+
+        Returns:
+            The codec context of the audio stream.
+        """
         if self._codec_context is None:
             if self.packet is None:
                 return None
@@ -57,6 +78,12 @@ class StreamReader:
 
     @property
     def graph(self):
+        """
+        Get the audio graph of the audio stream.
+
+        Returns:
+            The audio graph of the audio stream.
+        """
         if self._graph is None:
             if self.packet is None:
                 return None
@@ -70,7 +97,12 @@ class StreamReader:
 
     @property
     def is_decoded(self):
-        # x: decoded frames
+        """
+        Check if the current frame is decoded.
+
+        Returns:
+            Whether the current frame is decoded.
+        """
         # o: current frame
         # pts: self.offset, frame.pts, packet.pts
         # +---+---+---+---+---+
@@ -87,6 +119,14 @@ class StreamReader:
         return True
 
     def should_decode(self, partial: bool = False):
+        """
+        Check if the current frame should be decoded.
+
+        Args:
+            partial: Whether to decode a partial frame.
+        Returns:
+            Whether the current frame should be decoded.
+        """
         if partial:
             return True
         if self.bytes_per_decode_attempt * 2 < self.frame_size:
@@ -94,16 +134,38 @@ class StreamReader:
         self.bytes_per_decode_attempt = 0
         return True
 
-    def ready_for_decode(self, partial: bool = False):
+    def ready_for_decoding(self, partial: bool = False):
+        """
+        Check if the current frame is ready for decoding.
+
+        Args:
+            partial: Whether to decode a partial frame.
+        Returns:
+            Whether the current frame is ready for decoding.
+        """
         if self.packet.pts is None and not partial:
             return False
         return not self.is_decoded
 
     def push(self, chunk: bytes):
+        """
+        Push a chunk of audio data to the audio stream.
+
+        Args:
+            chunk: The chunk of audio data to push.
+        """
         self.bytestream.write(chunk)
         self.bytes_per_decode_attempt += len(chunk)
 
     def pull(self, partial: bool = False):
+        """
+        Pull an audio frame from the audio stream.
+
+        Args:
+            partial: Whether to pull a partial frame.
+        Returns:
+            The audio frame.
+        """
         if not self.should_decode(partial):
             return
         try:
@@ -111,7 +173,7 @@ class StreamReader:
             container = bv.open(self.bytestream)
             for packet in container.demux():
                 self.packet = packet
-                if not self.ready_for_decode(partial):
+                if not self.ready_for_decoding(partial):
                     continue
                 for frame in self.codec_context.decode(packet):
                     self.offset = frame.pts + int(frame.samples / packet.stream.rate / packet.stream.time_base)
@@ -122,6 +184,12 @@ class StreamReader:
             pass
 
     def reset(self):
+        """
+        Reset the StreamReader object.
+
+        Returns:
+            The StreamReader object.
+        """
         self._codec_context = None
         self._graph = None
         self.bytestream = BytesIO()

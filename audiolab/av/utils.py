@@ -23,10 +23,26 @@ loader = FileSystemLoader(files("audiolab.av").joinpath("templates"))
 
 
 def get_template(name: str) -> str:
+    """
+    Get a template from the templates directory.
+
+    Args:
+        name: The name of the template.
+    Returns:
+        The template.
+    """
     return Environment(loader=loader).get_template(f"{name}.txt")
 
 
 def load_url(url: str) -> BytesIO:
+    """
+    Load an audio file from a URL.
+
+    Args:
+        url: The URL of the audio file.
+    Returns:
+        The audio bytes.
+    """
     audio_bytes = AudioCache.try_cache(url)
     if audio_bytes is None:
         with SmartOpen.open(url, "rb") as f:

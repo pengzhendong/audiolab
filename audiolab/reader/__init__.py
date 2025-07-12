@@ -38,6 +38,13 @@ def load_audio(
     return_ndarray: bool = True,
     cache_url: bool = True,
 ) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
+    """
+    Load an audio file.
+
+    Args:
+        file: The input audio file, path to audio file, bytes of audio data, etc.
+        stream_id: The index of the stream to load.
+    """
     reader = Reader(
         file,
         stream_id,

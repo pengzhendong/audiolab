@@ -41,6 +41,23 @@ class AudioGraph:
         frame_size: int = -1,
         return_ndarray: bool = True,
     ):
+        """
+        Create an AudioGraph.
+
+        Args:
+            stream: The stream to create the AudioGraph from.
+            rate: The sample rate of the input audio buffer.
+            dtype: The data type of the input audio buffer.
+            is_planar: Whether the input audio buffer is planar.
+            format: The format of the input audio buffer.
+            layout: The layout of the input audio buffer.
+            channels: The number of channels of the input audio buffer.
+            name: The name of the input audio buffer.
+            time_base: The time base of the input audio buffer.
+            filters: The filters to apply to the input audio buffer.
+            frame_size: The frame size of the output audio buffer.
+            return_ndarray: Whether to return the output audio frames as ndarrays.
+        """
         self.filters = filters or []
         self.graph = Graph()
         if stream is None:
@@ -71,19 +88,34 @@ class AudioGraph:
         self.return_ndarray = return_ndarray
 
     def push(self, frame: AudioFrame):
+        """
+        Push an audio frame to the graph.
+
+        Args:
+            frame: The audio frame to push.
+                * shape of ndarray: [num_channels, num_samples]
+        """
         if isinstance(frame, np.ndarray):
-            # [num_channels, num_samples]
             frame = from_ndarray(frame, self.format, self.layout, self.rate)
         self.graph.push(frame)
 
-    def pull(self, partial: bool = False):
+    def pull(self, partial: bool = False, return_ndarray: Optional[bool] = None):
+        """
+        Pull an audio frame from the graph.
+
+        Args:
+            partial: Whether to pull a partial frame.
+            return_ndarray: Whether to return the audio frame as an ndarray.
+                * shape of ndarray: [num_channels, num_samples]
+        """
         if partial:
             self.graph.push(None)
         while True:
             try:
                 frame = self.graph.pull()
-                if self.return_ndarray:
-                    # [num_channels, num_samples]
+                if return_ndarray is None:
+                    return_ndarray = self.return_ndarray
+                if return_ndarray:
                     yield to_ndarray(frame), frame.rate
                 else:
                     yield frame

@@ -22,9 +22,17 @@ import audiolab
 
 @click.command()
 @click.argument("audio-file", type=click.File(mode="rb"), default="-")
-@click.option("--stream-id", type=int, default=0)
-@click.option("--force-duration", "-f", is_flag=True)
-def info(audio_file: Any, stream_id: int = 0, force_duration: bool = False):
+@click.option("--stream-id", "-s", type=int, default=0)
+@click.option("--force-decoding", "-f", is_flag=True)
+def info(audio_file: Any, stream_id: int = 0, force_decoding: bool = False):
+    """
+    Print the information of an audio file.
+
+    Args:
+        audio_file: The audio file, path to audio file, bytes of audio data, etc.
+        stream_id: The index of the stream to load.
+        force_decoding: Whether to force decoding the audio file to get the duration.
+    """
     if audio_file.name == "-":
         audio_file = BytesIO(audio_file.read())
-    print(audiolab.info(audio_file, stream_id, force_duration))
+    print(audiolab.info(audio_file, stream_id, force_decoding))

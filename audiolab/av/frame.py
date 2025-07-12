@@ -27,6 +27,13 @@ logger = logging.getLogger(__name__)
 
 
 def clip(ndarray: np.ndarray, dtype: np.dtype) -> np.ndarray:
+    """
+    Clip the ndarray to the given data type.
+
+    Args:
+        ndarray: The ndarray to clip.
+        dtype: The data type to clip the ndarray to.
+    """
     ndarray = ndarray.numpy() if "tensor" in ndarray.__class__.__name__.lower() else ndarray
     source_type = ndarray.dtype
     target_type = np.dtype(dtype)
@@ -59,6 +66,19 @@ def from_ndarray(
     pts: Optional[int] = None,
     time_base: Optional[Fraction] = None,
 ) -> bv.AudioFrame:
+    """
+    Create an AudioFrame from an ndarray.
+
+    Args:
+        ndarray: The ndarray to create the AudioFrame from.
+        format: The format of the AudioFrame.
+        layout: The layout of the AudioFrame.
+        rate: The sample rate of the AudioFrame.
+        pts: The presentation timestamp of the AudioFrame.
+        time_base: The time base of the AudioFrame.
+    Returns:
+        The AudioFrame.
+    """
     if isinstance(format, str):
         format = bv.AudioFormat(format)
     if format.is_packed:
@@ -79,15 +99,33 @@ def from_ndarray(
 
 
 def to_ndarray(frame: bv.AudioFrame) -> np.ndarray:
-    # packed: [num_channels, num_samples]
-    # planar: [1, num_channels * num_samples]
+    """
+    Convert an AudioFrame to an ndarray.
+
+    Args:
+        frame: The AudioFrame to convert.
+            * shape of packed frame: [num_channels, num_samples]
+            * shape of planar frame: [1, num_channels * num_samples]
+    Returns:
+        The ndarray.
+            * shape: [num_channels, num_samples]
+    """
     ndarray = frame.to_ndarray()
     if frame.format.is_packed:
         ndarray = ndarray.reshape(-1, frame.layout.nb_channels).T
-    return ndarray  # [num_channels, num_samples]
+    return ndarray
 
 
 def split_audio_frame(frame: bv.AudioFrame, offset: Seconds) -> Tuple[bv.AudioFrame, bv.AudioFrame]:
+    """
+    Split an AudioFrame into two AudioFrames.
+
+    Args:
+        frame: The AudioFrame to split.
+        offset: The offset to split the AudioFrame at.
+    Returns:
+        The two AudioFrames.
+    """
     offset = int(offset * frame.rate)
     if offset <= 0:
         return None, frame
