@@ -20,6 +20,10 @@ import numpy as np
 
 
 class BaseEnum(Enum):
+    """
+    The base enum class.
+    """
+
     def __new__(cls, value):
         obj = object.__new__(cls)
         obj._value_ = value
@@ -30,18 +34,34 @@ class BaseEnum(Enum):
 
 
 class CodecEnum(BaseEnum):
+    """
+    The enum for the codec.
+    """
+
     pass
 
 
 class ContainerFormatEnum(BaseEnum):
+    """
+    The enum for the container format.
+    """
+
     pass
 
 
 class AudioFormatEnum(Enum):
+    """
+    The enum for the audio format.
+    """
+
     pass
 
 
 class AudioLayoutEnum(BaseEnum):
+    """
+    The enum for the audio layout.
+    """
+
     pass
 
 

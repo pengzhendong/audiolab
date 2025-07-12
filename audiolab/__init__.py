@@ -38,7 +38,21 @@ def encode(
     make_wav: bool = True,
     container_format: ContainerFormat = "wav",
 ) -> Tuple[str, int]:
-    """Transform an audio to a PCM bytestring"""
+    """
+    Transform an audio to a PCM bytestring.
+
+    Args:
+        audio: The audio file, ndarray, Cut, Recording, etc.
+        rate: The sample rate of the audio.
+        dtype: The data type of the audio.
+        is_planar: Whether the audio is planar.
+        format: The format of the audio.
+        to_mono: Whether to convert the audio to mono.
+        make_wav: Whether to make the audio a WAV file.
+        container_format: The format of the audio container.
+    Returns:
+        The audio as a PCM bytestring and the sample rate of the audio.
+    """
     if isinstance(audio, (str, Path)):
         audio, rate = load_audio(audio, dtype=dtype, is_planar=is_planar, format=format, rate=rate)
     elif isinstance(audio, (Cut, Recording)):

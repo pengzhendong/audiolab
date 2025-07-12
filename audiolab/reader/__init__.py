@@ -38,6 +38,27 @@ def load_audio(
     return_ndarray: bool = True,
     cache_url: bool = True,
 ) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
+    """
+    Load an audio file.
+
+    Args:
+        file: The audio file, path to audio file, bytes of audio data, etc.
+        stream_id: The index of the stream to load.
+        offset: The offset of the audio stream to load.
+        duration: The duration of the audio stream to load.
+        filters: The filters to apply to the audio stream.
+        dtype: The data type of the audio frames.
+        is_planar: Whether the audio frames are planar.
+        format: The format of the audio frames.
+        rate: The sample rate of the audio frames.
+        to_mono: Whether to convert the audio frames to mono.
+        frame_size: The frame size of the audio frames.
+        frame_size_ms: The frame size in milliseconds of the audio frames.
+        return_ndarray: Whether to return the audio frames as ndarrays.
+        cache_url: Whether to cache the audio file.
+    Returns:
+        The audio frames and the sample rate of the audio stream.
+    """
     reader = Reader(
         file,
         stream_id,

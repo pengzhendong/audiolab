@@ -41,6 +41,23 @@ class Writer:
         options: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
+        """
+        Create a Writer object.
+
+        Args:
+            file: The audio file, path to audio file, bytes, etc.
+            rate: The sample rate of the audio stream.
+            codec: The codec of the audio container.
+            channels: The number of channels of the audio stream.
+            dtype: The data type of the audio stream.
+            is_planar: Whether the audio stream is planar.
+            format: The format of the audio stream.
+            layout: The layout of the audio stream.
+            container_format: The format of the audio container.
+            options: The options of the audio stream.
+        Returns:
+            The Writer object.
+        """
         if isinstance(file, BytesIO):
             assert container_format is not None
             if isinstance(container_format, bv.ContainerFormat):
@@ -69,10 +86,19 @@ class Writer:
         self.stream = self.container.add_stream(codec.name, rate, options, **kwargs)
 
     def write(self, frame: AudioFrame):
+        """
+        Write an audio frame to the audio stream.
+
+        Args:
+            frame: The audio frame to write.
+        """
         if isinstance(frame, np.ndarray):
             frame = from_ndarray(frame, self.stream.format.name, self.stream.layout, self.stream.rate)
         for packet in self.stream.encode(frame):
             self.container.mux(packet)
 
     def close(self):
+        """
+        Close the audio stream.
+        """
         self.container.close()

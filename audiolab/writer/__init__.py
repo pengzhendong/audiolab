@@ -36,6 +36,22 @@ def save_audio(
     options: Optional[Dict[str, str]] = None,
     **kwargs
 ):
+    """
+    Save an audio frame to a file.
+
+    Args:
+        file: The audio file, path to audio file, bytes, etc.
+        rate: The sample rate of the audio stream.
+        codec: The codec of the audio container.
+        channels: The number of channels of the audio stream.
+        dtype: The data type of the audio stream.
+        is_planar: Whether the audio stream is planar.
+        format: The format of the audio stream.
+        layout: The layout of the audio stream.
+        container_format: The format of the audio container.
+        options: The options of the audio stream.
+        **kwargs: Additional arguments for the Writer class.
+    """
     if isinstance(frame, bv.AudioFrame):
         if format is None:
             dtype = dtype or get_format_dtype(frame.format)

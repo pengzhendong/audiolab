@@ -46,6 +46,15 @@ AudioFormat = typing.AudioFormatEnum("AudioFormat", audio_formats)
 
 @lru_cache(maxsize=None)
 def get_codecs(format: typing.AudioFormat, mode: Literal["r", "w"] = "r") -> Set[str]:
+    """
+    Get the codecs available for an audio format.
+
+    Args:
+        format: The audio format.
+        mode: The mode to get the codecs.
+    Returns:
+        The codecs available for the audio format.
+    """
     codecs = set()
     if isinstance(format, bv.AudioFormat):
         format = format.name
@@ -64,6 +73,14 @@ def get_codecs(format: typing.AudioFormat, mode: Literal["r", "w"] = "r") -> Set
 
 @lru_cache(maxsize=None)
 def get_format_dtype(format: typing.AudioFormat) -> np.dtype:
+    """
+    Get the data type of an audio format.
+
+    Args:
+        format: The audio format.
+    Returns:
+        The data type of the audio format.
+    """
     if isinstance(format, bv.AudioFormat):
         format = format.name
     return np.dtype(format_dtypes[format])
@@ -74,7 +91,16 @@ def get_format(
     is_planar: Optional[bool] = None,
     available_formats: Optional[Iterable[typing.AudioFormat]] = None,
 ) -> bv.AudioFormat:
-    # name is dtype such as "float32", or float
+    """
+    Get the audio format of an audio data type.
+
+    Args:
+        name: The name of the audio data type, such as "float32", or float.
+        is_planar: Whether the audio is planar.
+        available_formats: The available formats.
+    Returns:
+        The audio format of the audio data type.
+    """
     if isinstance(name, str) and name not in format_dtypes or isinstance(name, type):
         name = np.dtype(name)
     if isinstance(name, np.dtype):

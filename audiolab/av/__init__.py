@@ -35,6 +35,18 @@ def aformat(
     rate: Optional[int] = None,
     to_mono: bool = False,
 ):
+    """
+    Create a filter.aformat filter.
+
+    Args:
+        dtype: The data type of the audio.
+        is_planar: Whether the audio is planar.
+        format: The format of the audio.
+        rate: The sample rate of the audio.
+        to_mono: Whether to convert the audio to mono.
+    Returns:
+        A filter.aformat filter.
+    """
     kwargs = {}
     if dtype is not None:
         kwargs["sample_fmts"] = get_format(dtype, is_planar).name
@@ -49,8 +61,18 @@ def aformat(
     return filter.aformat(**kwargs)
 
 
-def info(file: Any, stream_id: int = 0, force_duration: bool = False) -> Info:
-    return Info(file, stream_id, force_duration)
+def info(file: Any, stream_id: int = 0, force_decode: bool = False) -> Info:
+    """
+    Get the information of an audio file.
+
+    Args:
+        file: The input audio file, path to audio file, bytes of audio data, etc.
+        stream_id: The index of the stream to get information from.
+        force_decode: Whether to force decoding the audio file to get the duration.
+    Returns:
+        The information of the audio file.
+    """
+    return Info(file, stream_id, force_decode)
 
 
 __all__ = [

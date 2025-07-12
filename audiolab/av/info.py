@@ -16,6 +16,7 @@ from typing import Any, Union
 
 import bv
 from bv import AudioCodecContext, AudioLayout, AudioStream, Codec, time_base
+from bv.container import Container
 from humanize import naturalsize
 from lhotse import Seconds
 
@@ -30,7 +31,15 @@ class Info:
     sample_rate: int
     layout: AudioLayout
 
-    def __init__(self, file: Any, stream_id: int = 0, force_duration: bool = False):
+    def __init__(self, file: Any, stream_id: int = 0, force_decoding: bool = False):
+        """
+        Create an Info object.
+
+        Args:
+            file: The input audio file, path to audio file, bytes of audio data, etc.
+            stream_id: The index of the stream to get information from.
+            force_decoding: Whether to force decoding the audio file to get the duration.
+        """
         self.container = bv.open(file)
         self.stream = self.container.streams.audio[stream_id]
         self.channels = self.stream.channels
@@ -53,7 +62,7 @@ class Info:
             start_time = self.container.start_time or 0
             self.duration = Seconds((self.container.duration + start_time) / time_base)
             self.num_samples = int(self.duration * self.stream.rate)
-        elif force_duration:
+        elif force_decoding:
             # decode the stream to get the duration if the duration is not available
             self.num_samples = 0
             for frame in self.container.decode(self.stream):
@@ -62,15 +71,29 @@ class Info:
 
     @staticmethod
     def is_streamable(codec_context: AudioCodecContext) -> bool:
-        # https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/avcodec.h#L1045-L1051
         """
-        Each submitted frame except the last must contain exactly frame_size samples per channel.
-        May be 0 when the codec has AV_CODEC_CAP_VARIABLE_FRAME_SIZE set, then the frame size is not restricted.
+        Check if the codec is streamable.
+
+        Args:
+            codec_context: The codec context.
+        Returns:
+            Whether the codec is streamable.
+
+        Note:
+            * https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/avcodec.h#L1045-L1051
+            * Each submitted frame except the last must contain exactly frame_size samples per channel.
+            * May be 0 when the codec has AV_CODEC_CAP_VARIABLE_FRAME_SIZE set, then the frame size is not restricted.
         """
         return codec_context.frame_size in (0, 1)
 
     @property
     def bit_rate(self) -> Union[int, None]:
+        """
+        Get the bit rate of the audio stream.
+
+        Returns:
+            The bit rate of the audio stream.
+        """
         bit_rate = self.stream.bit_rate or self.container.bit_rate
         if bit_rate in (None, 0) and self.duration is not None:
             # bytes * 8 / seconds
@@ -79,16 +102,38 @@ class Info:
 
     @property
     def num_cdda_sectors(self) -> Union[float, None]:
+        """
+        Get the number of CDDA sectors of the audio stream.
+
+        Returns:
+            The number of CDDA sectors of the audio stream.
+        """
         return None if self.duration is None else round(self.duration * 75, 2)
 
     @staticmethod
     def rstrip_zeros(s: Union[int, float, str]) -> str:
+        """
+        Remove trailing zeros from a string.
+
+        Args:
+            s: The string to remove trailing zeros from.
+        Returns:
+            The string with trailing zeros removed.
+        """
         if not isinstance(s, str):
             s = str(s)
         return " ".join(x.rstrip("0").rstrip(".") for x in s.split())
 
     @staticmethod
     def format_bit_rate(bit_rate: Union[int, None]) -> str:
+        """
+        Format the bit rate of the audio stream.
+
+        Args:
+            bit_rate: The bit rate of the audio stream.
+        Returns:
+            The formatted bit rate of the audio stream.
+        """
         if bit_rate is None or bit_rate <= 0:
             return "N/A"
         bit_rate = naturalsize(bit_rate).rstrip("B")
@@ -96,6 +141,14 @@ class Info:
 
     @staticmethod
     def format_duration(duration: Union[Seconds, None]) -> str:
+        """
+        Format the duration of the audio stream.
+
+        Args:
+            duration: The duration of the audio stream.
+        Returns:
+            The formatted duration of the audio stream.
+        """
         if duration is None:
             return "N/A"
         hours, rest = divmod(duration, 3600)
@@ -103,25 +156,60 @@ class Info:
         return f"{int(hours):02d}:{int(minutes):02d}:{seconds:06.3f}"
 
     @staticmethod
-    def format_name(name: str, format_name: str) -> str:
+    def format_name(container: Container) -> str:
+        """
+        Format the name of the container.
+
+        Args:
+            container: The container.
+        Returns:
+            The formatted name of the container.
+        """
+        name = container.name
+        _format_name = container.format.name
+        if name.lower().endswith(_format_name.lower()):
+            return f"'{name}'"
+        # <none> for BytesIO, <stdin> for stdin
         if name in ("<none>", "<stdin>"):
-            return f"{name} ({format_name})"
-        return name
+            return f"{name} ({_format_name})"
+        return f"'{name}' ({_format_name})"
 
     @staticmethod
     def format_num_cdda_sectors(num_cdda_sectors: Union[float, None]) -> str:
+        """
+        Format the number of CDDA sectors of the audio stream.
+
+        Args:
+            num_cdda_sectors: The number of CDDA sectors of the audio stream.
+        Returns:
+            The formatted number of CDDA sectors of the audio stream.
+        """
         return "N/A" if num_cdda_sectors is None else Info.rstrip_zeros(num_cdda_sectors)
 
     @staticmethod
     def format_size(size: int) -> str:
+        """
+        Format the size of the audio file.
+
+        Args:
+            size: The size of the audio file.
+        Returns:
+            The formatted size of the audio file.
+        """
         if size in (-1, -78):
             return "N/A"
         size = naturalsize(size)
         return Info.rstrip_zeros(size)
 
     def __str__(self):
+        """
+        Format the audio file information.
+
+        Returns:
+            The formatted audio file information.
+        """
         return get_template("info").render(
-            name=Info.format_name(self.container.name, self.container.format.name),
+            name=Info.format_name(self.container),
             channels=self.channels,
             rate=self.rate,
             precision=self.precision,
