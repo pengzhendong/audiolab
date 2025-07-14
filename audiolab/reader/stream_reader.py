@@ -17,8 +17,9 @@ from typing import List, Optional
 
 import bv
 
-from audiolab.av import AudioGraph, Info, aformat
+from audiolab.av import AudioGraph, aformat
 from audiolab.av.typing import AudioFormat, Dtype, Filter
+from audiolab.reader.info import Info
 
 
 class StreamReader:

@@ -22,9 +22,9 @@ import numpy as np
 from lhotse import Recording
 from lhotse.cut import Cut
 
-from audiolab.av import aformat, clip, from_ndarray, get_format, get_format_dtype, info, split_audio_frame, to_ndarray
+from audiolab.av import aformat, clip, from_ndarray, get_format, get_format_dtype, split_audio_frame, to_ndarray
 from audiolab.av.typing import AudioFormat, ContainerFormat, Dtype
-from audiolab.reader import Reader, StreamReader, load_audio
+from audiolab.reader import Reader, StreamReader, info, load_audio
 from audiolab.writer import Writer, save_audio
 
 

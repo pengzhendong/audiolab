@@ -18,8 +18,9 @@ from typing import Any, List, Optional
 import numpy as np
 from lhotse import Seconds
 
-from audiolab.av import AudioGraph, Info, aformat, load_url, split_audio_frame
+from audiolab.av import AudioGraph, aformat, load_url, split_audio_frame
 from audiolab.av.typing import AudioFormat, Dtype, Filter
+from audiolab.reader.info import Info
 
 
 class Reader(Info):
@@ -70,7 +71,7 @@ class Reader(Info):
         if self.start_time > 0:
             self.container.seek(self.start_time, any_frame=True, stream=self.stream)
 
-        if not all([dtype is None, format is None, rate is None, to_mono is None]):
+        if not all([dtype is None, format is None, rate is None, not to_mono]):
             filters = filters or []
             filters.append(aformat(dtype, is_planar, format, rate, to_mono))
 

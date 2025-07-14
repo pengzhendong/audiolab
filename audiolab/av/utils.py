@@ -15,6 +15,7 @@
 from importlib.resources import files
 from io import BytesIO
 
+from bv import AudioCodecContext
 from jinja2 import Environment, FileSystemLoader
 from lhotse.caching import AudioCache
 from lhotse.utils import SmartOpen
@@ -49,3 +50,20 @@ def load_url(url: str) -> BytesIO:
             audio_bytes = f.read()
         AudioCache.add_to_cache(url, audio_bytes)
     return BytesIO(audio_bytes)
+
+
+def is_streamable(codec_context: AudioCodecContext) -> bool:
+    """
+    Check if the codec is streamable.
+
+    Args:
+        codec_context: The codec context.
+    Returns:
+        Whether the codec is streamable.
+
+    Note:
+        * https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/avcodec.h#L1045-L1051
+        * Each submitted frame except the last must contain exactly frame_size samples per channel.
+        * May be 0 when the codec has AV_CODEC_CAP_VARIABLE_FRAME_SIZE set, then the frame size is not restricted.
+    """
+    return codec_context.frame_size in (0, 1)

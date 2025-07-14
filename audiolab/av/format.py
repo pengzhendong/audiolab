@@ -87,7 +87,7 @@ def get_format_dtype(format: typing.AudioFormat) -> np.dtype:
 
 
 def get_format(
-    name: Union[str, type, np.dtype],
+    dtype: Union[str, type, np.dtype],
     is_planar: Optional[bool] = None,
     available_formats: Optional[Iterable[typing.AudioFormat]] = None,
 ) -> bv.AudioFormat:
@@ -95,30 +95,30 @@ def get_format(
     Get the audio format of an audio data type.
 
     Args:
-        name: The name of the audio data type, such as "float32", or float.
+        dtype: The type of the audio data, such as "float32", or float.
         is_planar: Whether the audio is planar.
         available_formats: The available formats.
     Returns:
         The audio format of the audio data type.
     """
-    if isinstance(name, str) and name not in format_dtypes or isinstance(name, type):
-        name = np.dtype(name)
-    if isinstance(name, np.dtype):
-        assert name in dtype_formats, f"Input dtype `{name}` not in {dtype_formats}."
-        name = dtype_formats[name]
+    if isinstance(dtype, str) and dtype not in format_dtypes or isinstance(dtype, type):
+        dtype = np.dtype(dtype)
+    if isinstance(dtype, np.dtype):
+        assert dtype in dtype_formats, f"Input dtype `{dtype}` is not in {dtype_formats}."
+        dtype = dtype_formats[dtype]
         if is_planar is not None:
-            name = name + ("p" if is_planar else "")
+            dtype = dtype + ("p" if is_planar else "")
         else:
             assert available_formats is not None
             available_formats = [
                 format.name if isinstance(format, typing.AudioFormat) else format for format in available_formats
             ]
-            if name not in available_formats:
-                opposite_format = "packed" if name.endswith("p") else "planar"
-                logger.warning(f"Input format `{name}` not in {available_formats}, try {opposite_format} format.")
-                name = name.rstrip("p") if name.endswith("p") else name + "p"
-            assert name in available_formats, f"Input format `{name}` not in {available_formats}."
-    return AudioFormat[name].value
+            if dtype not in available_formats:
+                opposite_format = "packed" if dtype.endswith("p") else "planar"
+                logger.warning(f"Input format `{dtype}` is not in {available_formats}, try {opposite_format} format.")
+                dtype = dtype.rstrip("p") if dtype.endswith("p") else dtype + "p"
+            assert dtype in available_formats, f"Input format `{dtype}` is not in {available_formats}."
+    return AudioFormat[dtype].value
 
 
 template = get_template("format")

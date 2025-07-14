@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 import bv
 import numpy as np
@@ -23,7 +23,6 @@ from audiolab.av.container import ContainerFormat, container_formats, extension_
 from audiolab.av.format import AudioFormat, audio_formats, get_codecs, get_format, get_format_dtype
 from audiolab.av.frame import clip, from_ndarray, split_audio_frame, to_ndarray
 from audiolab.av.graph import AudioGraph
-from audiolab.av.info import Info
 from audiolab.av.layout import AudioLayout, audio_layouts, standard_channel_layouts
 from audiolab.av.utils import load_url
 
@@ -61,20 +60,6 @@ def aformat(
     return filter.aformat(**kwargs)
 
 
-def info(file: Any, stream_id: int = 0, force_decode: bool = False) -> Info:
-    """
-    Get the information of an audio file.
-
-    Args:
-        file: The input audio file, path to audio file, bytes of audio data, etc.
-        stream_id: The index of the stream to get information from.
-        force_decode: Whether to force decoding the audio file to get the duration.
-    Returns:
-        The information of the audio file.
-    """
-    return Info(file, stream_id, force_decode)
-
-
 __all__ = [
     "AudioFormat",
     "AudioGraph",
@@ -83,7 +68,6 @@ __all__ = [
     "Decodec",
     "Encodec",
     "Filter",
-    "Info",
     "aformat",
     "audio_formats",
     "audio_layouts",
@@ -97,7 +81,6 @@ __all__ = [
     "get_codecs",
     "get_format",
     "get_format_dtype",
-    "info",
     "load_url",
     "split_audio_frame",
     "standard_channel_layouts",

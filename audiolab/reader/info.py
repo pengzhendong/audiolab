@@ -15,12 +15,12 @@
 from typing import Any, Union
 
 import bv
-from bv import AudioCodecContext, AudioLayout, AudioStream, Codec, time_base
+from bv import AudioLayout, AudioStream, Codec, time_base
 from bv.container import Container
 from humanize import naturalsize
 from lhotse import Seconds
 
-from audiolab.av.utils import get_template
+from audiolab.av.utils import get_template, is_streamable
 
 
 class Info:
@@ -49,7 +49,7 @@ class Info:
         self.layout = self.stream.layout
         self.precision = self.stream.format.bits
         self.metadata = {**self.container.metadata, **self.stream.metadata}
-        self.is_streamable = Info.is_streamable(self.stream.codec_context)
+        self.is_streamable = is_streamable(self.stream.codec_context)
 
         # number of audio samples (per channel)
         self.num_samples = None
@@ -68,23 +68,6 @@ class Info:
             for frame in self.container.decode(self.stream):
                 self.num_samples += frame.samples
             self.duration = Seconds(self.num_samples / self.stream.rate)
-
-    @staticmethod
-    def is_streamable(codec_context: AudioCodecContext) -> bool:
-        """
-        Check if the codec is streamable.
-
-        Args:
-            codec_context: The codec context.
-        Returns:
-            Whether the codec is streamable.
-
-        Note:
-            * https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/avcodec.h#L1045-L1051
-            * Each submitted frame except the last must contain exactly frame_size samples per channel.
-            * May be 0 when the codec has AV_CODEC_CAP_VARIABLE_FRAME_SIZE set, then the frame size is not restricted.
-        """
-        return codec_context.frame_size in (0, 1)
 
     @property
     def bit_rate(self) -> Union[int, None]:
