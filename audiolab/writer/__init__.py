@@ -34,7 +34,7 @@ def save_audio(
     layout: Optional[AudioLayout] = None,
     container_format: Optional[ContainerFormat] = None,
     options: Optional[Dict[str, str]] = None,
-    **kwargs
+    **kwargs,
 ):
     """
     Save an audio frame to a file.

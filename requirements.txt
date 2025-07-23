@@ -1,6 +1,0 @@
-basswood-av
-click
-humanize
-jinja2
-lhotse
-smart_open

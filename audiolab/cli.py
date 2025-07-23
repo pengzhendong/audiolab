@@ -23,7 +23,7 @@ import audiolab
 @click.argument("audio-file", type=click.File(mode="rb"), default="-")
 @click.option("--stream-id", "-s", type=int, default=0)
 @click.option("--force-decoding", "-f", is_flag=True, default=False)
-def info(audio_file: Any, stream_id: int = 0, force_decoding: bool = False):
+def main(audio_file: Any, stream_id: int = 0, force_decoding: bool = False):
     """
     Print the information of an audio file.
 
