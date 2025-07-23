@@ -57,8 +57,9 @@ def save_audio(
             dtype = dtype or get_format_dtype(frame.format)
             is_planar = is_planar or frame.format.is_planar
         frame = to_ndarray(frame)
-    channels = frame.shape[0]
-    assert frame.ndim == 2 and channels in (1, 2)
+
+    channels = 1 if frame.ndim == 1 else frame.shape[0]
+    assert channels in (1, 2)
     writer = Writer(file, rate, codec, channels, dtype, is_planar, format, layout, container_format, options, **kwargs)
     writer.write(frame)
     writer.close()
