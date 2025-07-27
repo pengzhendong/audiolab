@@ -93,8 +93,7 @@ class Writer:
             frame: The audio frame to write.
         """
         if isinstance(frame, np.ndarray):
-            if frame.ndim == 1:
-                frame = frame[np.newaxis, :]
+            frame = np.atleast_2d(frame)
             assert frame.ndim == 2, "Audio frame must be 1D (samples,) or 2D (channels, samples)"
             assert frame.shape[0] == self.stream.channels, "Number of channels in frame does not match stream"
             frame = from_ndarray(frame, self.stream.format.name, self.stream.layout, self.stream.rate)
