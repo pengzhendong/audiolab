@@ -63,8 +63,32 @@ print(info)
 
 ```bash
 # Get information about an audio file
-audioi audio.wav
+audi audio.wav
+
+# Show only specific information
+audi -r -c audio.wav  # Show sample rate and channels only
+audi -d audio.wav     # Show duration in hours, minutes and seconds
+audi -D audio.wav     # Show duration in seconds
 ```
+
+#### CLI Options
+
+- `-S, --stream-id INTEGER`        The index of the stream to load (default: 0)
+- `-f, --force-decoding`           Force decoding the audio file to get the duration
+- `-t, --show-file-type`           Show detected file-type
+- `-r, --show-sample-rate`         Show sample-rate
+- `-c, --show-channels`            Show number of channels
+- `-s, --show-samples`             Show number of samples (N/A if unavailable)
+- `-d, --show-duration-hms`        Show duration in hours, minutes and seconds (N/A if unavailable)
+- `-D, --show-duration-seconds`    Show duration in seconds (N/A if unavailable)
+- `-b, --show-bits-per-sample`     Show number of bits per sample (N/A if not applicable)
+- `-B, --show-bitrate`             Show the bitrate averaged over the whole file (N/A if unavailable)
+- `-p, --show-precision`           Show estimated sample precision in bits
+- `-e, --show-encoding`            Show the name of the audio encoding
+- `-a, --show-comments`            Show file comments (annotations) if available
+- `--help`                         Show this message and exit
+
+If no specific options are selected, all information will be displayed by default.
 
 ## API Overview
 

@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.scripts]
-audioi = "audiolab.cli:main"
+audi = "audiolab.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/pengzhendong/audiolab"
