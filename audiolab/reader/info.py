@@ -18,8 +18,8 @@ import bv
 from bv import AudioLayout, AudioStream, Codec, time_base
 from bv.container import Container
 from humanize import naturalsize
-from lhotse import Seconds
 
+from audiolab.av.typing import Seconds
 from audiolab.av.utils import get_template, is_streamable
 
 

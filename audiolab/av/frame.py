@@ -18,10 +18,9 @@ from typing import Optional, Tuple
 
 import bv
 import numpy as np
-from lhotse import Seconds
 
 from audiolab.av.format import get_format_dtype
-from audiolab.av.typing import AudioFormat, AudioLayout
+from audiolab.av.typing import AudioFormat, AudioLayout, Seconds
 
 logger = logging.getLogger(__name__)
 

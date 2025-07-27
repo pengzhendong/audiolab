@@ -16,10 +16,9 @@ import math
 from typing import Any, List, Optional
 
 import numpy as np
-from lhotse import Seconds
 
 from audiolab.av import AudioGraph, aformat, load_url, split_audio_frame
-from audiolab.av.typing import AudioFormat, Dtype, Filter
+from audiolab.av.typing import AudioFormat, Dtype, Filter, Seconds
 from audiolab.reader.info import Info
 
 

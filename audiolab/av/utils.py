@@ -17,8 +17,6 @@ from io import BytesIO
 
 from bv import AudioCodecContext
 from jinja2 import Environment, FileSystemLoader
-from lhotse.caching import AudioCache
-from lhotse.utils import SmartOpen
 
 loader = FileSystemLoader(files("audiolab.av").joinpath("templates"))
 
@@ -44,6 +42,9 @@ def load_url(url: str) -> BytesIO:
     Returns:
         The audio bytes.
     """
+    from lhotse.caching import AudioCache
+    from lhotse.utils import SmartOpen
+
     audio_bytes = AudioCache.try_cache(url)
     if audio_bytes is None:
         with SmartOpen.open(url, "rb") as f:

@@ -14,12 +14,12 @@
 
 import numpy as np
 from bv.audio.frame import format_dtypes
-from lhotse import Seconds
 from numpy.random import randint, uniform
 
 from audiolab.av.format import AudioFormat, get_format_dtype
 from audiolab.av.frame import clip, from_ndarray, split_audio_frame, to_ndarray
 from audiolab.av.layout import AudioLayout
+from audiolab.av.typing import Seconds
 
 
 class TestFrame:

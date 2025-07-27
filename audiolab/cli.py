@@ -136,5 +136,5 @@ def main(
                     print(f"{key}: {value}")
 
     # Print total duration if any files were processed and any options were selected
-    if audio_files and not show_any:
+    if len(audio_files) > 1 and not show_any:
         print(f"\nTotal duration of {len(audio_files)} files: {Info.format_duration(total_duration)}")

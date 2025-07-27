@@ -15,9 +15,8 @@
 from typing import Any, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
-from lhotse import Seconds
 
-from audiolab.av.typing import AudioFormat, Dtype, Filter
+from audiolab.av.typing import AudioFormat, Dtype, Filter, Seconds
 from audiolab.reader.info import Info
 from audiolab.reader.reader import Reader
 from audiolab.reader.stream_reader import StreamReader

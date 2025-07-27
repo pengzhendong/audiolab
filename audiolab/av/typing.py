@@ -33,6 +33,22 @@ class BaseEnum(Enum):
         return getattr(self.value, attr)
 
 
+class AudioFormatEnum(BaseEnum):
+    """
+    The enum for the audio format.
+    """
+
+    pass
+
+
+class AudioLayoutEnum(BaseEnum):
+    """
+    The enum for the audio layout.
+    """
+
+    pass
+
+
 class CodecEnum(BaseEnum):
     """
     The enum for the codec.
@@ -49,26 +65,11 @@ class ContainerFormatEnum(BaseEnum):
     pass
 
 
-class AudioFormatEnum(Enum):
-    """
-    The enum for the audio format.
-    """
-
-    pass
-
-
-class AudioLayoutEnum(BaseEnum):
-    """
-    The enum for the audio layout.
-    """
-
-    pass
-
-
-Codec = Union[str, bv.Codec]
-Dtype = Union[str, type, np.dtype]
-Filter = Union[str, Tuple[str, str], Tuple[str, Dict[str, str]], Tuple[str, str, Dict[str, str]]]
 AudioFormat = Union[str, bv.AudioFormat]
 AudioFrame = Union[np.ndarray, bv.AudioFrame]
 AudioLayout = Union[int, str, bv.AudioLayout]
+Codec = Union[str, bv.Codec]
 ContainerFormat = Union[str, bv.ContainerFormat]
+Dtype = Union[str, type, np.dtype]
+Filter = Union[str, Tuple[str, str], Tuple[str, Dict[str, str]], Tuple[str, str, Dict[str, str]]]
+Seconds = float
