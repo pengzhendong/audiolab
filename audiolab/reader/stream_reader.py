@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from io import BytesIO
-from typing import List, Optional
+from typing import Iterator, List, Optional
 
 import bv
 
@@ -63,7 +63,7 @@ class StreamReader:
         self.packet = None
 
     @property
-    def codec_context(self):
+    def codec_context(self) -> Optional[bv.CodecContext]:
         """
         Get the codec context of the audio stream.
 
@@ -78,7 +78,7 @@ class StreamReader:
         return self._codec_context
 
     @property
-    def graph(self):
+    def graph(self) -> Optional[AudioGraph]:
         """
         Get the audio graph of the audio stream.
 
@@ -97,7 +97,7 @@ class StreamReader:
         return self._graph
 
     @property
-    def is_decoded(self):
+    def is_decoded(self) -> bool:
         """
         Check if the current frame is decoded.
 
@@ -119,7 +119,7 @@ class StreamReader:
             return False
         return True
 
-    def should_decode(self, partial: bool = False):
+    def should_decode(self, partial: bool = False) -> bool:
         """
         Check if the current frame should be decoded.
 
@@ -135,7 +135,7 @@ class StreamReader:
         self.bytes_per_decode_attempt = 0
         return True
 
-    def ready_for_decoding(self, partial: bool = False):
+    def ready_for_decoding(self, partial: bool = False) -> bool:
         """
         Check if the current frame is ready for decoding.
 
@@ -158,13 +158,13 @@ class StreamReader:
         self.bytestream.write(chunk)
         self.bytes_per_decode_attempt += len(chunk)
 
-    def pull(self, partial: bool = False):
+    def pull(self, partial: bool = False) -> Optional[Iterator[bv.AudioFrame]]:
         """
         Pull an audio frame from the audio stream.
 
         Args:
             partial: Whether to pull a partial frame.
-        Returns:
+        Yields:
             The audio frame.
         """
         if not self.should_decode(partial):
