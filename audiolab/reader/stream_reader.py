@@ -19,7 +19,7 @@ import bv
 
 from audiolab.av import AudioGraph, aformat
 from audiolab.av.typing import AudioFormat, Dtype, Filter
-from audiolab.reader.info import Info
+from audiolab.av.utils import is_streamable
 
 
 class StreamReader:
@@ -74,7 +74,7 @@ class StreamReader:
             if self.packet is None:
                 return None
             self._codec_context = self.packet.stream.codec_context
-            assert Info.is_streamable(self._codec_context), "Only support streamable codec"
+            assert is_streamable(self._codec_context), "Only support streamable codec"
         return self._codec_context
 
     @property
