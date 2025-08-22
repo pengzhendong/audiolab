@@ -15,7 +15,7 @@
 from enum import Enum
 from typing import Dict, Tuple, Union
 
-import bv
+import av
 import numpy as np
 
 
@@ -65,11 +65,11 @@ class ContainerFormatEnum(BaseEnum):
     pass
 
 
-AudioFormat = Union[str, bv.AudioFormat]
-AudioFrame = Union[np.ndarray, bv.AudioFrame]
-AudioLayout = Union[int, str, bv.AudioLayout]
-Codec = Union[str, bv.Codec]
-ContainerFormat = Union[str, bv.ContainerFormat]
+AudioFormat = Union[str, av.AudioFormat]
+AudioFrame = Union[np.ndarray, av.AudioFrame]
+AudioLayout = Union[int, str, av.AudioLayout]
+Codec = Union[str, av.Codec]
+ContainerFormat = Union[str, av.ContainerFormat]
 Dtype = Union[str, type, np.dtype]
 Filter = Union[str, Tuple[str, str], Tuple[str, Dict[str, str]], Tuple[str, str, Dict[str, str]]]
 Seconds = float

@@ -16,9 +16,9 @@ import errno
 from fractions import Fraction
 from typing import List, Optional
 
-import bv
+import av
 import numpy as np
-from bv.filter import Graph
+from av.filter import Graph
 
 from audiolab.av.format import get_format
 from audiolab.av.frame import from_ndarray, to_ndarray
@@ -28,7 +28,7 @@ from audiolab.av.typing import AudioFormat, AudioFrame, AudioLayout, Dtype, Filt
 class AudioGraph:
     def __init__(
         self,
-        stream: Optional[bv.AudioStream] = None,
+        stream: Optional[av.AudioStream] = None,
         rate: Optional[int] = None,
         dtype: Optional[Dtype] = None,
         is_planar: bool = False,
@@ -67,7 +67,7 @@ class AudioGraph:
                 sample_rate=rate, format=format, layout=layout, channels=channels, name=name, time_base=time_base
             )
             self.rate = rate
-            self.format = format.name if isinstance(format, bv.AudioFormat) else format
+            self.format = format.name if isinstance(format, av.AudioFormat) else format
             self.layout = layout
         else:
             abuffer = self.graph.add_abuffer(template=stream)
@@ -119,9 +119,9 @@ class AudioGraph:
                     yield to_ndarray(frame), frame.rate
                 else:
                     yield frame
-            except bv.EOFError:
+            except av.EOFError:
                 break
-            except bv.FFmpegError as e:
+            except av.FFmpegError as e:
                 if e.errno != errno.EAGAIN:
                     raise
                 break

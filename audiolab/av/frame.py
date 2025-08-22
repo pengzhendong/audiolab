@@ -16,7 +16,7 @@ import logging
 from fractions import Fraction
 from typing import Optional, Tuple
 
-import bv
+import av
 import numpy as np
 
 from audiolab.av.format import get_format_dtype
@@ -64,7 +64,7 @@ def from_ndarray(
     rate: int,
     pts: Optional[int] = None,
     time_base: Optional[Fraction] = None,
-) -> bv.AudioFrame:
+) -> av.AudioFrame:
     """
     Create an AudioFrame from an ndarray.
 
@@ -79,16 +79,16 @@ def from_ndarray(
         The AudioFrame.
     """
     if isinstance(format, str):
-        format = bv.AudioFormat(format)
+        format = av.AudioFormat(format)
     if format.is_packed:
         # [num_channels, num_samples] => [1, num_channels * num_samples]
         ndarray = ndarray.T.reshape(1, -1)
     if isinstance(layout, str):
-        layout = bv.AudioLayout(layout)
+        layout = av.AudioLayout(layout)
 
     dtype = get_format_dtype(format)
     ndarray = clip(ndarray, dtype)
-    frame = bv.AudioFrame.from_ndarray(ndarray, format=format.name, layout=layout)
+    frame = av.AudioFrame.from_ndarray(ndarray, format=format.name, layout=layout)
     frame.rate = rate
     if pts is not None:
         frame.pts = pts
@@ -97,7 +97,7 @@ def from_ndarray(
     return frame
 
 
-def to_ndarray(frame: bv.AudioFrame) -> np.ndarray:
+def to_ndarray(frame: av.AudioFrame) -> np.ndarray:
     """
     Convert an AudioFrame to an ndarray.
 
@@ -115,7 +115,7 @@ def to_ndarray(frame: bv.AudioFrame) -> np.ndarray:
     return ndarray
 
 
-def split_audio_frame(frame: bv.AudioFrame, offset: Seconds) -> Tuple[bv.AudioFrame, bv.AudioFrame]:
+def split_audio_frame(frame: av.AudioFrame, offset: Seconds) -> Tuple[av.AudioFrame, av.AudioFrame]:
     """
     Split an AudioFrame into two AudioFrames.
 
@@ -136,8 +136,8 @@ def split_audio_frame(frame: bv.AudioFrame, offset: Seconds) -> Tuple[bv.AudioFr
     left, right = ndarray[:, :offset], ndarray[:, offset:]
     if frame.format.is_packed:
         left, right = left.T.reshape(1, -1), right.T.reshape(1, -1)
-    left = bv.AudioFrame.from_ndarray(left, format=frame.format.name, layout=frame.layout)
-    right = bv.AudioFrame.from_ndarray(right, format=frame.format.name, layout=frame.layout)
+    left = av.AudioFrame.from_ndarray(left, format=frame.format.name, layout=frame.layout)
+    right = av.AudioFrame.from_ndarray(right, format=frame.format.name, layout=frame.layout)
     left.rate, right.rate = frame.rate, frame.rate
     if frame.pts is not None:
         left.pts, right.pts = frame.pts, frame.pts + offset

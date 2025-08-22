@@ -15,15 +15,15 @@
 from collections import defaultdict
 from typing import Dict, Set
 
-import bv
+import av
 
 from audiolab.av.typing import ContainerFormatEnum
 from audiolab.av.utils import get_template
 
-container_formats: Dict[str, bv.ContainerFormat] = {}
+container_formats: Dict[str, av.ContainerFormat] = {}
 extension_formats: Dict[str, Set[str]] = defaultdict(set)
-for name in bv.formats_available:
-    container_formats[name] = bv.ContainerFormat(name)
+for name in av.formats_available:
+    container_formats[name] = av.ContainerFormat(name)
     for extension in container_formats[name].extensions:
         extension_formats[extension].add(name)
 ContainerFormat = ContainerFormatEnum("ContainerFormat", container_formats)

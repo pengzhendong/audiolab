@@ -15,7 +15,7 @@
 from importlib.resources import files
 from io import BytesIO
 
-from bv import AudioCodecContext
+from av import AudioCodecContext
 from jinja2 import Environment, FileSystemLoader
 
 loader = FileSystemLoader(files("audiolab.av").joinpath("templates"))

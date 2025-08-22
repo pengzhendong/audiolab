@@ -14,8 +14,8 @@
 
 from typing import Any, Callable, Dict, List
 
-from bv import filter
-from bv.descriptor import OptionType
+from av import filter
+from av.option import OptionType
 
 from audiolab.av.utils import get_template
 

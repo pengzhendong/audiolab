@@ -14,7 +14,7 @@
 
 from typing import Dict
 
-import bv
+import av
 
 from audiolab.av.typing import AudioLayoutEnum
 
@@ -60,5 +60,5 @@ standard_channel_layouts = (
     "downmix",
     "22.2",
 )
-audio_layouts: Dict[str, bv.AudioLayout] = {name: bv.AudioLayout(name) for name in standard_channel_layouts}
+audio_layouts: Dict[str, av.AudioLayout] = {name: av.AudioLayout(name) for name in standard_channel_layouts}
 AudioLayout = AudioLayoutEnum("AudioLayout", audio_layouts)

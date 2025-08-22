@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import numpy as np
-from bv.audio.frame import format_dtypes
+from av.audio.frame import format_dtypes
 from numpy.random import randint, uniform
 
 from audiolab.av.format import AudioFormat, get_format_dtype

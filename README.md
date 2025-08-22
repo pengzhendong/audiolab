@@ -3,7 +3,7 @@
 [![PyPI](https://img.shields.io/pypi/v/audiolab)](https://pypi.org/project/audiolab/)
 [![License](https://img.shields.io/github/license/pengzhendong/audiolab)](LICENSE)
 
-A Python library for audio processing built on top of `bv` (bindings for FFmpeg). audiolab provides a simple and efficient interface for loading, processing, and saving audio files.
+A Python library for audio processing built on top of [PyAV](https://github.com/PyAV-Org/PyAV) (bindings for FFmpeg). audiolab provides a simple and efficient interface for loading, processing, and saving audio files.
 
 ## Features
 

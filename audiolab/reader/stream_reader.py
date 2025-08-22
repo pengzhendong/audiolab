@@ -15,7 +15,7 @@
 from io import BytesIO
 from typing import Iterator, List, Optional
 
-import bv
+import av
 
 from audiolab.av import AudioGraph, aformat
 from audiolab.av.typing import AudioFormat, Dtype, Filter
@@ -63,7 +63,7 @@ class StreamReader:
         self.packet = None
 
     @property
-    def codec_context(self) -> Optional[bv.CodecContext]:
+    def codec_context(self) -> Optional[av.CodecContext]:
         """
         Get the codec context of the audio stream.
 
@@ -158,7 +158,7 @@ class StreamReader:
         self.bytestream.write(chunk)
         self.bytes_per_decode_attempt += len(chunk)
 
-    def pull(self, partial: bool = False) -> Optional[Iterator[bv.AudioFrame]]:
+    def pull(self, partial: bool = False) -> Optional[Iterator[av.AudioFrame]]:
         """
         Pull an audio frame from the audio stream.
 
@@ -171,7 +171,7 @@ class StreamReader:
             return
         try:
             self.bytestream.seek(0)
-            container = bv.open(self.bytestream)
+            container = av.open(self.bytestream)
             for packet in container.demux():
                 self.packet = packet
                 if not self.ready_for_decoding(partial):
@@ -181,7 +181,7 @@ class StreamReader:
                     self.graph.push(frame)
                     yield from self.graph.pull()
                 yield from self.graph.pull(partial=partial)
-        except (bv.EOFError, bv.InvalidDataError, bv.OSError, bv.PermissionError):
+        except (av.EOFError, av.InvalidDataError, av.OSError, av.PermissionError):
             pass
 
     def reset(self):

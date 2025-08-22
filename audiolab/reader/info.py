@@ -14,9 +14,9 @@
 
 from typing import Any, Union
 
-import bv
-from bv import AudioLayout, AudioStream, Codec, time_base
-from bv.container import Container
+import av
+from av import AudioLayout, AudioStream, Codec, time_base
+from av.container import Container
 from humanize import naturalsize
 
 from audiolab.av.typing import Seconds
@@ -40,7 +40,7 @@ class Info:
             stream_id: The index of the stream to get information from.
             force_decoding: Whether to force decoding the audio file to get the duration.
         """
-        self.container = bv.open(file)
+        self.container = av.open(file)
         self.stream = self.container.streams.audio[stream_id]
         self.channels = self.stream.channels
         self.codec = self.stream.codec

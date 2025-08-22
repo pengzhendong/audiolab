@@ -15,10 +15,10 @@
 from collections import defaultdict
 from typing import Dict, Set
 
-import bv
+import av
 import numpy as np
-from bv import codecs_available
-from bv.codec.codec import UnknownCodecError
+from av import codecs_available
+from av.codec.codec import UnknownCodecError
 
 from audiolab.av.format import format_dtypes
 from audiolab.av.typing import CodecEnum
@@ -30,12 +30,12 @@ class CodecManager:
 
     def __init__(self):
         self.canonical_names: Dict[str, Set[str]] = defaultdict(set)
-        self.decodecs: Dict[str, bv.Codec] = {}
-        self.encodecs: Dict[str, bv.Codec] = {}
+        self.decodecs: Dict[str, av.Codec] = {}
+        self.encodecs: Dict[str, av.Codec] = {}
 
         for codec in codecs_available:
             try:
-                decoder_codec = bv.Codec(codec)
+                decoder_codec = av.Codec(codec)
                 if decoder_codec.type != "audio":
                     continue
                 if decoder_codec.audio_formats is not None:
@@ -45,7 +45,7 @@ class CodecManager:
                     if codec_name not in self.decodecs:
                         self.decodecs[codec_name] = decoder_codec
 
-                encoder_codec = bv.Codec(codec, "w")
+                encoder_codec = av.Codec(codec, "w")
                 if encoder_codec.audio_formats is not None:
                     canonical_name = encoder_codec.canonical_name
                     codec_name = encoder_codec.name

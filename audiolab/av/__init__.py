@@ -14,7 +14,7 @@
 
 from typing import Optional, Union
 
-import bv
+import av
 import numpy as np
 
 from audiolab.av import filter
@@ -30,7 +30,7 @@ from audiolab.av.utils import load_url
 def aformat(
     dtype: Optional[Union[str, type, np.dtype]] = None,
     is_planar: bool = False,
-    format: Optional[Union[str, bv.AudioFormat]] = None,
+    format: Optional[Union[str, av.AudioFormat]] = None,
     rate: Optional[int] = None,
     to_mono: bool = False,
 ):
@@ -50,7 +50,7 @@ def aformat(
     if dtype is not None:
         kwargs["sample_fmts"] = get_format(dtype, is_planar).name
     if format is not None:
-        if isinstance(format, bv.AudioFormat):
+        if isinstance(format, av.AudioFormat):
             format = format.name
         kwargs["sample_fmts"] = format
     if rate is not None:

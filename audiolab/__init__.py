@@ -19,7 +19,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Tuple, Union
 
-import bv
+import av
 import numpy as np
 
 from audiolab.av import aformat, clip, from_ndarray, get_format, get_format_dtype, split_audio_frame, to_ndarray
@@ -71,7 +71,7 @@ def encode(
     if make_wav:
         assert rate is not None
         bytestream = BytesIO()
-        if isinstance(container_format, bv.ContainerFormat):
+        if isinstance(container_format, av.ContainerFormat):
             container_format = container_format.name
         save_audio(bytestream, audio, rate, container_format=container_format)
         audio = b64encode(bytestream.getvalue()).decode("ascii")

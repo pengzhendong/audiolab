@@ -14,7 +14,7 @@
 
 from typing import Any, Dict, Optional
 
-import bv
+import av
 
 from audiolab.av.format import get_format_dtype
 from audiolab.av.frame import to_ndarray
@@ -52,7 +52,7 @@ def save_audio(
         options: The options of the audio stream.
         **kwargs: Additional arguments for the Writer class.
     """
-    if isinstance(frame, bv.AudioFrame):
+    if isinstance(frame, av.AudioFrame):
         if format is None:
             dtype = dtype or get_format_dtype(frame.format)
             is_planar = is_planar or frame.format.is_planar

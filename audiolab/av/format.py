@@ -16,10 +16,10 @@ import logging
 from functools import lru_cache
 from typing import Dict, Iterable, Literal, Optional, Set, Union
 
-import bv
+import av
 import numpy as np
-from bv import Codec, codecs_available
-from bv.codec.codec import UnknownCodecError
+from av import Codec, codecs_available
+from av.codec.codec import UnknownCodecError
 
 from audiolab.av import typing
 from audiolab.av.utils import get_template
@@ -40,7 +40,7 @@ format_dtypes = {
     "u8p": "u1",
 }
 dtype_formats = {np.dtype(dtype): name for name, dtype in format_dtypes.items() if not name.endswith("p")}
-audio_formats: Dict[str, bv.AudioFormat] = {name: bv.AudioFormat(name) for name in format_dtypes.keys()}
+audio_formats: Dict[str, av.AudioFormat] = {name: av.AudioFormat(name) for name in format_dtypes.keys()}
 AudioFormat = typing.AudioFormatEnum("AudioFormat", audio_formats)
 
 
@@ -56,7 +56,7 @@ def get_codecs(format: typing.AudioFormat, mode: Literal["r", "w"] = "r") -> Set
         The codecs available for the audio format.
     """
     codecs = set()
-    if isinstance(format, bv.AudioFormat):
+    if isinstance(format, av.AudioFormat):
         format = format.name
     for codec in codecs_available:
         try:
@@ -81,7 +81,7 @@ def get_format_dtype(format: typing.AudioFormat) -> np.dtype:
     Returns:
         The data type of the audio format.
     """
-    if isinstance(format, bv.AudioFormat):
+    if isinstance(format, av.AudioFormat):
         format = format.name
     return np.dtype(format_dtypes[format])
 
@@ -90,7 +90,7 @@ def get_format(
     dtype: Union[str, type, np.dtype],
     is_planar: Optional[bool] = None,
     available_formats: Optional[Iterable[typing.AudioFormat]] = None,
-) -> bv.AudioFormat:
+) -> av.AudioFormat:
     """
     Get the audio format of an audio data type.
 

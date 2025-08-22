@@ -14,7 +14,7 @@
 
 import numpy as np
 import pytest
-from bv.filter import filters_available
+from av.filter import filters_available
 
 from audiolab import av
 from audiolab.av import filter

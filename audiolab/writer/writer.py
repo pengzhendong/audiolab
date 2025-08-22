@@ -16,7 +16,7 @@ import logging
 from io import BytesIO
 from typing import Any, Dict, Optional
 
-import bv
+import av
 import numpy as np
 
 from audiolab.av import from_ndarray
@@ -60,22 +60,22 @@ class Writer:
         """
         if isinstance(file, BytesIO):
             assert container_format is not None
-            if isinstance(container_format, bv.ContainerFormat):
+            if isinstance(container_format, av.ContainerFormat):
                 container_format = container_format.name
-            self.container = bv.open(file, "w", container_format)
+            self.container = av.open(file, "w", container_format)
         else:
-            self.container = bv.open(file, "w")
+            self.container = av.open(file, "w")
         # set and check codec
         codec = codec or self.container.default_audio_codec
         if isinstance(codec, str):
-            codec = bv.Codec(codec, "w")
+            codec = av.Codec(codec, "w")
         assert codec.name in self.container.supported_codecs
         # set and check format
         if dtype is not None:
             format = get_format(dtype, is_planar, codec.audio_formats)
         else:
             format = format or codec.audio_formats[0]
-        if isinstance(format, bv.AudioFormat):
+        if isinstance(format, av.AudioFormat):
             format = format.name
         assert format in set(format.name for format in codec.audio_formats)
         if layout is None:
