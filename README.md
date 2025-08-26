@@ -10,7 +10,6 @@ A Python library for audio processing built on top of [PyAV](https://github.com/
 - Load audio files in various formats (WAV, MP3, FLAC, AAC, etc.)
 - Save audio files in different container formats
 - Support for audio streaming and real-time processing
-- Integration with popular audio libraries like Lhotse
 - Command-line interface for audio file inspection
 - Support for audio transformations and filtering
 

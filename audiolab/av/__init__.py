@@ -24,7 +24,7 @@ from audiolab.av.format import AudioFormat, audio_formats, get_codecs, get_forma
 from audiolab.av.frame import clip, from_ndarray, split_audio_frame, to_ndarray
 from audiolab.av.graph import AudioGraph
 from audiolab.av.layout import AudioLayout, audio_layouts, standard_channel_layouts
-from audiolab.av.utils import load_url
+from audiolab.av.lhotse import AudioCache, load_url
 
 
 def aformat(
@@ -61,6 +61,7 @@ def aformat(
 
 
 __all__ = [
+    "AudioCache",
     "AudioFormat",
     "AudioGraph",
     "AudioLayout",

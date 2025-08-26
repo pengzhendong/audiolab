@@ -62,7 +62,7 @@ class Reader(Info):
             The Reader object.
         """
         if isinstance(file, str) and "://" in file and cache_url:
-            file = load_url(file)
+            file = load_url(file, cache=True)
 
         super().__init__(file, stream_id)
         self.start_time = int(offset / self.stream.time_base)

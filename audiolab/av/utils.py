@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from importlib.resources import files
-from io import BytesIO
 
 from av import AudioCodecContext
 from jinja2 import Environment, FileSystemLoader
@@ -31,26 +30,6 @@ def get_template(name: str) -> str:
         The template.
     """
     return Environment(loader=loader).get_template(f"{name}.txt")
-
-
-def load_url(url: str) -> BytesIO:
-    """
-    Load an audio file from a URL.
-
-    Args:
-        url: The URL of the audio file.
-    Returns:
-        The audio bytes.
-    """
-    from lhotse.caching import AudioCache
-    from lhotse.utils import SmartOpen
-
-    audio_bytes = AudioCache.try_cache(url)
-    if audio_bytes is None:
-        with SmartOpen.open(url, "rb") as f:
-            audio_bytes = f.read()
-        AudioCache.add_to_cache(url, audio_bytes)
-    return BytesIO(audio_bytes)
 
 
 def is_streamable(codec_context: AudioCodecContext) -> bool:

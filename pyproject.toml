@@ -19,7 +19,6 @@ dependencies = [
   "click",
   "humanize",
   "jinja2",
-  "lhotse",
   "smart_open",
 ]
 
