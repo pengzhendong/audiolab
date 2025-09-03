@@ -54,20 +54,20 @@ class Info:
         # number of audio samples (per channel)
         self.num_samples = None
         self.duration = None
-        if self.stream.duration:
-            start_time = self.stream.start_time or 0
-            self.duration = Seconds((self.stream.duration + start_time) * self.stream.time_base)
-            self.num_samples = int(self.duration * self.stream.rate)
-        elif self.container.duration:
-            start_time = self.container.start_time or 0
-            self.duration = Seconds((self.container.duration + start_time) / time_base)
-            self.num_samples = int(self.duration * self.stream.rate)
-        elif force_decoding:
-            # decode the stream to get the duration if the duration is not available
+        if force_decoding:
+            # Decode the stream to get the duration if it is not available or accurate.
             self.num_samples = 0
             for frame in self.container.decode(self.stream):
                 self.num_samples += frame.samples
             self.duration = Seconds(self.num_samples / self.stream.rate)
+        elif self.stream.duration is not None:
+            start_time = self.stream.start_time or 0
+            self.duration = Seconds((self.stream.duration + start_time) * self.stream.time_base)
+            self.num_samples = int(self.duration * self.stream.rate)
+        elif self.container.duration is not None:
+            start_time = self.container.start_time or 0
+            self.duration = Seconds((self.container.duration + start_time) / time_base)
+            self.num_samples = int(self.duration * self.stream.rate)
 
     @property
     def bit_rate(self) -> Union[int, None]:
