@@ -82,7 +82,6 @@ class AudioCache:
             # store the new (key,value) pair
             cls.__cache_dict[key] = value
             cls.__cache_memory += len(value)
-            print(cls.__cache_memory)
 
     @classmethod
     @property

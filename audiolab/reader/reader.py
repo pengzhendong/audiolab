@@ -38,7 +38,7 @@ class Reader(Info):
         frame_size: Optional[int] = None,
         frame_size_ms: Optional[int] = None,
         return_ndarray: bool = True,
-        cache_url: bool = True,
+        cache_url: bool = False,
     ):
         """
         Create a Reader object.

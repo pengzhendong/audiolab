@@ -50,7 +50,7 @@ def load_audio(
     frame_size: Optional[int] = None,
     frame_size_ms: Optional[int] = None,
     return_ndarray: bool = True,
-    cache_url: bool = True,
+    cache_url: bool = False,
 ) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
     """
     Load an audio file.
