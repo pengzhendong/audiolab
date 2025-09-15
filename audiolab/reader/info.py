@@ -40,7 +40,7 @@ class Info:
             stream_id: The index of the stream to get information from.
             force_decoding: Whether to force decoding the audio file to get the duration.
         """
-        self.container = av.open(file)
+        self.container = av.open(file, metadata_encoding="latin1")
         self.stream = self.container.streams.audio[stream_id]
         self.channels = self.stream.channels
         self.codec = self.stream.codec
