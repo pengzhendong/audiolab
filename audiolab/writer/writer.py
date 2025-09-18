@@ -31,13 +31,13 @@ class Writer:
         self,
         file: Any,
         rate: int,
+        container_format: ContainerFormat = "wav",
         codec: Optional[Codec] = None,
         channels: Optional[int] = None,
         dtype: Optional[Dtype] = None,
         is_planar: Optional[bool] = None,
         format: Optional[AudioFormat] = None,
         layout: Optional[AudioLayout] = None,
-        container_format: Optional[ContainerFormat] = None,
         options: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
@@ -47,19 +47,18 @@ class Writer:
         Args:
             file: The audio file, path to audio file, bytes, etc.
             rate: The sample rate of the audio stream.
+            container_format: The format of the audio container.
             codec: The codec of the audio container.
             channels: The number of channels of the audio stream.
             dtype: The data type of the audio stream.
             is_planar: Whether the audio stream is planar.
             format: The format of the audio stream.
             layout: The layout of the audio stream.
-            container_format: The format of the audio container.
             options: The options of the audio stream.
         Returns:
             The Writer object.
         """
         if isinstance(file, BytesIO):
-            assert container_format is not None
             if isinstance(container_format, av.ContainerFormat):
                 container_format = container_format.name
             self.container = av.open(file, "w", container_format)
