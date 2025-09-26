@@ -21,8 +21,8 @@ from audiolab.reader.info import Info
 
 
 @click.command()
-@click.argument("audio-files", type=click.File(mode="rb"), nargs=-1)
-@click.option("-S", "--stream-id", type=int, default=0)
+@click.argument("audio-files", nargs=-1)
+@click.option("-S", "--stream-id", type=int, default=0, help="The index of the stream to load.")
 @click.option("-f", "--force-decoding", is_flag=True, help="Force decoding the audio file to get the duration")
 @click.option("-t", "--show-file-type", is_flag=True, help="Show detected file-type")
 @click.option("-r", "--show-sample-rate", is_flag=True, help="Show sample-rate")
@@ -61,20 +61,8 @@ def main(
     Print the information of audio files.
 
     Args:
-        audio_files: The audio files, paths to audio files, or stdin.
-        stream_id: The index of the stream to load.
-        force_decoding: Whether to force decoding the audio file to get the duration.
-        show_file_type: Show detected file-type.
-        show_sample_rate: Show sample-rate.
-        show_channels: Show number of channels.
-        show_samples: Show number of samples (0 if unavailable).
-        show_duration_hms: Show duration in hours, minutes and seconds (0 if unavailable).
-        show_duration_seconds: Show duration in seconds (0 if unavailable).
-        show_bits_per_sample: Show number of bits per sample (0 if not applicable).
-        show_bitrate: Show the bitrate averaged over the whole file (0 if unavailable).
-        show_precision: Show estimated sample precision in bits.
-        show_encoding: Show the name of the audio encoding.
-        show_comments: Show file comments (annotations) if available.
+
+        AUDIO_FILES: The audio files, audio urls, paths to audio files, or stdin.
     """
     # If no files are provided, use stdin
     if not audio_files:

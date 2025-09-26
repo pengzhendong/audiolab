@@ -24,10 +24,10 @@ pip install audiolab
 ### Load an audio file
 
 ```python
-import audiolab
+from audiolab import load_audio
 
-# Load an audio file
-audio, rate = audiolab.load_audio("audio.wav")
+# Load an audio file and convert to mono with specific sample rate
+audio, rate = load_audio("audio.wav", rate=16000, to_mono=True)
 print(f"Sample rate: {rate} Hz")
 print(f"Audio shape: {audio.shape}")
 ```
@@ -35,8 +35,8 @@ print(f"Audio shape: {audio.shape}")
 ### Save an audio file
 
 ```python
-import audiolab
 import numpy as np
+from audiolab import save_audio
 
 # Create a simple sine wave
 rate = 44100
@@ -45,17 +45,16 @@ t = np.linspace(0, duration, rate * duration)
 audio = np.sin(2 * np.pi * 440 * t)
 
 # Save as WAV file
-audiolab.save_audio("tone.wav", audio, rate)
+save_audio("tone.wav", audio, rate)
 ```
 
 ### Get audio file information
 
 ```python
-import audiolab
+from audiolab import info
 
 # Get information about an audio file
-info = audiolab.info("audio.wav")
-print(info)
+print(info("audio.wav"))
 ```
 
 ### Command-line usage
@@ -109,21 +108,27 @@ If no specific options are selected, all information will be displayed by defaul
 ### Apply filters during loading
 
 ```python
-import audiolab
-from audiolab.av import aformat
+from audiolab import info, load_audio
+from audiolab.av.filter import aresample, asetrate, atempo
 
-# Load audio and convert to mono with specific sample rate
-filters = [aformat(rate=16000, to_mono=True)]
+# Speed perturbation
+filters = [atempo(1.5)]
 audio, rate = audiolab.load_audio("audio.wav", filters=filters)
+
+# Pitch perturbation
+ratio = 1.5
+rate = info("audio.wav").rate
+filters = [asetrate(rate * ratio), atempo(1 / ratio), aresample(rate)]
+audio, rate = load_audio("audio.wav", filters=filters)
 ```
 
 ### Stream processing
 
 ```python
-import audiolab
+from audiolab import Reader
 
 # Process audio in chunks
-reader = audiolab.Reader("audio.wav", frame_size=1024)
+reader = Reader("audio.wav", frame_size=1024)
 for chunk, rate in reader:
     print(chunk.shape)
 ```

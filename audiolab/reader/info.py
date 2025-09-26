@@ -36,7 +36,7 @@ class Info:
         Create an Info object.
 
         Args:
-            file: The input audio file, path to audio file, bytes of audio data, etc.
+            file: The input audio file, audio url, path to audio file, bytes of audio data, etc.
             stream_id: The index of the stream to get information from.
             force_decoding: Whether to force decoding the audio file to get the duration.
         """
@@ -179,7 +179,7 @@ class Info:
         Returns:
             The formatted size of the audio file.
         """
-        if size in (-1, -78):
+        if size in (-1, -38, -78):
             return "N/A"
         size = naturalsize(size)
         return Info.rstrip_zeros(size)

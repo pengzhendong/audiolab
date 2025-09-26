@@ -27,7 +27,7 @@ def info(file: Any, stream_id: int = 0, force_decode: bool = False) -> Info:
     Get the information of an audio file.
 
     Args:
-        file: The input audio file, path to audio file, bytes of audio data, etc.
+        file: The input audio file, audio url, path to audio file, bytes of audio data, etc.
         stream_id: The index of the stream to get information from.
         force_decode: Whether to force decoding the audio file to get the duration.
     Returns:
@@ -56,7 +56,7 @@ def load_audio(
     Load an audio file.
 
     Args:
-        file: The audio file, path to audio file, bytes of audio data, etc.
+        file: The audio file, audio url, path to audio file, bytes of audio data, etc.
         stream_id: The index of the stream to load.
         offset: The offset of the audio stream to load.
         duration: The duration of the audio stream to load.

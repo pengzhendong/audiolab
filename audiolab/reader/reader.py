@@ -44,7 +44,7 @@ class Reader(Info):
         Create a Reader object.
 
         Args:
-            file: The audio file, path to audio file, bytes of audio data, etc.
+            file: The audio file, audio url, path to audio file, bytes of audio data, etc.
             stream_id: The index of the stream to load.
             offset: The offset of the audio stream to load.
             duration: The duration of the audio stream to load.
