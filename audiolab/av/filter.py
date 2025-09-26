@@ -19,6 +19,10 @@ from av.option import OptionType
 
 from audiolab.av.utils import get_template
 
+"""
+$ ffmpeg -filters
+"""
+
 
 class FilterManager:
     """Manages audio filter functions with lazy initialization."""

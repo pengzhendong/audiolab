@@ -20,6 +20,9 @@ import av
 from audiolab.av.typing import ContainerFormatEnum
 from audiolab.av.utils import get_template
 
+"""
+$ ffmpeg -formats
+"""
 container_formats: Dict[str, av.ContainerFormat] = {}
 extension_formats: Dict[str, Set[str]] = defaultdict(set)
 for name in av.formats_available:

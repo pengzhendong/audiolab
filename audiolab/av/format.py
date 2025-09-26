@@ -25,6 +25,11 @@ from audiolab.av import typing
 from audiolab.av.utils import get_template
 
 logger = logging.getLogger(__name__)
+
+
+"""
+$ ffmpeg -sample_fmts
+"""
 format_dtypes = {
     "dbl": "f8",
     "dblp": "f8",

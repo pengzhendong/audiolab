@@ -24,6 +24,12 @@ from audiolab.av.format import format_dtypes
 from audiolab.av.typing import CodecEnum
 from audiolab.av.utils import get_template
 
+"""
+$ ffmpeg -codecs
+$ ffmpeg -decoders
+$ ffmpeg -encoders
+"""
+
 
 class CodecManager:
     """Manages audio codec enums with lazy initialization."""
