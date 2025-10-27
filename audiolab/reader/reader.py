@@ -37,8 +37,8 @@ class Reader(Info):
         to_mono: bool = False,
         frame_size: Optional[int] = None,
         frame_size_ms: Optional[int] = None,
-        return_ndarray: bool = True,
         cache_url: bool = False,
+        **kwargs,
     ):
         """
         Create a Reader object.
@@ -56,7 +56,6 @@ class Reader(Info):
             to_mono: Whether to convert the audio frames to mono.
             frame_size: The frame size of the audio frames.
             frame_size_ms: The frame size in milliseconds of the audio frames.
-            return_ndarray: Whether to return the audio frames as ndarrays.
             cache_url: Whether to cache the audio file.
         Returns:
             The Reader object.
@@ -79,9 +78,7 @@ class Reader(Info):
         else:
             frame_size = frame_size or np.iinfo(np.uint32).max
         self.frame_size = min(frame_size, np.iinfo(np.uint32).max)
-        self.graph = AudioGraph(
-            stream=self.stream, filters=filters, frame_size=frame_size, return_ndarray=return_ndarray
-        )
+        self.graph = AudioGraph(**kwargs)
 
     @property
     def num_frames(self) -> int:

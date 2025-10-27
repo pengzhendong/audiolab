@@ -80,6 +80,8 @@ def from_ndarray(
     """
     if isinstance(format, str):
         format = av.AudioFormat(format)
+    if ndarray.ndim == 1:
+        ndarray = ndarray.reshape(1, -1)
     if format.is_packed:
         # [num_channels, num_samples] => [1, num_channels * num_samples]
         ndarray = ndarray.T.reshape(1, -1)
@@ -97,7 +99,7 @@ def from_ndarray(
     return frame
 
 
-def to_ndarray(frame: av.AudioFrame) -> np.ndarray:
+def to_ndarray(frame: av.AudioFrame, always_2d: bool = True) -> np.ndarray:
     """
     Convert an AudioFrame to an ndarray.
 
@@ -105,13 +107,17 @@ def to_ndarray(frame: av.AudioFrame) -> np.ndarray:
         frame: The AudioFrame to convert.
             * shape of packed frame: [num_channels, num_samples]
             * shape of planar frame: [1, num_channels * num_samples]
+        always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
     Returns:
         The ndarray.
-            * shape: [num_channels, num_samples]
+            * shape: [num_channels, num_samples] if always_2d is True,
+            * shape: [num_samples] if always_2d is False
     """
     ndarray = frame.to_ndarray()
     if frame.format.is_packed:
         ndarray = ndarray.reshape(-1, frame.layout.nb_channels).T
+    if not always_2d and ndarray.shape[0] == 1:
+        ndarray = ndarray[0]
     return ndarray
 
 

@@ -12,55 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional
-
 import av
 
 from audiolab.av.format import get_format_dtype
 from audiolab.av.frame import to_ndarray
-from audiolab.av.typing import AudioFormat, AudioFrame, AudioLayout, Codec, ContainerFormat, Dtype
+from audiolab.av.typing import AudioFrame
 from audiolab.writer.writer import Writer
 
 
-def save_audio(
-    file: Any,
-    frame: AudioFrame,
-    rate: int,
-    container_format: ContainerFormat = "wav",
-    codec: Optional[Codec] = None,
-    channels: Optional[int] = None,
-    dtype: Optional[Dtype] = None,
-    is_planar: Optional[bool] = None,
-    format: Optional[AudioFormat] = None,
-    layout: Optional[AudioLayout] = None,
-    options: Optional[Dict[str, str]] = None,
-    **kwargs,
-):
-    """
-    Save an audio frame to a file.
-
-    Args:
-        file: The audio file, path to audio file, bytes, etc.
-        rate: The sample rate of the audio stream.
-        container_format: The format of the audio container.
-        codec: The codec of the audio container.
-        channels: The number of channels of the audio stream.
-        dtype: The data type of the audio stream.
-        is_planar: Whether the audio stream is planar.
-        format: The format of the audio stream.
-        layout: The layout of the audio stream.
-        options: The options of the audio stream.
-        **kwargs: Additional arguments for the Writer class.
-    """
+def save_audio(frame: AudioFrame, **kwargs):
     if isinstance(frame, av.AudioFrame):
-        if format is None:
-            dtype = dtype or get_format_dtype(frame.format)
-            is_planar = is_planar or frame.format.is_planar
+        if kwargs.get("format", None) is None:
+            dtype = kwargs.get("dtype", None)
+            is_planar = kwargs.get("is_planar", None)
+            kwargs["dtype"] = dtype or get_format_dtype(frame.format)
+            kwargs["is_planar"] = is_planar or frame.format.is_planar
         frame = to_ndarray(frame)
+    kwargs["channels"] = 1 if frame.ndim == 1 else frame.shape[0]
+    assert kwargs["channels"] in (1, 2)
 
-    channels = 1 if frame.ndim == 1 else frame.shape[0]
-    assert channels in (1, 2)
-    writer = Writer(file, rate, container_format, codec, channels, dtype, is_planar, format, layout, options, **kwargs)
+    writer = Writer(**kwargs)
     writer.write(frame)
     writer.close()
 

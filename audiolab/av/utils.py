@@ -14,10 +14,35 @@
 
 from importlib.resources import files
 
+import numpy as np
 from av import AudioCodecContext
 from jinja2 import Environment, FileSystemLoader
+from numpy.random import randint, uniform
 
 loader = FileSystemLoader(files("audiolab.av").joinpath("templates"))
+
+
+def generate_ndarray(nb_channels: int, samples: int, dtype: np.dtype, always_2d: bool = True) -> np.ndarray:
+    """
+    Generate a random ndarray.
+
+    Args:
+        nb_channels: The number of channels.
+        samples: The number of samples.
+        dtype: The data type.
+        always_2d: Whether to always return a 2d ndarray.
+    Returns:
+        The ndarray.
+    """
+    if np.dtype(dtype).kind in ("i", "u"):
+        min_value = np.iinfo(dtype).min
+        max_value = np.iinfo(dtype).max
+        ndarray = randint(min_value, max_value, size=(nb_channels, samples), dtype=dtype)
+    else:
+        ndarray = uniform(-1, 1, size=(nb_channels, samples)).astype(dtype)
+    if not always_2d and nb_channels == 1:
+        ndarray = ndarray.squeeze(axis=0)
+    return ndarray
 
 
 def get_template(name: str) -> str:

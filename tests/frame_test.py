@@ -14,31 +14,23 @@
 
 import numpy as np
 from av.audio.frame import format_dtypes
-from numpy.random import randint, uniform
+from numpy.random import choice, randint
 
 from audiolab.av.format import AudioFormat, get_format_dtype
 from audiolab.av.frame import clip, from_ndarray, split_audio_frame, to_ndarray
 from audiolab.av.layout import AudioLayout
 from audiolab.av.typing import Seconds
+from audiolab.av.utils import generate_ndarray
 
 
 class TestFrame:
-
-    @staticmethod
-    def generate_ndarray(nb_channels: int, samples: int, dtype: np.dtype) -> np.ndarray:
-        if np.dtype(dtype).kind in ("i", "u"):
-            min_value = np.iinfo(dtype).min
-            max_value = np.iinfo(dtype).max
-            return randint(min_value, max_value, size=(nb_channels, samples), dtype=dtype)
-        else:
-            return uniform(-1, 1, size=(nb_channels, samples)).astype(dtype)
 
     def test_clip(self):
         dtypes = (np.uint8, np.int16, np.int32, np.float32, np.float64)
         for source_dtype in dtypes:
             for target_dtype in dtypes:
                 target_dtype = np.dtype(target_dtype)
-                ndarray = self.generate_ndarray(1, 42, source_dtype)
+                ndarray = generate_ndarray(1, 42, source_dtype)
                 ndarray = clip(ndarray, target_dtype)
                 if target_dtype.kind in ("i", "u"):
                     min_value = np.iinfo(target_dtype).min
@@ -55,12 +47,13 @@ class TestFrame:
                 format = AudioFormat[format_name].value
                 dtype = get_format_dtype(format)
                 for rate in (8000, 16000, 24000, 48000):
-                    ndarray = self.generate_ndarray(nb_channels, rate, dtype)
+                    always_2d = choice([True, False])
+                    ndarray = generate_ndarray(nb_channels, rate, dtype, always_2d)
                     frame = from_ndarray(ndarray, format, layout, rate)
                     assert frame.format.name == format.name
                     assert frame.layout.name == layout.name
                     assert frame.rate == rate
-                    assert np.allclose(to_ndarray(frame), ndarray)
+                    assert np.allclose(to_ndarray(frame, always_2d), ndarray)
 
     def test_split_audio_frame(self):
         pts = 0
@@ -75,7 +68,8 @@ class TestFrame:
                     offset: Seconds = randint(0, 10)
                     duration_samples = int(duration * rate)
                     offset_samples = int(min(offset, duration) * rate)
-                    ndarray = self.generate_ndarray(nb_channels, duration_samples, dtype)
+                    always_2d = choice([True, False])
+                    ndarray = generate_ndarray(nb_channels, duration_samples, dtype, always_2d)
                     frame = from_ndarray(ndarray, format, layout, rate, pts=pts)
                     left, right = split_audio_frame(frame, offset)
                     if offset > 0:

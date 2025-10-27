@@ -40,6 +40,7 @@ class AudioGraph:
         filters: Optional[List[Filter]] = None,
         frame_size: int = -1,
         return_ndarray: bool = True,
+        always_2d: bool = True,
     ):
         """
         Create an AudioGraph.
@@ -57,6 +58,7 @@ class AudioGraph:
             filters: The filters to apply to the input audio buffer.
             frame_size: The frame size of the output audio buffer.
             return_ndarray: Whether to return the output audio frames as ndarrays.
+            always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
         """
         self.filters = filters or []
         self.graph = Graph()
@@ -86,6 +88,7 @@ class AudioGraph:
         if frame_size > 0:
             self.graph.set_audio_frame_size(frame_size)
         self.return_ndarray = return_ndarray
+        self.always_2d = always_2d
 
     def push(self, frame: AudioFrame):
         """
@@ -93,20 +96,21 @@ class AudioGraph:
 
         Args:
             frame: The audio frame to push.
-                * shape of ndarray: [num_channels, num_samples]
         """
         if isinstance(frame, np.ndarray):
             frame = from_ndarray(frame, self.format, self.layout, self.rate)
         self.graph.push(frame)
 
-    def pull(self, partial: bool = False, return_ndarray: Optional[bool] = None):
+    def pull(self, partial: bool = False, return_ndarray: Optional[bool] = None, always_2d: Optional[bool] = None):
         """
         Pull an audio frame from the graph.
 
         Args:
             partial: Whether to pull a partial frame.
             return_ndarray: Whether to return the audio frame as an ndarray.
-                * shape of ndarray: [num_channels, num_samples]
+            always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
+        Yields:
+            The audio frame.
         """
         if partial:
             self.graph.push(None)
@@ -115,8 +119,10 @@ class AudioGraph:
                 frame = self.graph.pull()
                 if return_ndarray is None:
                     return_ndarray = self.return_ndarray
+                if always_2d is None:
+                    always_2d = self.always_2d
                 if return_ndarray:
-                    yield to_ndarray(frame), frame.rate
+                    yield to_ndarray(frame, always_2d), frame.rate
                 else:
                     yield frame
             except av.EOFError:
