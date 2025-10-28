@@ -35,8 +35,8 @@ def info(file: Any, stream_id: int = 0, force_decode: bool = False) -> Info:
     return Info(file, stream_id, force_decode)
 
 
-def load_audio(**kwargs) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
-    reader = Reader(**kwargs)
+def load_audio(file: Any, **kwargs) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
+    reader = Reader(file, **kwargs)
     generator = reader.__iter__()
     if reader.frame_size < np.iinfo(np.uint32).max:
         return generator

@@ -25,6 +25,10 @@ from audiolab.writer import Writer, save_audio
 class TestWriter:
 
     @pytest.fixture
+    def nb_channels(self):
+        return 1
+
+    @pytest.fixture
     def sample_rate(self):
         return 16000
 
@@ -32,29 +36,29 @@ class TestWriter:
     def duration(self):
         return 0.5
 
-    def test_writer(self, sample_rate, duration):
+    def test_writer(self, nb_channels, sample_rate, duration):
         bytes_io = BytesIO()
         for always_2d in (True, False):
-            ndarray = generate_ndarray(1, int(sample_rate * duration), np.int16, always_2d)
+            ndarray = generate_ndarray(nb_channels, int(sample_rate * duration), np.int16, always_2d)
             writer = Writer(bytes_io, sample_rate, channels=1)
             writer.write(ndarray)
             writer.close()
 
             _info = info(bytes_io)
-            assert _info.channels == 1
+            assert _info.channels == nb_channels
             assert _info.codec.name == "pcm_s16le"
             assert _info.duration == duration
             assert _info.precision == 16
             assert _info.rate == sample_rate
 
-    def test_save_audio(self, sample_rate, duration):
+    def test_save_audio(self, nb_channels, sample_rate, duration):
         bytes_io = BytesIO()
         for always_2d in (True, False):
-            ndarray = generate_ndarray(1, int(sample_rate * duration), np.int16, always_2d)
+            ndarray = generate_ndarray(nb_channels, int(sample_rate * duration), np.int16, always_2d)
             save_audio(bytes_io, ndarray, sample_rate)
 
             _info = info(bytes_io)
-            assert _info.channels == 1
+            assert _info.channels == nb_channels
             assert _info.codec.name == "pcm_s16le"
             assert _info.duration == duration
             assert _info.precision == 16

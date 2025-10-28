@@ -78,7 +78,7 @@ class Reader(Info):
         else:
             frame_size = frame_size or np.iinfo(np.uint32).max
         self.frame_size = min(frame_size, np.iinfo(np.uint32).max)
-        self.graph = AudioGraph(**kwargs)
+        self.graph = AudioGraph(self.stream, filters=filters, frame_size=frame_size, **kwargs)
 
     @property
     def num_frames(self) -> int:
