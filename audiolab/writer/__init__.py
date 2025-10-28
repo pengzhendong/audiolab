@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any
+
 import av
 
 from audiolab.av.format import get_format_dtype
@@ -20,7 +22,7 @@ from audiolab.av.typing import AudioFrame
 from audiolab.writer.writer import Writer
 
 
-def save_audio(frame: AudioFrame, **kwargs):
+def save_audio(file: Any, frame: AudioFrame, rate: int, **kwargs):
     if isinstance(frame, av.AudioFrame):
         if kwargs.get("format", None) is None:
             dtype = kwargs.get("dtype", None)
@@ -31,7 +33,7 @@ def save_audio(frame: AudioFrame, **kwargs):
     kwargs["channels"] = 1 if frame.ndim == 1 else frame.shape[0]
     assert kwargs["channels"] in (1, 2)
 
-    writer = Writer(**kwargs)
+    writer = Writer(file, rate, **kwargs)
     writer.write(frame)
     writer.close()
 

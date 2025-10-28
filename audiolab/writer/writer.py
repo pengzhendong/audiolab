@@ -64,6 +64,7 @@ class Writer:
             self.container = av.open(file, "w", container_format)
         else:
             self.container = av.open(file, "w")
+        self.file = file
         # set and check codec
         codec = codec or self.container.default_audio_codec
         if isinstance(codec, str):
@@ -104,3 +105,5 @@ class Writer:
         Close the audio stream.
         """
         self.container.close()
+        if isinstance(self.file, BytesIO):
+            self.file.seek(0)
