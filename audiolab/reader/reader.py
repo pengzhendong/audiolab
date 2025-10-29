@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import math
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 
@@ -57,6 +57,7 @@ class Reader(Info):
             frame_size: The frame size of the audio frames.
             frame_size_ms: The frame size in milliseconds of the audio frames.
             cache_url: Whether to cache the audio file.
+            always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
         Returns:
             The Reader object.
         """
@@ -79,16 +80,7 @@ class Reader(Info):
             frame_size = frame_size or np.iinfo(np.uint32).max
         self.frame_size = min(frame_size, np.iinfo(np.uint32).max)
         self.graph = AudioGraph(self.stream, filters=filters, frame_size=frame_size, **kwargs)
-
-    @property
-    def num_frames(self) -> int:
-        """
-        Get the number of the input audio frames in the audio stream.
-
-        Returns:
-            The number of the input audio frames in the audio stream.
-        """
-        return math.ceil(self.duration * self.rate / self.frame_size)
+        self.always_2d = kwargs.get("always_2d", True)
 
     def __iter__(self):
         for frame in self.container.decode(self.stream):
@@ -100,3 +92,16 @@ class Reader(Info):
             self.graph.push(frame)
             yield from self.graph.pull()
         yield from self.graph.pull(partial=True)
+
+    def load_audio(self, always_2d: Optional[bool] = None) -> Tuple[np.ndarray, int]:
+        """
+        Load the audio stream into a numpy array.
+
+        Returns:
+            The numpy array of the audio stream.
+        """
+        if always_2d is None:
+            always_2d = self.always_2d
+        frames, rates = zip(*self)
+        assert len(set(rates)) == 1
+        return np.concatenate(frames, axis=1 if always_2d else 0), rates[0]

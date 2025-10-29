@@ -33,6 +33,7 @@ class StreamReader:
         to_mono: bool = False,
         frame_size: Optional[int] = 1024,
         return_ndarray: bool = True,
+        always_2d: bool = True,
     ):
         """
         Create a StreamReader object.
@@ -51,7 +52,7 @@ class StreamReader:
         """
         self._codec_context = None
         self._graph = None
-        self.bytestream = BytesIO()
+        self.bytes_io = BytesIO()
         self.bytes_per_decode_attempt = 0
         if not all([dtype is None, format is None, rate is None, to_mono is None]):
             filters = filters or []
@@ -60,6 +61,7 @@ class StreamReader:
         self.frame_size = frame_size
         self.offset = None
         self.return_ndarray = return_ndarray
+        self.always_2d = always_2d
         self.packet = None
 
     @property
@@ -89,74 +91,23 @@ class StreamReader:
             if self.packet is None:
                 return None
             self._graph = AudioGraph(
-                stream=self.packet.stream,
+                self.packet.stream,
                 filters=self.filters,
                 frame_size=self.frame_size,
                 return_ndarray=self.return_ndarray,
+                always_2d=self.always_2d,
             )
         return self._graph
 
-    @property
-    def is_decoded(self) -> bool:
+    def push(self, frame: bytes):
         """
-        Check if the current frame is decoded.
-
-        Returns:
-            Whether the current frame is decoded.
-        """
-        # o: current frame
-        # pts: self.offset, frame.pts, packet.pts
-        # +---+---+---+---+---+
-        # | x | x | x | o |   |
-        # +---+---+---+---+---+
-        #             ↑
-        #             pts
-        if self.offset is None:
-            return False
-        if self.packet.pts is None:
-            return False
-        if self.offset <= self.packet.pts:
-            return False
-        return True
-
-    def should_decode(self, partial: bool = False) -> bool:
-        """
-        Check if the current frame should be decoded.
+        Push a frame of audio data to the audio stream.
 
         Args:
-            partial: Whether to decode a partial frame.
-        Returns:
-            Whether the current frame should be decoded.
+            frame: The frame of audio data to push.
         """
-        if partial:
-            return True
-        if self.bytes_per_decode_attempt * 2 < self.frame_size:
-            return False
-        self.bytes_per_decode_attempt = 0
-        return True
-
-    def ready_for_decoding(self, partial: bool = False) -> bool:
-        """
-        Check if the current frame is ready for decoding.
-
-        Args:
-            partial: Whether to decode a partial frame.
-        Returns:
-            Whether the current frame is ready for decoding.
-        """
-        if self.packet.pts is None and not partial:
-            return False
-        return not self.is_decoded
-
-    def push(self, chunk: bytes):
-        """
-        Push a chunk of audio data to the audio stream.
-
-        Args:
-            chunk: The chunk of audio data to push.
-        """
-        self.bytestream.write(chunk)
-        self.bytes_per_decode_attempt += len(chunk)
+        self.bytes_io.write(frame)
+        self.bytes_per_decode_attempt += len(frame)
 
     def pull(self, partial: bool = False) -> Optional[Iterator[av.AudioFrame]]:
         """
@@ -167,22 +118,31 @@ class StreamReader:
         Yields:
             The audio frame.
         """
-        if not self.should_decode(partial):
-            return
-        try:
-            self.bytestream.seek(0)
-            container = av.open(self.bytestream)
-            for packet in container.demux():
-                self.packet = packet
-                if not self.ready_for_decoding(partial):
-                    continue
-                for frame in self.codec_context.decode(packet):
-                    self.offset = frame.pts + int(frame.samples / packet.stream.rate / packet.stream.time_base)
-                    self.graph.push(frame)
-                    yield from self.graph.pull()
-                yield from self.graph.pull(partial=partial)
-        except (av.EOFError, av.InvalidDataError, av.OSError, av.PermissionError):
-            pass
+        if partial or self.bytes_per_decode_attempt * 2 >= self.frame_size:
+            self.bytes_per_decode_attempt = 0
+            try:
+                self.bytes_io.seek(0)
+                container = av.open(self.bytes_io, metadata_encoding="latin1")
+                for packet in container.demux():
+                    self.packet = packet
+                    if self.packet.pts is None and not partial:
+                        continue
+                    # o: current frame
+                    # pts: self.offset, frame.pts, packet.pts
+                    # +---+---+---+---+---+
+                    # | x | x | x | o |   |
+                    # +---+---+---+---+---+
+                    #             ↑
+                    #             pts
+                    if self.offset is not None and (self.packet.pts is None or self.offset > self.packet.pts):
+                        continue
+                    for frame in self.codec_context.decode(packet):
+                        self.offset = frame.pts + int(frame.samples / packet.stream.rate / packet.stream.time_base)
+                        self.graph.push(frame)
+                        yield from self.graph.pull()
+                    yield from self.graph.pull(partial=partial)
+            except (av.EOFError, av.InvalidDataError, av.OSError, av.PermissionError):
+                pass
 
     def reset(self):
         """
@@ -193,7 +153,7 @@ class StreamReader:
         """
         self._codec_context = None
         self._graph = None
-        self.bytestream = BytesIO()
+        self.bytes_io = BytesIO()
         self.bytes_per_decode_attempt = 0
         self.offset = None
         self.packet = None

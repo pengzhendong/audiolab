@@ -39,6 +39,7 @@ class TestWriter:
     def test_writer(self, nb_channels, sample_rate, duration):
         bytes_io = BytesIO()
         for always_2d in (True, False):
+            # always int16 for pcm_s16le even if dtype of ndarray is float32
             ndarray = generate_ndarray(nb_channels, int(sample_rate * duration), np.int16, always_2d)
             writer = Writer(bytes_io, sample_rate, channels=1)
             writer.write(ndarray)
@@ -55,11 +56,11 @@ class TestWriter:
         bytes_io = BytesIO()
         for always_2d in (True, False):
             ndarray = generate_ndarray(nb_channels, int(sample_rate * duration), np.int16, always_2d)
-            save_audio(bytes_io, ndarray, sample_rate)
+            save_audio(bytes_io, ndarray, sample_rate, container_format="webm")
 
             _info = info(bytes_io)
             assert _info.channels == nb_channels
-            assert _info.codec.name == "pcm_s16le"
-            assert _info.duration == duration
-            assert _info.precision == 16
-            assert _info.rate == sample_rate
+            assert _info.codec.name == "opus"
+            assert np.isclose(_info.duration, duration + 0.007, 0.001)  # Pre-skip / Encoder Delay for opus
+            assert _info.precision == 32  # always float32 for opus
+            assert _info.rate == 48000  # always 48k for opus
