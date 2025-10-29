@@ -73,9 +73,6 @@ class Info:
     def bit_rate(self) -> Union[int, None]:
         """
         Get the bit rate of the audio stream.
-
-        Returns:
-            The bit rate of the audio stream.
         """
         bit_rate = self.stream.bit_rate or self.container.bit_rate
         if bit_rate in (None, 0) and self.duration is not None:
@@ -87,9 +84,6 @@ class Info:
     def num_cdda_sectors(self) -> Union[float, None]:
         """
         Get the number of CDDA sectors of the audio stream.
-
-        Returns:
-            The number of CDDA sectors of the audio stream.
         """
         return None if self.duration is None else round(self.duration * 75, 2)
 
@@ -100,8 +94,6 @@ class Info:
 
         Args:
             s: The string to remove trailing zeros from.
-        Returns:
-            The string with trailing zeros removed.
         """
         if not isinstance(s, str):
             s = str(s)
@@ -114,8 +106,6 @@ class Info:
 
         Args:
             bit_rate: The bit rate of the audio stream.
-        Returns:
-            The formatted bit rate of the audio stream.
         """
         if bit_rate is None or bit_rate <= 0:
             return "N/A"
@@ -129,8 +119,6 @@ class Info:
 
         Args:
             duration: The duration of the audio stream.
-        Returns:
-            The formatted duration of the audio stream.
         """
         if duration is None:
             return "N/A"
@@ -145,8 +133,6 @@ class Info:
 
         Args:
             container: The container.
-        Returns:
-            The formatted name of the container.
         """
         name = container.name
         _format_name = container.format.name
@@ -164,8 +150,6 @@ class Info:
 
         Args:
             num_cdda_sectors: The number of CDDA sectors of the audio stream.
-        Returns:
-            The formatted number of CDDA sectors of the audio stream.
         """
         return "N/A" if num_cdda_sectors is None else Info.rstrip_zeros(num_cdda_sectors)
 
@@ -176,8 +160,6 @@ class Info:
 
         Args:
             size: The size of the audio file.
-        Returns:
-            The formatted size of the audio file.
         """
         if size in (-1, -38, -78):
             return "N/A"
@@ -187,9 +169,6 @@ class Info:
     def __str__(self):
         """
         Format the audio file information.
-
-        Returns:
-            The formatted audio file information.
         """
         return get_template("info").render(
             name=Info.format_name(self.container),

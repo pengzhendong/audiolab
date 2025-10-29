@@ -22,18 +22,25 @@ from audiolab.av.typing import AudioFrame
 from audiolab.writer.writer import Writer
 
 
-def save_audio(file: Any, frame: AudioFrame, rate: int, **kwargs):
+def save_audio(file: Any, frame: AudioFrame, **kwargs):
+    _rate = None
+    if isinstance(frame, tuple):
+        frame, _rate = frame
     if isinstance(frame, av.AudioFrame):
         if kwargs.get("format", None) is None:
             dtype = kwargs.get("dtype", None)
             is_planar = kwargs.get("is_planar", None)
             kwargs["dtype"] = dtype or get_format_dtype(frame.format)
             kwargs["is_planar"] = is_planar or frame.format.is_planar
+        _rate = frame.rate
         frame = to_ndarray(frame)
+    if _rate is not None:
+        assert kwargs.get("dtype", _rate) == _rate
+        kwargs["rate"] = _rate
     kwargs["channels"] = 1 if frame.ndim == 1 else frame.shape[0]
     assert kwargs["channels"] in (1, 2)
 
-    writer = Writer(file, rate, **kwargs)
+    writer = Writer(file, **kwargs)
     writer.write(frame)
     writer.close()
 

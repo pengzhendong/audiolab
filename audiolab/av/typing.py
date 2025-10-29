@@ -66,7 +66,7 @@ class ContainerFormatEnum(BaseEnum):
 
 
 AudioFormat = Union[str, av.AudioFormat]
-AudioFrame = Union[np.ndarray, av.AudioFrame]
+AudioFrame = Union[np.ndarray, av.AudioFrame, Tuple[np.ndarray, int]]
 AudioLayout = Union[int, str, av.AudioLayout]
 Codec = Union[str, av.Codec]
 ContainerFormat = Union[str, av.ContainerFormat]

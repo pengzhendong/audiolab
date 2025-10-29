@@ -29,19 +29,19 @@ class TestWriter:
         return 1
 
     @pytest.fixture
-    def sample_rate(self):
+    def rate(self):
         return 16000
 
     @pytest.fixture
     def duration(self):
         return 0.5
 
-    def test_writer(self, nb_channels, sample_rate, duration):
-        bytes_io = BytesIO()
+    def test_writer(self, nb_channels, rate, duration):
         for always_2d in (True, False):
+            bytes_io = BytesIO()
             # always int16 for pcm_s16le even if dtype of ndarray is float32
-            ndarray = generate_ndarray(nb_channels, int(sample_rate * duration), np.int16, always_2d)
-            writer = Writer(bytes_io, sample_rate, channels=1)
+            ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16, always_2d)
+            writer = Writer(bytes_io, rate, channels=1)
             writer.write(ndarray)
             writer.close()
 
@@ -50,17 +50,17 @@ class TestWriter:
             assert _info.codec.name == "pcm_s16le"
             assert _info.duration == duration
             assert _info.precision == 16
-            assert _info.rate == sample_rate
+            assert _info.rate == rate
 
-    def test_save_audio(self, nb_channels, sample_rate, duration):
-        bytes_io = BytesIO()
+    def test_save_audio(self, nb_channels, rate, duration):
         for always_2d in (True, False):
-            ndarray = generate_ndarray(nb_channels, int(sample_rate * duration), np.int16, always_2d)
-            save_audio(bytes_io, ndarray, sample_rate, container_format="webm")
+            bytes_io = BytesIO()
+            ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16, always_2d)
+            save_audio(bytes_io, ndarray, rate=rate, container_format="webm")
 
             _info = info(bytes_io)
             assert _info.channels == nb_channels
             assert _info.codec.name == "opus"
-            assert np.isclose(_info.duration, duration + 0.007, 0.001)  # Pre-skip / Encoder Delay for opus
+            assert np.isclose(_info.duration, duration + 0.007, atol=0.001)  # Pre-skip / Encoder Delay for opus
             assert _info.precision == 32  # always float32 for opus
             assert _info.rate == 48000  # always 48k for opus

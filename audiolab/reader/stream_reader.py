@@ -18,7 +18,7 @@ from typing import Iterator, List, Optional
 import av
 
 from audiolab.av import AudioGraph, aformat
-from audiolab.av.typing import AudioFormat, Dtype, Filter
+from audiolab.av.typing import AudioFormat, AudioFrame, Dtype, Filter
 from audiolab.av.utils import is_streamable
 
 
@@ -47,8 +47,6 @@ class StreamReader:
             to_mono: Whether to convert the output audio frames to mono.
             frame_size: The frame size of the audio frames.
             return_ndarray: Whether to return the audio frames as ndarrays.
-        Returns:
-            The StreamReader object.
         """
         self._codec_context = None
         self._graph = None
@@ -59,19 +57,13 @@ class StreamReader:
             filters.append(aformat(dtype, is_planar, format, rate, to_mono))
         self.filters = filters
         self.frame_size = frame_size
-        self.offset = None
         self.return_ndarray = return_ndarray
         self.always_2d = always_2d
+        self.offset = None
         self.packet = None
 
     @property
     def codec_context(self) -> Optional[av.CodecContext]:
-        """
-        Get the codec context of the audio stream.
-
-        Returns:
-            The codec context of the audio stream.
-        """
         if self._codec_context is None:
             if self.packet is None:
                 return None
@@ -81,12 +73,6 @@ class StreamReader:
 
     @property
     def graph(self) -> Optional[AudioGraph]:
-        """
-        Get the audio graph of the audio stream.
-
-        Returns:
-            The audio graph of the audio stream.
-        """
         if self._graph is None:
             if self.packet is None:
                 return None
@@ -109,7 +95,7 @@ class StreamReader:
         self.bytes_io.write(frame)
         self.bytes_per_decode_attempt += len(frame)
 
-    def pull(self, partial: bool = False) -> Optional[Iterator[av.AudioFrame]]:
+    def pull(self, partial: bool = False) -> Iterator[AudioFrame]:
         """
         Pull an audio frame from the audio stream.
 
@@ -145,12 +131,6 @@ class StreamReader:
                 pass
 
     def reset(self):
-        """
-        Reset the StreamReader object.
-
-        Returns:
-            The StreamReader object.
-        """
         self._codec_context = None
         self._graph = None
         self.bytes_io = BytesIO()

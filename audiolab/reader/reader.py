@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import math
-from typing import Any, List, Optional, Tuple
+from typing import Any, Iterator, List, Optional
 
 import numpy as np
 
 from audiolab.av import AudioGraph, aformat, load_url, split_audio_frame
-from audiolab.av.typing import AudioFormat, Dtype, Filter, Seconds
+from audiolab.av.typing import AudioFormat, AudioFrame, Dtype, Filter, Seconds
 from audiolab.reader.info import Info
 
 
@@ -58,8 +57,6 @@ class Reader(Info):
             frame_size_ms: The frame size in milliseconds of the audio frames.
             cache_url: Whether to cache the audio file.
             always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
-        Returns:
-            The Reader object.
         """
         if isinstance(file, str) and "://" in file and cache_url:
             file = load_url(file, cache=True)
@@ -82,7 +79,7 @@ class Reader(Info):
         self.graph = AudioGraph(self.stream, filters=filters, frame_size=frame_size, **kwargs)
         self.always_2d = kwargs.get("always_2d", True)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[AudioFrame]:
         for frame in self.container.decode(self.stream):
             assert frame.time == float(frame.pts * self.stream.time_base)
             if frame.time > self.end_time:
@@ -93,7 +90,7 @@ class Reader(Info):
             yield from self.graph.pull()
         yield from self.graph.pull(partial=True)
 
-    def load_audio(self, always_2d: Optional[bool] = None) -> Tuple[np.ndarray, int]:
+    def load_audio(self, always_2d: Optional[bool] = None) -> AudioFrame:
         """
         Load the audio stream into a numpy array.
 

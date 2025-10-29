@@ -97,11 +97,16 @@ class AudioGraph:
         Args:
             frame: The audio frame to push.
         """
+        if isinstance(frame, tuple):
+            frame, rate = frame
+            assert rate == self.rate
         if isinstance(frame, np.ndarray):
             frame = from_ndarray(frame, self.format, self.layout, self.rate)
         self.graph.push(frame)
 
-    def pull(self, partial: bool = False, return_ndarray: Optional[bool] = None, always_2d: Optional[bool] = None):
+    def pull(
+        self, partial: bool = False, return_ndarray: Optional[bool] = None, always_2d: Optional[bool] = None
+    ) -> AudioFrame:
         """
         Pull an audio frame from the graph.
 

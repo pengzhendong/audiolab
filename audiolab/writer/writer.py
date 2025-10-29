@@ -55,8 +55,6 @@ class Writer:
             format: The format of the audio stream.
             layout: The layout of the audio stream.
             options: The options of the audio stream.
-        Returns:
-            The Writer object.
         """
         if isinstance(file, BytesIO):
             if isinstance(container_format, av.ContainerFormat):
@@ -92,11 +90,12 @@ class Writer:
         Args:
             frame: The audio frame to write.
         """
+        if isinstance(frame, tuple):
+            frame, _rate = frame
+            assert _rate == self.stream.rate
         if isinstance(frame, np.ndarray):
-            frame = np.atleast_2d(frame)
-            assert frame.ndim == 2, "Audio frame must be 1D (samples,) or 2D (channels, samples)"
-            assert frame.shape[0] == self.stream.channels, "Number of channels in frame does not match stream"
             frame = from_ndarray(frame, self.stream.format.name, self.stream.layout, self.stream.rate)
+            assert frame.layout == self.stream.layout
         for packet in self.stream.encode(frame):
             self.container.mux(packet)
 

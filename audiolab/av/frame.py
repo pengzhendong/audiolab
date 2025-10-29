@@ -78,10 +78,9 @@ def from_ndarray(
     Returns:
         The AudioFrame.
     """
+    ndarray = np.atleast_2d(ndarray)
     if isinstance(format, str):
         format = av.AudioFormat(format)
-    if ndarray.ndim == 1:
-        ndarray = ndarray.reshape(1, -1)
     if format.is_packed:
         # [num_channels, num_samples] => [1, num_channels * num_samples]
         ndarray = ndarray.T.reshape(1, -1)

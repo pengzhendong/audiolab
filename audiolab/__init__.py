@@ -33,6 +33,7 @@ from audiolab.av import (
     to_ndarray,
 )
 from audiolab.av.typing import AudioFormat, ContainerFormat, Dtype
+from audiolab.pipe import AudioPipe
 from audiolab.reader import Reader, StreamReader, info, load_audio
 from audiolab.writer import Writer, save_audio
 
@@ -84,6 +85,7 @@ def encode(
 
 __all__ = [
     "AudioCache",
+    "AudioPipe",
     "Reader",
     "StreamReader",
     "Writer",
