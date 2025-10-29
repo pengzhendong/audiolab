@@ -36,7 +36,7 @@ def stream_template(frame: AudioFrame, rate: Optional[int] = None) -> av.AudioSt
     """
     rate = rate or (frame[1] if isinstance(frame, tuple) else frame.rate)
     bytes_io = BytesIO()
-    save_audio(bytes_io, frame, rate=rate)
+    save_audio(bytes_io, frame, rate)
     return info(bytes_io).stream
 
 
@@ -51,7 +51,6 @@ class AudioPipe:
         out_rate: Optional[int] = None,
         to_mono: bool = False,
         frame_size: Optional[int] = 1024,
-        return_ndarray: bool = True,
         always_2d: bool = True,
     ):
         """
@@ -66,7 +65,7 @@ class AudioPipe:
             out_rate: The sample rate of the output audio frames.
             to_mono: Whether to convert the output audio frames to mono.
             frame_size: The frame size of the audio frames.
-            return_ndarray: Whether to return the audio frames as ndarrays.
+            always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
         """
         self.in_rate = in_rate
         self.graph = None
@@ -75,33 +74,18 @@ class AudioPipe:
             filters.append(aformat(dtype, is_planar, format, out_rate, to_mono))
         self.filters = filters
         self.frame_size = frame_size
-        self.return_ndarray = return_ndarray
         self.always_2d = always_2d
 
     def push(self, frame: np.ndarray):
-        """
-        Push a frame of audio data to the audio pipe.
-
-        Args:
-            frame: The frame of audio data to push.
-        """
         if self.graph is None:
             self.graph = AudioGraph(
                 stream=stream_template(frame, self.in_rate),
                 filters=self.filters,
                 frame_size=self.frame_size,
-                return_ndarray=self.return_ndarray,
+                return_ndarray=True,
                 always_2d=self.always_2d,
             )
         self.graph.push(frame)
 
-    def pull(self, partial: bool = False) -> Iterator[AudioFrame]:
-        """
-        Pull an audio frame from the audio pipe.
-
-        Args:
-            partial: Whether to pull a partial frame.
-        Yields:
-            The audio frame.
-        """
+    def pull(self, partial: bool = False) -> Iterator[np.ndarray]:
         yield from self.graph.pull(partial=partial)

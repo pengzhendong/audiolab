@@ -20,7 +20,7 @@ import pytest
 from audiolab.av import aformat
 from audiolab.av.filter import aresample, atempo
 from audiolab.av.utils import generate_ndarray
-from audiolab.reader import Reader, StreamReader, load_audio
+from audiolab.reader import Reader, load_audio
 from audiolab.writer import save_audio
 
 

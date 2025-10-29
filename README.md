@@ -122,15 +122,23 @@ filters = [asetrate(rate * ratio), atempo(1 / ratio), aresample(rate)]
 audio, rate = load_audio("audio.wav", filters=filters)
 ```
 
-### Stream processing
+### Streaming processing
 
 ```python
-from audiolab import Reader
+import numpy as np
+from audiolab.av.filter import atempo
+from audiolab import AudioPipe, Reader, save_audio
 
-# Process audio in chunks
-reader = Reader("audio.wav", frame_size=1024)
-for chunk, rate in reader:
-    print(chunk.shape)
+frames = []
+reader = Reader("audio.wav")
+pipe = AudioPipe(in_rate=reader.rate, filters=[atempo(2)])
+for frame, _ in reader:
+    pipe.push(frame)
+    for frame, _ in pipe.pull():
+        frames.append(frame)
+for frame, _ in pipe.pull(True):
+    frames.append(frame)
+save_audio("output.wav", np.concatenate(frames, axis=1), reader.rate)
 ```
 
 ## License

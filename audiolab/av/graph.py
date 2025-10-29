@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import errno
-from fractions import Fraction
 from typing import List, Optional
 
 import av
@@ -35,8 +34,6 @@ class AudioGraph:
         format: Optional[AudioFormat] = None,
         layout: Optional[AudioLayout] = None,
         channels: Optional[int] = None,
-        name: Optional[str] = None,
-        time_base: Optional[Fraction] = None,
         filters: Optional[List[Filter]] = None,
         frame_size: int = -1,
         return_ndarray: bool = True,
@@ -63,11 +60,8 @@ class AudioGraph:
         self.filters = filters or []
         self.graph = Graph()
         if stream is None:
-            if format is None:
-                format = get_format(dtype, is_planar)
-            abuffer = self.graph.add_abuffer(
-                sample_rate=rate, format=format, layout=layout, channels=channels, name=name, time_base=time_base
-            )
+            format = format or get_format(dtype, is_planar)
+            abuffer = self.graph.add_abuffer(sample_rate=rate, format=format, layout=layout, channels=channels)
             self.rate = rate
             self.format = format.name if isinstance(format, av.AudioFormat) else format
             self.layout = layout

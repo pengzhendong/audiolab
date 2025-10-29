@@ -56,7 +56,7 @@ class TestWriter:
         for always_2d in (True, False):
             bytes_io = BytesIO()
             ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16, always_2d)
-            save_audio(bytes_io, ndarray, rate=rate, container_format="webm")
+            save_audio(bytes_io, ndarray, rate, container_format="webm")
 
             _info = info(bytes_io)
             assert _info.channels == nb_channels

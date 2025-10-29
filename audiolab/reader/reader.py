@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import math
 from typing import Any, Iterator, List, Optional
 
 import numpy as np
@@ -72,12 +73,20 @@ class Reader(Info):
             filters.append(aformat(dtype, is_planar, format, rate, to_mono))
 
         if frame_size_ms is not None:
-            frame_size = frame_size_ms * self.stream.rate / 1000
+            frame_size = int(frame_size_ms * self.stream.rate // 1000)
         else:
             frame_size = frame_size or np.iinfo(np.uint32).max
         self.frame_size = min(frame_size, np.iinfo(np.uint32).max)
         self.graph = AudioGraph(self.stream, filters=filters, frame_size=frame_size, **kwargs)
         self.always_2d = kwargs.get("always_2d", True)
+
+    @property
+    def num_frames(self) -> int:
+        """
+        Get the number of the audio frames in the audio stream.
+        Note: Filters may change the number of frames.
+        """
+        return math.ceil(self.duration * self.rate / self.frame_size)
 
     def __iter__(self) -> Iterator[AudioFrame]:
         for frame in self.container.decode(self.stream):

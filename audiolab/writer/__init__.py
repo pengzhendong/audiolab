@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any
+from typing import Any, Optional
 
 import av
 
@@ -22,7 +22,7 @@ from audiolab.av.typing import AudioFrame
 from audiolab.writer.writer import Writer
 
 
-def save_audio(file: Any, frame: AudioFrame, **kwargs):
+def save_audio(file: Any, frame: AudioFrame, rate: Optional[int] = None, **kwargs):
     _rate = None
     if isinstance(frame, tuple):
         frame, _rate = frame
@@ -34,13 +34,15 @@ def save_audio(file: Any, frame: AudioFrame, **kwargs):
             kwargs["is_planar"] = is_planar or frame.format.is_planar
         _rate = frame.rate
         frame = to_ndarray(frame)
-    if _rate is not None:
-        assert kwargs.get("dtype", _rate) == _rate
-        kwargs["rate"] = _rate
+    if rate is None:
+        assert _rate is not None
+        rate = _rate
+    elif _rate is not None:
+        assert rate == _rate
     kwargs["channels"] = 1 if frame.ndim == 1 else frame.shape[0]
     assert kwargs["channels"] in (1, 2)
 
-    writer = Writer(file, **kwargs)
+    writer = Writer(file, rate, **kwargs)
     writer.write(frame)
     writer.close()
 
