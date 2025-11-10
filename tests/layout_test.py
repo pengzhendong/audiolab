@@ -18,7 +18,6 @@ from audiolab.av.layout import AudioLayout, audio_layouts
 
 
 class TestLayout:
-
     @pytest.mark.parametrize("name, layout", audio_layouts.items())
     def test_layout_name(self, name, layout):
         _layout = AudioLayout[name]

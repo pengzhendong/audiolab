@@ -18,7 +18,6 @@ from audiolab.av.container import ContainerFormat, container_formats, extension_
 
 
 class TestContainer:
-
     @pytest.mark.parametrize("name, format", container_formats.items())
     def test_input_container(self, name, format):
         _format = ContainerFormat[name]

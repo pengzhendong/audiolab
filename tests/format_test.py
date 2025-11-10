@@ -15,11 +15,16 @@
 import numpy as np
 import pytest
 
-from audiolab.av.format import AudioFormat, audio_formats, format_dtypes, get_format, get_format_dtype
+from audiolab.av.format import (
+    AudioFormat,
+    audio_formats,
+    format_dtypes,
+    get_format,
+    get_format_dtype,
+)
 
 
 class TestFormat:
-
     @pytest.mark.parametrize("name, format", audio_formats.items())
     def test_format(self, name, format):
         _format = AudioFormat[name]
@@ -31,9 +36,15 @@ class TestFormat:
         is_planar = name.endswith("p")
         assert get_format(name) == format
         if is_planar:
-            assert get_format(dtype, available_formats=[format.packed]).name == format.packed.name
+            assert (
+                get_format(dtype, available_formats=[format.packed]).name
+                == format.packed.name
+            )
         else:
-            assert get_format(dtype, available_formats=[format.planar]).name == format.planar.name
+            assert (
+                get_format(dtype, available_formats=[format.planar]).name
+                == format.planar.name
+            )
         assert get_format(np.dtype(dtype), is_planar) == format
         assert get_format(np.dtype(dtype).name, is_planar) == format
 

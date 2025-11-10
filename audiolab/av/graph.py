@@ -61,7 +61,9 @@ class AudioGraph:
         self.graph = Graph()
         if stream is None:
             format = format or get_format(dtype, is_planar)
-            abuffer = self.graph.add_abuffer(sample_rate=rate, format=format, layout=layout, channels=channels)
+            abuffer = self.graph.add_abuffer(
+                sample_rate=rate, format=format, layout=layout, channels=channels
+            )
             self.rate = rate
             self.format = format.name if isinstance(format, av.AudioFormat) else format
             self.layout = layout
@@ -73,7 +75,9 @@ class AudioGraph:
         nodes = [abuffer]
         for _filter in self.filters:
             name, args, kwargs = (
-                (_filter, None, {}) if isinstance(_filter, str) else ((*_filter, {}) if len(_filter) == 2 else _filter)
+                (_filter, None, {})
+                if isinstance(_filter, str)
+                else ((*_filter, {}) if len(_filter) == 2 else _filter)
             )
             nodes.append(self.graph.add(name, args, **kwargs))
         nodes.append(self.graph.add("abuffersink"))
@@ -99,7 +103,10 @@ class AudioGraph:
         self.graph.push(frame)
 
     def pull(
-        self, partial: bool = False, return_ndarray: Optional[bool] = None, always_2d: Optional[bool] = None
+        self,
+        partial: bool = False,
+        return_ndarray: Optional[bool] = None,
+        always_2d: Optional[bool] = None,
     ) -> AudioFrame:
         """
         Pull an audio frame from the graph.

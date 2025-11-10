@@ -25,7 +25,6 @@ from audiolab.writer import save_audio
 
 
 class TestReader:
-
     @pytest.fixture
     def nb_channels(self):
         return 1
@@ -42,7 +41,9 @@ class TestReader:
         frame_size_ms = 50
         for always_2d in (True, False):
             bytes_io = BytesIO()
-            ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16, always_2d)
+            ndarray = generate_ndarray(
+                nb_channels, int(rate * duration), np.int16, always_2d
+            )
             save_audio(bytes_io, ndarray, rate=rate)
 
             reader = Reader(bytes_io, frame_size_ms=frame_size_ms, always_2d=always_2d)
@@ -56,7 +57,9 @@ class TestReader:
     def test_load_audio(self, nb_channels, rate, duration):
         for always_2d in (True, False):
             bytes_io = BytesIO()
-            ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16, always_2d)
+            ndarray = generate_ndarray(
+                nb_channels, int(rate * duration), np.int16, always_2d
+            )
             save_audio(bytes_io, ndarray, rate=rate)
 
             audio, rate = load_audio(bytes_io, always_2d=always_2d)
@@ -85,7 +88,9 @@ class TestReader:
         ndarray = generate_ndarray(2, int(rate * duration), np.int16)
         save_audio(bytes_io, ndarray, rate=rate)
 
-        audio, rate = load_audio(bytes_io, filters=[aformat(dtype=np.float32, rate=8000, to_mono=True)])
+        audio, rate = load_audio(
+            bytes_io, filters=[aformat(dtype=np.float32, rate=8000, to_mono=True)]
+        )
         assert audio.dtype == np.float32
         assert audio.shape == (1, int(rate * duration))
         assert rate == 8000

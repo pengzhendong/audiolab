@@ -22,25 +22,63 @@ from audiolab.reader.info import Info
 
 @click.command()
 @click.argument("audio-files", nargs=-1)
-@click.option("-S", "--stream-id", type=int, default=0, help="The index of the stream to load.")
-@click.option("-f", "--force-decoding", is_flag=True, help="Force decoding the audio file to get the duration")
+@click.option(
+    "-S", "--stream-id", type=int, default=0, help="The index of the stream to load."
+)
+@click.option(
+    "-f",
+    "--force-decoding",
+    is_flag=True,
+    help="Force decoding the audio file to get the duration",
+)
 @click.option("-t", "--show-file-type", is_flag=True, help="Show detected file-type")
 @click.option("-r", "--show-sample-rate", is_flag=True, help="Show sample-rate")
 @click.option("-c", "--show-channels", is_flag=True, help="Show number of channels")
-@click.option("-s", "--show-samples", is_flag=True, help="Show number of samples (N/A if unavailable)")
 @click.option(
-    "-d", "--show-duration-hms", is_flag=True, help="Show duration in hours, minutes and seconds (N/A if unavailable)"
-)
-@click.option("-D", "--show-duration-seconds", is_flag=True, help="Show duration in seconds (N/A if unavailable)")
-@click.option(
-    "-b", "--show-bits-per-sample", is_flag=True, help="Show number of bits per sample (N/A if not applicable)"
+    "-s",
+    "--show-samples",
+    is_flag=True,
+    help="Show number of samples (N/A if unavailable)",
 )
 @click.option(
-    "-B", "--show-bitrate", is_flag=True, help="Show the bitrate averaged over the whole file (N/A if unavailable)"
+    "-d",
+    "--show-duration-hms",
+    is_flag=True,
+    help="Show duration in hours, minutes and seconds (N/A if unavailable)",
 )
-@click.option("-p", "--show-precision", is_flag=True, help="Show estimated sample precision in bits")
-@click.option("-e", "--show-encoding", is_flag=True, help="Show the name of the audio encoding")
-@click.option("-a", "--show-comments", is_flag=True, help="Show file comments (annotations) if available")
+@click.option(
+    "-D",
+    "--show-duration-seconds",
+    is_flag=True,
+    help="Show duration in seconds (N/A if unavailable)",
+)
+@click.option(
+    "-b",
+    "--show-bits-per-sample",
+    is_flag=True,
+    help="Show number of bits per sample (N/A if not applicable)",
+)
+@click.option(
+    "-B",
+    "--show-bitrate",
+    is_flag=True,
+    help="Show the bitrate averaged over the whole file (N/A if unavailable)",
+)
+@click.option(
+    "-p",
+    "--show-precision",
+    is_flag=True,
+    help="Show estimated sample precision in bits",
+)
+@click.option(
+    "-e", "--show-encoding", is_flag=True, help="Show the name of the audio encoding"
+)
+@click.option(
+    "-a",
+    "--show-comments",
+    is_flag=True,
+    help="Show file comments (annotations) if available",
+)
 def main(
     audio_files: Any,
     stream_id: int = 0,
@@ -125,4 +163,6 @@ def main(
 
     # Print total duration if any files were processed and any options were selected
     if len(audio_files) > 1 and not show_any:
-        print(f"\nTotal duration of {len(audio_files)} files: {Info.format_duration(total_duration)}")
+        print(
+            f"\nTotal duration of {len(audio_files)} files: {Info.format_duration(total_duration)}"
+        )

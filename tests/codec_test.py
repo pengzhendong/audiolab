@@ -19,7 +19,6 @@ from audiolab.av.format import get_codecs
 
 
 class TestCodec:
-
     @pytest.mark.parametrize("name, codec", decodecs.items())
     def test_decoder_codec(self, name, codec):
         _codec = Decodec[name]

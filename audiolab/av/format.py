@@ -44,8 +44,14 @@ format_dtypes = {
     "u8": "u1",
     "u8p": "u1",
 }
-dtype_formats = {np.dtype(dtype): name for name, dtype in format_dtypes.items() if not name.endswith("p")}
-audio_formats: Dict[str, av.AudioFormat] = {name: av.AudioFormat(name) for name in format_dtypes.keys()}
+dtype_formats = {
+    np.dtype(dtype): name
+    for name, dtype in format_dtypes.items()
+    if not name.endswith("p")
+}
+audio_formats: Dict[str, av.AudioFormat] = {
+    name: av.AudioFormat(name) for name in format_dtypes.keys()
+}
 AudioFormat = typing.AudioFormatEnum("AudioFormat", audio_formats)
 
 
@@ -109,20 +115,27 @@ def get_format(
     if isinstance(dtype, str) and dtype not in format_dtypes or isinstance(dtype, type):
         dtype = np.dtype(dtype)
     if isinstance(dtype, np.dtype):
-        assert dtype in dtype_formats, f"Input dtype `{dtype}` is not in {dtype_formats}."
+        assert dtype in dtype_formats, (
+            f"Input dtype `{dtype}` is not in {dtype_formats}."
+        )
         dtype = dtype_formats[dtype]
         if is_planar is not None:
             dtype = dtype + ("p" if is_planar else "")
         else:
             assert available_formats is not None
             available_formats = [
-                format.name if isinstance(format, typing.AudioFormat) else format for format in available_formats
+                format.name if isinstance(format, typing.AudioFormat) else format
+                for format in available_formats
             ]
             if dtype not in available_formats:
                 opposite_format = "packed" if dtype.endswith("p") else "planar"
-                logger.warning(f"Input format `{dtype}` is not in {available_formats}, try {opposite_format} format.")
+                logger.warning(
+                    f"Input format `{dtype}` is not in {available_formats}, try {opposite_format} format."
+                )
                 dtype = dtype.rstrip("p") if dtype.endswith("p") else dtype + "p"
-            assert dtype in available_formats, f"Input format `{dtype}` is not in {available_formats}."
+            assert dtype in available_formats, (
+                f"Input format `{dtype}` is not in {available_formats}."
+            )
     return AudioFormat[dtype].value
 
 

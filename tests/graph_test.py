@@ -20,7 +20,6 @@ from audiolab.av.utils import generate_ndarray
 
 
 class TestGraph:
-
     @pytest.fixture
     def sample_rate(self):
         return 48000
@@ -30,7 +29,9 @@ class TestGraph:
         filters = [aformat(dtype=np.int16, rate=16000)]
         num_samples = int(sample_rate * duration)
         for always_2d in (True, False):
-            graph = AudioGraph(rate=sample_rate, dtype=np.float32, layout="mono", filters=filters)
+            graph = AudioGraph(
+                rate=sample_rate, dtype=np.float32, layout="mono", filters=filters
+            )
             ndarray = generate_ndarray(1, num_samples, np.float32, always_2d)
             graph.push(ndarray)
             frames = []

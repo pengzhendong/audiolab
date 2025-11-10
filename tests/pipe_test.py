@@ -21,7 +21,6 @@ from audiolab.pipe import AudioPipe, stream_template
 
 
 class TestPipe:
-
     @pytest.fixture
     def nb_channels(self):
         return 1
@@ -52,4 +51,6 @@ class TestPipe:
                 for frame, _ in pipe.pull(partial=idx == num_frames - 1):
                     frames.append(frame)
             audio = np.concatenate(frames, axis=1)
-            assert np.isclose(audio.shape[1] / rate * ratio, num_samples / rate, atol=0.05)
+            assert np.isclose(
+                audio.shape[1] / rate * ratio, num_samples / rate, atol=0.05
+            )

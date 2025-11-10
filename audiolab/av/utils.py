@@ -22,7 +22,9 @@ from numpy.random import randint, uniform
 loader = FileSystemLoader(files("audiolab.av").joinpath("templates"))
 
 
-def generate_ndarray(nb_channels: int, samples: int, dtype: np.dtype, always_2d: bool = True) -> np.ndarray:
+def generate_ndarray(
+    nb_channels: int, samples: int, dtype: np.dtype, always_2d: bool = True
+) -> np.ndarray:
     """
     Generate a random ndarray.
 
@@ -37,7 +39,9 @@ def generate_ndarray(nb_channels: int, samples: int, dtype: np.dtype, always_2d:
     if np.dtype(dtype).kind in ("i", "u"):
         min_value = np.iinfo(dtype).min
         max_value = np.iinfo(dtype).max
-        ndarray = randint(min_value, max_value, size=(nb_channels, samples), dtype=dtype)
+        ndarray = randint(
+            min_value, max_value, size=(nb_channels, samples), dtype=dtype
+        )
     else:
         ndarray = uniform(-1, 1, size=(nb_channels, samples)).astype(dtype)
     if not always_2d and nb_channels == 1:

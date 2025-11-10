@@ -62,7 +62,9 @@ class Info:
             self.duration = Seconds(self.num_samples / self.stream.rate)
         elif self.stream.duration is not None:
             start_time = self.stream.start_time or 0
-            self.duration = Seconds((self.stream.duration + start_time) * self.stream.time_base)
+            self.duration = Seconds(
+                (self.stream.duration + start_time) * self.stream.time_base
+            )
             self.num_samples = int(self.duration * self.stream.rate)
         elif self.container.duration is not None:
             start_time = self.container.start_time or 0
@@ -151,7 +153,9 @@ class Info:
         Args:
             num_cdda_sectors: The number of CDDA sectors of the audio stream.
         """
-        return "N/A" if num_cdda_sectors is None else Info.rstrip_zeros(num_cdda_sectors)
+        return (
+            "N/A" if num_cdda_sectors is None else Info.rstrip_zeros(num_cdda_sectors)
+        )
 
     @staticmethod
     def format_size(size: int) -> str:

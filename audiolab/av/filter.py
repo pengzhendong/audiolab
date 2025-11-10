@@ -47,7 +47,9 @@ class FilterManager:
                             "name": opt.name,
                             "type": opt_type,
                             "default": opt.default,
-                            "help": opt.help if opt.name != "temp" else "set temperature °C",
+                            "help": opt.help
+                            if opt.name != "temp"
+                            else "set temperature °C",
                         }
                     )
             self._filter_data[name] = {
@@ -84,7 +86,9 @@ class FilterManager:
             # Set docstring
             data = self._filter_data[name]
             filter_func.__doc__ = get_template("filter").render(
-                name=data["name"], description=data["description"], options=data["options"]
+                name=data["name"],
+                description=data["description"],
+                options=data["options"],
             )
 
             # Add to globals
@@ -98,7 +102,9 @@ class FilterManager:
             # Initialize all filters on first access
             self._initialize_filters()
             return globals()[name]
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
 
     @property
     def filters(self) -> List[str]:
