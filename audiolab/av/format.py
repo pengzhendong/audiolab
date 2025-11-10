@@ -57,15 +57,6 @@ AudioFormat = typing.AudioFormatEnum("AudioFormat", audio_formats)
 
 @lru_cache(maxsize=None)
 def get_codecs(format: typing.AudioFormat, mode: Literal["r", "w"] = "r") -> Set[str]:
-    """
-    Get the codecs available for an audio format.
-
-    Args:
-        format: The audio format.
-        mode: The mode to get the codecs.
-    Returns:
-        The codecs available for the audio format.
-    """
     codecs = set()
     if isinstance(format, av.AudioFormat):
         format = format.name
@@ -83,15 +74,7 @@ def get_codecs(format: typing.AudioFormat, mode: Literal["r", "w"] = "r") -> Set
 
 
 @lru_cache(maxsize=None)
-def get_format_dtype(format: typing.AudioFormat) -> np.dtype:
-    """
-    Get the data type of an audio format.
-
-    Args:
-        format: The audio format.
-    Returns:
-        The data type of the audio format.
-    """
+def get_dtype(format: typing.AudioFormat) -> np.dtype:
     if isinstance(format, av.AudioFormat):
         format = format.name
     return np.dtype(format_dtypes[format])
@@ -102,16 +85,6 @@ def get_format(
     is_planar: Optional[bool] = None,
     available_formats: Optional[Iterable[typing.AudioFormat]] = None,
 ) -> av.AudioFormat:
-    """
-    Get the audio format of an audio data type.
-
-    Args:
-        dtype: The type of the audio data, such as "float32", or float.
-        is_planar: Whether the audio is planar.
-        available_formats: The available formats.
-    Returns:
-        The audio format of the audio data type.
-    """
     if isinstance(dtype, str) and dtype not in format_dtypes or isinstance(dtype, type):
         dtype = np.dtype(dtype)
     if isinstance(dtype, np.dtype):
@@ -143,7 +116,7 @@ template = get_template("format")
 for name, format in audio_formats.items():
     decodecs = get_codecs(name, "r")
     encodecs = get_codecs(name, "w")
-    dtype = get_format_dtype(name)
+    dtype = get_dtype(name)
     getattr(AudioFormat, name).__doc__ = template.render(
         format=format, decodecs=decodecs, encodecs=encodecs, dtype=dtype
     )

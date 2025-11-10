@@ -17,7 +17,8 @@ from typing import Any, Iterator, List, Optional
 
 import numpy as np
 
-from audiolab.av import AudioGraph, aformat, load_url, split_audio_frame
+from audiolab.av import aformat, load_url, split_audio_frame
+from audiolab.av.graph import Graph
 from audiolab.av.typing import AudioFormat, AudioFrame, Dtype, Filter, Seconds
 from audiolab.reader.info import Info
 
@@ -77,7 +78,7 @@ class Reader(Info):
         else:
             frame_size = frame_size or np.iinfo(np.uint32).max
         self.frame_size = min(frame_size, np.iinfo(np.uint32).max)
-        self.graph = AudioGraph(
+        self.graph = Graph(
             self.stream, filters=filters, frame_size=frame_size, **kwargs
         )
         self.always_2d = kwargs.get("always_2d", True)

@@ -83,7 +83,6 @@ class AudioCache:
             cls.__cache_dict[key] = value
             cls.__cache_memory += len(value)
 
-    @classmethod
     @property
     def cache_memory(cls) -> int:
         """

@@ -24,11 +24,10 @@ from audiolab.av.format import (
     AudioFormat,
     audio_formats,
     get_codecs,
+    get_dtype,
     get_format,
-    get_format_dtype,
 )
 from audiolab.av.frame import clip, from_ndarray, split_audio_frame, to_ndarray
-from audiolab.av.graph import AudioGraph
 from audiolab.av.layout import AudioLayout, audio_layouts, standard_channel_layouts
 from audiolab.av.lhotse import AudioCache, load_url
 
@@ -40,25 +39,13 @@ def aformat(
     rate: Optional[int] = None,
     to_mono: bool = False,
 ):
-    """
-    Create a filter.aformat filter.
-
-    Args:
-        dtype: The data type of the audio.
-        is_planar: Whether the audio is planar.
-        format: The format of the audio.
-        rate: The sample rate of the audio.
-        to_mono: Whether to convert the audio to mono.
-    Returns:
-        A filter.aformat filter.
-    """
     kwargs = {}
     if dtype is not None:
         kwargs["sample_fmts"] = get_format(dtype, is_planar).name
     if format is not None:
-        if isinstance(format, av.AudioFormat):
-            format = format.name
-        kwargs["sample_fmts"] = format
+        kwargs["sample_fmts"] = (
+            format.name if isinstance(format, av.AudioFormat) else format
+        )
     if rate is not None:
         kwargs["sample_rates"] = rate
     if to_mono:
@@ -69,7 +56,6 @@ def aformat(
 __all__ = [
     "AudioCache",
     "AudioFormat",
-    "AudioGraph",
     "AudioLayout",
     "ContainerFormat",
     "Decodec",
@@ -86,8 +72,8 @@ __all__ = [
     "extension_formats",
     "from_ndarray",
     "get_codecs",
+    "get_dtype",
     "get_format",
-    "get_format_dtype",
     "load_url",
     "split_audio_frame",
     "standard_channel_layouts",

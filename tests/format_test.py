@@ -19,8 +19,8 @@ from audiolab.av.format import (
     AudioFormat,
     audio_formats,
     format_dtypes,
+    get_dtype,
     get_format,
-    get_format_dtype,
 )
 
 
@@ -49,7 +49,7 @@ class TestFormat:
         assert get_format(np.dtype(dtype).name, is_planar) == format
 
     @pytest.mark.parametrize("name, dtype", format_dtypes.items())
-    def test_get_format_dtype(self, name, dtype):
+    def test_get_dtype(self, name, dtype):
         format = AudioFormat[name].value
-        assert get_format_dtype(name) == np.dtype(dtype)
-        assert get_format_dtype(format) == np.dtype(dtype)
+        assert get_dtype(name) == np.dtype(dtype)
+        assert get_dtype(format) == np.dtype(dtype)

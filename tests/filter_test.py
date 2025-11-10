@@ -16,8 +16,7 @@ import numpy as np
 import pytest
 from av.filter import filters_available
 
-from audiolab import av
-from audiolab.av import filter
+from audiolab.av import aformat, filter
 from audiolab.av.format import format_dtypes, get_format
 
 
@@ -33,15 +32,15 @@ class TestFilter:
         for is_planar in (True, False):
             for dtype in format_dtypes.values():
                 format = get_format(dtype, is_planar)
-                assert av.aformat(dtype=np.dtype(dtype), is_planar=is_planar)[2] == {
+                assert aformat(dtype=np.dtype(dtype), is_planar=is_planar)[2] == {
                     "sample_fmts": format.name
                 }
-                assert av.aformat(dtype=np.dtype(dtype).name, is_planar=is_planar)[
-                    2
-                ] == {"sample_fmts": format.name}
+                assert aformat(dtype=np.dtype(dtype).name, is_planar=is_planar)[2] == {
+                    "sample_fmts": format.name
+                }
 
         for rate in (8000, 16000, 24000, 48000):
-            assert av.aformat(rate=rate)[2] == {"sample_rates": str(rate)}
+            assert aformat(rate=rate)[2] == {"sample_rates": str(rate)}
 
-        assert av.aformat(to_mono=False)[2] == {}
-        assert av.aformat(to_mono=True)[2] == {"channel_layouts": "mono"}
+        assert aformat(to_mono=False)[2] == {}
+        assert aformat(to_mono=True)[2] == {"channel_layouts": "mono"}

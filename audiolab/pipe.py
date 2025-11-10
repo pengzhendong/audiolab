@@ -18,13 +18,12 @@ from typing import Iterator, List, Optional
 import av
 import numpy as np
 
-from audiolab.av import AudioGraph, aformat
 from audiolab.av.typing import AudioFormat, AudioFrame, Dtype, Filter
-from audiolab.reader import info
+from audiolab.reader import Graph, aformat, info
 from audiolab.writer import save_audio
 
 
-def stream_template(frame: AudioFrame, rate: Optional[int] = None) -> av.AudioStream:
+def get_template(frame: AudioFrame, rate: Optional[int] = None) -> av.AudioStream:
     """
     Get a stream template of the audio frame.
 
@@ -78,8 +77,8 @@ class AudioPipe:
 
     def push(self, frame: np.ndarray):
         if self.graph is None:
-            self.graph = AudioGraph(
-                stream=stream_template(frame, self.in_rate),
+            self.graph = Graph(
+                template=get_template(frame, self.in_rate),
                 filters=self.filters,
                 frame_size=self.frame_size,
                 return_ndarray=True,

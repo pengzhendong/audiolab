@@ -24,17 +24,16 @@ import numpy as np
 
 from audiolab.av import (
     AudioCache,
-    aformat,
     clip,
     from_ndarray,
+    get_dtype,
     get_format,
-    get_format_dtype,
     split_audio_frame,
     to_ndarray,
 )
 from audiolab.av.typing import AudioFormat, ContainerFormat, Dtype
 from audiolab.pipe import AudioPipe
-from audiolab.reader import Reader, StreamReader, info, load_audio
+from audiolab.reader import Reader, StreamReader, aformat, info, load_audio
 from audiolab.writer import Writer, save_audio
 
 
@@ -52,7 +51,7 @@ def encode(
     Transform an audio to a PCM bytestring.
 
     Args:
-        audio: The file path to an audio file or a numpy array containing raw audio samples.
+        audio: The file path to an audio file or a numpy array.
         rate: The sample rate of the audio.
         dtype: The data type of the audio.
         is_planar: Whether the audio is planar.
@@ -94,8 +93,8 @@ __all__ = [
     "aformat",
     "encode",
     "from_ndarray",
+    "get_dtype",
     "get_format",
-    "get_format_dtype",
     "info",
     "load_audio",
     "save_audio",

@@ -13,94 +13,75 @@
 # limitations under the License.
 
 import errno
+from fractions import Fraction
 from typing import List, Optional
 
 import av
 import numpy as np
-from av.filter import Graph
+from av import filter
 
 from audiolab.av.format import get_format
 from audiolab.av.frame import from_ndarray, to_ndarray
 from audiolab.av.typing import AudioFormat, AudioFrame, AudioLayout, Dtype, Filter
 
 
-class AudioGraph:
+class Graph(filter.Graph):
     def __init__(
         self,
-        stream: Optional[av.AudioStream] = None,
+        template: Optional[av.AudioStream] = None,
         rate: Optional[int] = None,
         dtype: Optional[Dtype] = None,
         is_planar: bool = False,
         format: Optional[AudioFormat] = None,
         layout: Optional[AudioLayout] = None,
         channels: Optional[int] = None,
+        name: Optional[str] = None,
+        time_base: Optional[Fraction] = None,
         filters: Optional[List[Filter]] = None,
         frame_size: int = -1,
         return_ndarray: bool = True,
         always_2d: bool = True,
     ):
-        """
-        Create an AudioGraph.
+        if template is not None:
+            rate = template.sample_rate if rate is None else rate
+            format = template.format if format is None else format
+            layout = template.layout.name if layout is None else layout
+            channels = template.channels if channels is None else channels
+            time_base = template.time_base if time_base is None else time_base
+        format = get_format(dtype, is_planar) if format is None else format
+        format = format.name if isinstance(format, av.AudioFormat) else format
+        time_base = Fraction(1, rate) if time_base is None else time_base
+        abuffer = super().add_abuffer(
+            None, rate, format, layout, channels, name, time_base
+        )
 
-        Args:
-            stream: The stream to create the AudioGraph from.
-            rate: The sample rate of the input audio buffer.
-            dtype: The data type of the input audio buffer.
-            is_planar: Whether the input audio buffer is planar.
-            format: The format of the input audio buffer.
-            layout: The layout of the input audio buffer.
-            channels: The number of channels of the input audio buffer.
-            name: The name of the input audio buffer.
-            time_base: The time base of the input audio buffer.
-            filters: The filters to apply to the input audio buffer.
-            frame_size: The frame size of the output audio buffer.
-            return_ndarray: Whether to return the output audio frames as ndarrays.
-            always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
-        """
-        self.filters = filters or []
-        self.graph = Graph()
-        if stream is None:
-            format = format or get_format(dtype, is_planar)
-            abuffer = self.graph.add_abuffer(
-                sample_rate=rate, format=format, layout=layout, channels=channels
-            )
-            self.rate = rate
-            self.format = format.name if isinstance(format, av.AudioFormat) else format
-            self.layout = layout
-        else:
-            abuffer = self.graph.add_abuffer(template=stream)
-            self.rate = stream.rate
-            self.format = stream.format.name
-            self.layout = stream.layout
+        self.rate = rate
+        self.format = format
+        self.layout = layout
         nodes = [abuffer]
-        for _filter in self.filters:
-            name, args, kwargs = (
-                (_filter, None, {})
-                if isinstance(_filter, str)
-                else ((*_filter, {}) if len(_filter) == 2 else _filter)
-            )
-            nodes.append(self.graph.add(name, args, **kwargs))
-        nodes.append(self.graph.add("abuffersink"))
-        self.graph.link_nodes(*nodes).configure()
+        if filters is not None:
+            for _filter in filters:
+                name, args, kwargs = (
+                    (_filter, None, {})
+                    if isinstance(_filter, str)
+                    else ((*_filter, {}) if len(_filter) == 2 else _filter)
+                )
+                nodes.append(super().add(name, args, **kwargs))
+        nodes.append(super().add("abuffersink"))
+        super().link_nodes(*nodes).configure()
 
         if frame_size > 0:
-            self.graph.set_audio_frame_size(frame_size)
+            super().set_audio_frame_size(frame_size)
         self.return_ndarray = return_ndarray
         self.always_2d = always_2d
 
     def push(self, frame: AudioFrame):
-        """
-        Push an audio frame to the graph.
-
-        Args:
-            frame: The audio frame to push.
-        """
         if isinstance(frame, tuple):
             frame, rate = frame
             assert rate == self.rate
         if isinstance(frame, np.ndarray):
             frame = from_ndarray(frame, self.format, self.layout, self.rate)
-        self.graph.push(frame)
+        super().push(frame)
 
     def pull(
         self,
@@ -108,21 +89,11 @@ class AudioGraph:
         return_ndarray: Optional[bool] = None,
         always_2d: Optional[bool] = None,
     ) -> AudioFrame:
-        """
-        Pull an audio frame from the graph.
-
-        Args:
-            partial: Whether to pull a partial frame.
-            return_ndarray: Whether to return the audio frame as an ndarray.
-            always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
-        Yields:
-            The audio frame.
-        """
         if partial:
-            self.graph.push(None)
+            super().push(None)
         while True:
             try:
-                frame = self.graph.pull()
+                frame = super().pull()
                 if return_ndarray is None:
                     return_ndarray = self.return_ndarray
                 if always_2d is None:

@@ -16,7 +16,7 @@ from typing import Any, Optional
 
 import av
 
-from audiolab.av.format import get_format_dtype
+from audiolab.av.format import get_dtype
 from audiolab.av.frame import to_ndarray
 from audiolab.av.typing import AudioFrame
 from audiolab.writer.writer import Writer
@@ -30,7 +30,7 @@ def save_audio(file: Any, frame: AudioFrame, rate: Optional[int] = None, **kwarg
         if kwargs.get("format", None) is None:
             dtype = kwargs.get("dtype", None)
             is_planar = kwargs.get("is_planar", None)
-            kwargs["dtype"] = dtype or get_format_dtype(frame.format)
+            kwargs["dtype"] = dtype or get_dtype(frame.format)
             kwargs["is_planar"] = is_planar or frame.format.is_planar
         _rate = frame.rate
         frame = to_ndarray(frame)

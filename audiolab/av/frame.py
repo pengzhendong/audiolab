@@ -19,7 +19,7 @@ from typing import Optional, Tuple
 import av
 import numpy as np
 
-from audiolab.av.format import get_format_dtype
+from audiolab.av.format import get_dtype
 from audiolab.av.typing import AudioFormat, AudioLayout, Seconds
 
 logger = logging.getLogger(__name__)
@@ -91,7 +91,7 @@ def from_ndarray(
     if isinstance(layout, str):
         layout = av.AudioLayout(layout)
 
-    dtype = get_format_dtype(format)
+    dtype = get_dtype(format)
     ndarray = clip(ndarray, dtype)
     frame = av.AudioFrame.from_ndarray(ndarray, format=format.name, layout=layout)
     frame.rate = rate

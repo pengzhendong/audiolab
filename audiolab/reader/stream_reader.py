@@ -17,7 +17,8 @@ from typing import Iterator, List, Optional
 
 import av
 
-from audiolab.av import AudioGraph, aformat
+from audiolab.av import aformat
+from audiolab.av.graph import Graph
 from audiolab.av.typing import AudioFormat, AudioFrame, Dtype, Filter
 from audiolab.av.utils import is_streamable
 
@@ -72,11 +73,11 @@ class StreamReader:
         return self._codec_context
 
     @property
-    def graph(self) -> Optional[AudioGraph]:
+    def graph(self) -> Optional[Graph]:
         if self._graph is None:
             if self.packet is None:
                 return None
-            self._graph = AudioGraph(
+            self._graph = Graph(
                 self.packet.stream,
                 filters=self.filters,
                 frame_size=self.frame_size,

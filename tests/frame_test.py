@@ -16,7 +16,7 @@ import numpy as np
 from av.audio.frame import format_dtypes
 from numpy.random import choice, randint
 
-from audiolab.av.format import AudioFormat, get_format_dtype
+from audiolab.av.format import AudioFormat, get_dtype
 from audiolab.av.frame import clip, from_ndarray, split_audio_frame, to_ndarray
 from audiolab.av.layout import AudioLayout
 from audiolab.av.typing import Seconds
@@ -44,7 +44,7 @@ class TestFrame:
             nb_channels = layout.nb_channels
             for format_name in format_dtypes.keys():
                 format = AudioFormat[format_name].value
-                dtype = get_format_dtype(format)
+                dtype = get_dtype(format)
                 for rate in (8000, 16000, 24000, 48000):
                     always_2d = choice([True, False])
                     ndarray = generate_ndarray(nb_channels, rate, dtype, always_2d)
@@ -61,7 +61,7 @@ class TestFrame:
             nb_channels = layout.nb_channels
             for format_name in format_dtypes.keys():
                 format = AudioFormat[format_name].value
-                dtype = get_format_dtype(format)
+                dtype = get_dtype(format)
                 for rate in (8000, 16000, 24000, 48000):
                     duration: Seconds = randint(0, 10)
                     offset: Seconds = randint(0, 10)

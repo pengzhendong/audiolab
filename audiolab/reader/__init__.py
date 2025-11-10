@@ -16,6 +16,8 @@ from typing import Any, Iterator, Tuple, Union
 
 import numpy as np
 
+from audiolab.av import aformat
+from audiolab.av.graph import Graph
 from audiolab.reader.info import Info
 from audiolab.reader.reader import Reader
 from audiolab.reader.stream_reader import StreamReader
@@ -45,4 +47,4 @@ def load_audio(
     return next(generator)
 
 
-__all__ = ["Reader", "StreamReader", "load_audio"]
+__all__ = ["Graph", "Reader", "StreamReader", "aformat", "load_audio"]
