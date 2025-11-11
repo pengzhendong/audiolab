@@ -33,9 +33,6 @@ def clip(ndarray: np.ndarray, dtype: np.dtype) -> np.ndarray:
         ndarray: The ndarray to clip.
         dtype: The data type to clip the ndarray to.
     """
-    ndarray = (
-        ndarray.numpy() if "tensor" in ndarray.__class__.__name__.lower() else ndarray
-    )
     source_type = ndarray.dtype
     target_type = np.dtype(dtype)
     assert source_type.kind in ("f", "i", "u") and target_type.kind in ("f", "i", "u")

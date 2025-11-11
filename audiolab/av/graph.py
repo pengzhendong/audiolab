@@ -41,6 +41,7 @@ class Graph(filter.Graph):
         frame_size: int = -1,
         return_ndarray: bool = True,
         always_2d: bool = True,
+        fill_value: Optional[float] = None,
     ):
         if template is not None:
             rate = template.sample_rate if rate is None else rate
@@ -55,9 +56,6 @@ class Graph(filter.Graph):
             None, rate, format, layout, channels, name, time_base
         )
 
-        self.rate = rate
-        self.format = format
-        self.layout = layout
         nodes = [abuffer]
         if filters is not None:
             for _filter in filters:
@@ -70,10 +68,30 @@ class Graph(filter.Graph):
         nodes.append(super().add("abuffersink"))
         super().link_nodes(*nodes).configure()
 
-        if frame_size > 0:
+        self.frame_size = None
+        if frame_size > 0 and frame_size < np.iinfo(np.uint32).max:
+            self.frame_size = frame_size
             super().set_audio_frame_size(frame_size)
+
+        self.rate = rate
+        self.format = format
+        self.layout = layout
         self.return_ndarray = return_ndarray
         self.always_2d = always_2d
+        self.fill_value = fill_value
+
+    def pad(self, frame: np.ndarray, fill_value: Optional[float] = None):
+        fill_value = self.fill_value if fill_value is None else fill_value
+        if fill_value is None or self.frame_size is None:
+            return frame
+        pad_needed = self.frame_size - frame.shape[0 if frame.ndim == 1 else 1]
+        if pad_needed <= 0:
+            return frame
+
+        if frame.ndim == 1:
+            return np.pad(frame, (0, pad_needed), constant_values=fill_value)
+        else:
+            return np.pad(frame, ((0, 0), (0, pad_needed)), constant_values=fill_value)
 
     def push(self, frame: AudioFrame):
         if isinstance(frame, tuple):
@@ -88,18 +106,21 @@ class Graph(filter.Graph):
         partial: bool = False,
         return_ndarray: Optional[bool] = None,
         always_2d: Optional[bool] = None,
+        fill_value: Optional[float] = None,
     ) -> AudioFrame:
         if partial:
             super().push(None)
         while True:
             try:
                 frame = super().pull()
-                if return_ndarray is None:
-                    return_ndarray = self.return_ndarray
-                if always_2d is None:
-                    always_2d = self.always_2d
+                return_ndarray = (
+                    self.return_ndarray if return_ndarray is None else return_ndarray
+                )
+                always_2d = self.always_2d if always_2d is None else always_2d
                 if return_ndarray:
-                    yield to_ndarray(frame, always_2d), frame.rate
+                    ndarray = to_ndarray(frame, always_2d)
+                    ndarray = self.pad(ndarray, fill_value)
+                    yield ndarray, frame.rate
                 else:
                     yield frame
             except av.EOFError:

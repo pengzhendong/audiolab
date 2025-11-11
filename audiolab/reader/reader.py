@@ -75,8 +75,8 @@ class Reader(Info):
 
         if frame_size_ms is not None:
             frame_size = int(frame_size_ms * self.stream.rate // 1000)
-        else:
-            frame_size = frame_size or np.iinfo(np.uint32).max
+        elif frame_size is None:
+            frame_size = np.iinfo(np.uint32).max
         self.frame_size = min(frame_size, np.iinfo(np.uint32).max)
         self.graph = Graph(
             self.stream, filters=filters, frame_size=frame_size, **kwargs
