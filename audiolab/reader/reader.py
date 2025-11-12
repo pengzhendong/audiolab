@@ -27,7 +27,6 @@ class Reader(Info):
     def __init__(
         self,
         file: Any,
-        stream_id: int = 0,
         offset: Seconds = 0.0,
         duration: Optional[Seconds] = None,
         filters: Optional[List[Filter]] = None,
@@ -46,10 +45,9 @@ class Reader(Info):
 
         Args:
             file: The audio file, audio url, path to audio file, bytes of audio data, etc.
-            stream_id: The index of the stream to load.
-            offset: The offset of the audio stream to load.
-            duration: The duration of the audio stream to load.
-            filters: The filters to apply to the audio stream.
+            offset: The offset of the audio to load.
+            duration: The duration of the audio to load.
+            filters: The filters to apply to the audio.
             dtype: The data type of the audio frames.
             is_planar: Whether the audio frames are planar.
             format: The format of the audio frames.
@@ -63,7 +61,7 @@ class Reader(Info):
         if isinstance(file, str) and "://" in file and cache_url:
             file = load_url(file, cache=True)
 
-        super().__init__(file, stream_id)
+        super().__init__(file)
         self.start_time = int(offset / self.stream.time_base)
         self.end_time = Seconds("inf") if duration is None else offset + duration
         if self.start_time > 0:
@@ -86,7 +84,7 @@ class Reader(Info):
     @property
     def num_frames(self) -> int:
         """
-        Get the number of the audio frames in the audio stream.
+        Get the number of the audio frames in the audio.
         Note: Filters may change the number of frames.
         """
         return math.ceil(self.duration * self.rate / self.frame_size)
@@ -104,10 +102,10 @@ class Reader(Info):
 
     def load_audio(self, always_2d: Optional[bool] = None) -> AudioFrame:
         """
-        Load the audio stream into a numpy array.
+        Load the audio into a numpy array.
 
         Returns:
-            The numpy array of the audio stream.
+            The numpy array of the audio.
         """
         if always_2d is None:
             always_2d = self.always_2d

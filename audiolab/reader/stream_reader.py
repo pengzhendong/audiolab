@@ -88,7 +88,7 @@ class StreamReader:
 
     def push(self, frame: bytes):
         """
-        Push a frame of audio data to the audio stream.
+        Push a frame of audio data to the audio.
 
         Args:
             frame: The frame of audio data to push.
@@ -98,7 +98,7 @@ class StreamReader:
 
     def pull(self, partial: bool = False) -> Iterator[AudioFrame]:
         """
-        Pull an audio frame from the audio stream.
+        Pull an audio frame from the audio.
 
         Args:
             partial: Whether to pull a partial frame.

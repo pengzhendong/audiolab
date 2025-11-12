@@ -53,15 +53,15 @@ class Writer:
 
         Args:
             file: The audio file, path to audio file, bytes, etc.
-            rate: The sample rate of the audio stream.
+            rate: The sample rate of the audio.
             container_format: The format of the audio container.
             codec: The codec of the audio container.
-            channels: The number of channels of the audio stream.
-            dtype: The data type of the audio stream.
-            is_planar: Whether the audio stream is planar.
-            format: The format of the audio stream.
-            layout: The layout of the audio stream.
-            options: The options of the audio stream.
+            channels: The number of channels of the audio.
+            dtype: The data type of the audio.
+            is_planar: Whether the audio is planar.
+            format: The format of the audio.
+            layout: The layout of the audio.
+            options: The options of the audio.
         """
         if isinstance(file, BytesIO):
             if isinstance(container_format, av.ContainerFormat):
@@ -92,7 +92,7 @@ class Writer:
 
     def write(self, frame: AudioFrame):
         """
-        Write an audio frame to the audio stream.
+        Write an audio frame to the audio.
 
         Args:
             frame: The audio frame to write.
@@ -110,7 +110,7 @@ class Writer:
 
     def close(self):
         """
-        Close the audio stream.
+        Close the audio.
         """
         self.container.close()
         if isinstance(self.file, BytesIO):

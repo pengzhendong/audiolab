@@ -31,17 +31,16 @@ class Info:
     sample_rate: int
     layout: AudioLayout
 
-    def __init__(self, file: Any, stream_id: int = 0, forced_decoding: bool = False):
+    def __init__(self, file: Any, forced_decoding: bool = False):
         """
         Create an Info object.
 
         Args:
             file: The input audio file, audio url, path to audio file, bytes of audio data, etc.
-            stream_id: The index of the stream to get information from.
             forced_decoding: Whether to forced decoding the audio file to get the duration.
         """
         self.container = av.open(file, metadata_encoding="latin1")
-        self.stream = self.container.streams.audio[stream_id]
+        self.stream = self.container.streams.audio[0]
         self.channels = self.stream.channels
         self.codec = self.stream.codec
         self.rate = self.stream.rate
@@ -85,7 +84,7 @@ class Info:
     @property
     def num_cdda_sectors(self) -> Union[float, None]:
         """
-        Get the number of CDDA sectors of the audio stream.
+        Get the number of CDDA sectors of the audio.
         """
         return None if self.duration is None else round(self.duration * 75, 2)
 
@@ -104,10 +103,10 @@ class Info:
     @staticmethod
     def format_bit_rate(bit_rate: Union[int, None]) -> str:
         """
-        Format the bit rate of the audio stream.
+        Format the bit rate of the audio.
 
         Args:
-            bit_rate: The bit rate of the audio stream.
+            bit_rate: The bit rate of the audio.
         """
         if bit_rate is None or bit_rate <= 0:
             return "N/A"
@@ -117,10 +116,10 @@ class Info:
     @staticmethod
     def format_duration(duration: Union[Seconds, None]) -> str:
         """
-        Format the duration of the audio stream.
+        Format the duration of the audio.
 
         Args:
-            duration: The duration of the audio stream.
+            duration: The duration of the audio.
         """
         if duration is None:
             return "N/A"
@@ -148,10 +147,10 @@ class Info:
     @staticmethod
     def format_num_cdda_sectors(num_cdda_sectors: Union[float, None]) -> str:
         """
-        Format the number of CDDA sectors of the audio stream.
+        Format the number of CDDA sectors of the audio.
 
         Args:
-            num_cdda_sectors: The number of CDDA sectors of the audio stream.
+            num_cdda_sectors: The number of CDDA sectors of the audio.
         """
         return (
             "N/A" if num_cdda_sectors is None else Info.rstrip_zeros(num_cdda_sectors)

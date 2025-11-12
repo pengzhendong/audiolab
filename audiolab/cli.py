@@ -23,9 +23,6 @@ from audiolab.reader.info import Info
 @click.command()
 @click.argument("audio-files", nargs=-1)
 @click.option(
-    "-S", "--stream-id", type=int, default=0, help="The index of the stream to load."
-)
-@click.option(
     "-f",
     "--forced-decoding",
     is_flag=True,
@@ -81,7 +78,6 @@ from audiolab.reader.info import Info
 )
 def main(
     audio_files: Any,
-    stream_id: int = 0,
     forced_decoding: bool = False,
     show_file_type: bool = False,
     show_sample_rate: bool = False,
@@ -128,7 +124,7 @@ def main(
 
     # Process each audio file
     for audio_file in audio_files:
-        info = audiolab.info(audio_file, stream_id, forced_decoding)
+        info = audiolab.info(audio_file, forced_decoding)
         # If no specific options are selected, show all information (default behavior)
         if not show_any:
             print(info)

@@ -71,7 +71,6 @@ audi -D audio.wav     # Show duration in seconds
 
 #### CLI Options
 
-- `-S, --stream-id INTEGER`        The index of the stream to load (default: 0)
 - `-f, --forced-decoding`          Forced decoding the audio file to get the duration
 - `-t, --show-file-type`           Show detected file-type
 - `-r, --show-sample-rate`         Show sample-rate
@@ -92,8 +91,8 @@ If no specific options are selected, all information will be displayed by defaul
 
 ### Core Functions
 
-- `load_audio()`: Load audio from file or stream
-- `save_audio()`: Save audio to file or stream
+- `load_audio()`: Load audio from file
+- `save_audio()`: Save audio to file
 - `info()`: Get information about an audio file
 - `encode()`: Transform audio to PCM bytestring
 
