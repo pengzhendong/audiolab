@@ -72,7 +72,7 @@ audi -D audio.wav     # Show duration in seconds
 #### CLI Options
 
 - `-S, --stream-id INTEGER`        The index of the stream to load (default: 0)
-- `-f, --force-decoding`           Force decoding the audio file to get the duration
+- `-f, --forced-decoding`          Forced decoding the audio file to get the duration
 - `-t, --show-file-type`           Show detected file-type
 - `-r, --show-sample-rate`         Show sample-rate
 - `-c, --show-channels`            Show number of channels

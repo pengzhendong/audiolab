@@ -69,9 +69,9 @@ class Graph(filter.Graph):
         super().link_nodes(*nodes).configure()
 
         self.frame_size = None
-        if frame_size > 0 and frame_size < np.iinfo(np.uint32).max:
-            self.frame_size = frame_size
-            super().set_audio_frame_size(frame_size)
+        if frame_size > 0:
+            self.frame_size = min(frame_size, np.iinfo(np.uint32).max)
+            super().set_audio_frame_size(self.frame_size)
 
         self.rate = rate
         self.format = format

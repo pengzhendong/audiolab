@@ -23,18 +23,18 @@ from audiolab.reader.reader import Reader
 from audiolab.reader.stream_reader import StreamReader
 
 
-def info(file: Any, stream_id: int = 0, force_decode: bool = False) -> Info:
+def info(file: Any, stream_id: int = 0, forced_decode: bool = False) -> Info:
     """
     Get the information of an audio file.
 
     Args:
         file: The input audio file, audio url, path to audio file, bytes of audio data, etc.
         stream_id: The index of the stream to get information from.
-        force_decode: Whether to force decoding the audio file to get the duration.
+        forced_decode: Whether to forced decoding the audio file to get the duration.
     Returns:
         The information of the audio file.
     """
-    return Info(file, stream_id, force_decode)
+    return Info(file, stream_id, forced_decode)
 
 
 def load_audio(

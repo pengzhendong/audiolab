@@ -27,9 +27,9 @@ from audiolab.reader.info import Info
 )
 @click.option(
     "-f",
-    "--force-decoding",
+    "--forced-decoding",
     is_flag=True,
-    help="Force decoding the audio file to get the duration",
+    help="Forced decoding the audio file to get the duration",
 )
 @click.option("-t", "--show-file-type", is_flag=True, help="Show detected file-type")
 @click.option("-r", "--show-sample-rate", is_flag=True, help="Show sample-rate")
@@ -82,7 +82,7 @@ from audiolab.reader.info import Info
 def main(
     audio_files: Any,
     stream_id: int = 0,
-    force_decoding: bool = False,
+    forced_decoding: bool = False,
     show_file_type: bool = False,
     show_sample_rate: bool = False,
     show_channels: bool = False,
@@ -128,7 +128,7 @@ def main(
 
     # Process each audio file
     for audio_file in audio_files:
-        info = audiolab.info(audio_file, stream_id, force_decoding)
+        info = audiolab.info(audio_file, stream_id, forced_decoding)
         # If no specific options are selected, show all information (default behavior)
         if not show_any:
             print(info)

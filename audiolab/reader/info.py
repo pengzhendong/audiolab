@@ -31,14 +31,14 @@ class Info:
     sample_rate: int
     layout: AudioLayout
 
-    def __init__(self, file: Any, stream_id: int = 0, force_decoding: bool = False):
+    def __init__(self, file: Any, stream_id: int = 0, forced_decoding: bool = False):
         """
         Create an Info object.
 
         Args:
             file: The input audio file, audio url, path to audio file, bytes of audio data, etc.
             stream_id: The index of the stream to get information from.
-            force_decoding: Whether to force decoding the audio file to get the duration.
+            forced_decoding: Whether to forced decoding the audio file to get the duration.
         """
         self.container = av.open(file, metadata_encoding="latin1")
         self.stream = self.container.streams.audio[stream_id]
@@ -54,7 +54,7 @@ class Info:
         # number of audio samples (per channel)
         self.num_samples = None
         self.duration = None
-        if force_decoding:
+        if forced_decoding:
             # Decode the stream to get the duration if it is not available or accurate.
             self.num_samples = 0
             for frame in self.container.decode(self.stream):
