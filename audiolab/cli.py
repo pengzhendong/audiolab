@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from io import BytesIO
 from typing import Any
 
 import click
@@ -101,8 +102,11 @@ def main(
     # If no files are provided, use stdin
     if not audio_files:
         # Create a file object for stdin
+        #   cat audio.wav | audi
+        #   audi < audio.wav
         stdin_file = click.File(mode="rb").convert("-", None, None)
-        audio_files = [stdin_file]
+        bytesio = BytesIO(stdin_file.read())
+        audio_files = [bytesio]
 
     # Initialize total duration and show_any flag
     total_duration = 0.0
