@@ -38,19 +38,38 @@ class Wave(Backend):
         self.wave = wave.open(file)
         self.forced_decoding = forced_decoding
 
-    def __getattr__(self, name):
-        return getattr(self.wave, name)
+    @cached_property
+    def bits_per_sample(self) -> int:
+        return self.wave.getsampwidth() * 8
 
-    def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
-        pos = 0
-        if whence == io.SEEK_SET:
-            pos = offset
-        elif whence == io.SEEK_CUR:
-            pos = self.tell() + offset
-        elif whence == io.SEEK_END:
-            pos = self.getnframes() + offset
-        self.setpos(pos)
-        return self.tell()
+    @cached_property
+    def codec(self) -> str:
+        return _bits_to_codec_map[self.bits_per_sample]
+
+    @cached_property
+    def duration(self) -> Optional[Seconds]:
+        if self.num_frames is None:
+            return None
+        return Seconds(self.num_frames / self.sample_rate)
+
+    @cached_property
+    def num_channels(self) -> int:
+        return self.wave.getnchannels()
+
+    @cached_property
+    def num_frames(self) -> Optional[int]:
+        if self.forced_decoding:
+            num_frames = self.read(np.iinfo(np.int32).max).shape[0]
+            self.wave.rewind()
+        else:
+            num_frames = self.wave.getnframes()
+            if num_frames >= np.iinfo(np.int32).max:
+                num_frames = None
+        return num_frames
+
+    @cached_property
+    def sample_rate(self) -> int:
+        return self.wave.getframerate()
 
     def frombuffer(self, buffer: bytes) -> np.ndarray:
         if self.bits_per_sample == 24:
@@ -70,35 +89,11 @@ class Wave(Backend):
         buffer = self.wave.readframes(frames)
         return self.frombuffer(buffer)
 
-    @property
-    def bits_per_sample(self) -> int:
-        return self.wave.getsampwidth() * 8
-
-    @property
-    def num_channels(self) -> int:
-        return self.wave.getnchannels()
-
-    @property
-    def sample_rate(self) -> int:
-        return self.wave.getframerate()
-
-    @property
-    def codec(self) -> str:
-        return _bits_to_codec_map[self.bits_per_sample]
-
-    @cached_property
-    def num_frames(self) -> Optional[int]:
-        if self.forced_decoding:
-            num_frames = self.read(np.iinfo(np.int32).max).shape[0]
-            self.wave.rewind()
-        else:
-            num_frames = self.wave.getnframes()
-            if num_frames >= np.iinfo(np.int32).max:
-                num_frames = None
-        return num_frames
-
-    @cached_property
-    def duration(self) -> Optional[Seconds]:
-        if self.num_frames is None:
-            return None
-        return Seconds(self.num_frames / self.sample_rate)
+    def seek(self, offset: Seconds, whence: int = io.SEEK_SET) -> int:
+        pos = int(offset * self.sample_rate)
+        if whence == io.SEEK_CUR:
+            pos += self.wave.tell()
+        elif whence == io.SEEK_END:
+            pos += self.wave.getnframes()
+        self.wave.setpos(pos)
+        return self.wave.tell()

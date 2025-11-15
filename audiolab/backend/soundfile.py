@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import io
 from functools import cached_property
 from typing import Any, Optional
 
@@ -50,27 +51,23 @@ class SoundFile(Backend):
         self.sf = sf.SoundFile(file)
         self.forced_decoding = forced_decoding
 
-    def __getattr__(self, name):
-        return getattr(self.sf, name)
-
-    def read(self, frames: int = np.iinfo(np.int32).max) -> np.ndarray:
-        pass
-
-    @property
+    @cached_property
     def bits_per_sample(self) -> Optional[int]:
         return _subtype_to_bits_map.get(self.sf.subtype, None)
 
-    @property
+    @cached_property
+    def codec(self) -> str:
+        return sf.available_subtypes()[self.sf.subtype]
+
+    @cached_property
+    def duration(self) -> Optional[Seconds]:
+        if self.num_frames is None:
+            return None
+        return Seconds(self.num_frames / self.sample_rate)
+
+    @cached_property
     def num_channels(self) -> int:
         return self.sf.channels
-
-    @property
-    def sample_rate(self) -> int:
-        return self.sf.samplerate
-
-    @property
-    def codec(self) -> str:
-        return sf.available_subtypes()[self.subtype]
 
     @cached_property
     def num_frames(self) -> Optional[int]:
@@ -90,11 +87,15 @@ class SoundFile(Backend):
         return num_frames
 
     @cached_property
-    def duration(self) -> Optional[Seconds]:
-        if self.num_frames is None:
-            return None
-        return Seconds(self.num_frames / self.sample_rate)
-
-    @property
     def metadata(self) -> dict:
         return self.sf.copy_metadata()
+
+    @cached_property
+    def sample_rate(self) -> int:
+        return self.sf.samplerate
+
+    def read(self, frames: int = np.iinfo(np.int32).max) -> np.ndarray:
+        pass
+
+    def seek(self, offset: Seconds, whence: int = io.SEEK_SET) -> int:
+        pass

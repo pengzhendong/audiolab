@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 from functools import lru_cache
 from typing import Dict, Iterable, Literal, Optional, Set, Union
 
@@ -23,8 +22,6 @@ from av.codec.codec import UnknownCodecError
 
 from audiolab.av import typing
 from audiolab.av.utils import get_template
-
-logger = logging.getLogger(__name__)
 
 
 """
@@ -88,9 +85,6 @@ def get_format(
     if isinstance(dtype, str) and dtype not in format_dtypes or isinstance(dtype, type):
         dtype = np.dtype(dtype)
     if isinstance(dtype, np.dtype):
-        assert dtype in dtype_formats, (
-            f"Input dtype `{dtype}` is not in {dtype_formats}."
-        )
         dtype = dtype_formats[dtype]
         if is_planar is not None:
             dtype = dtype + ("p" if is_planar else "")
@@ -101,14 +95,7 @@ def get_format(
                 for format in available_formats
             ]
             if dtype not in available_formats:
-                opposite_format = "packed" if dtype.endswith("p") else "planar"
-                logger.warning(
-                    f"Input format `{dtype}` is not in {available_formats}, try {opposite_format} format."
-                )
                 dtype = dtype.rstrip("p") if dtype.endswith("p") else dtype + "p"
-            assert dtype in available_formats, (
-                f"Input format `{dtype}` is not in {available_formats}."
-            )
     return AudioFormat[dtype].value
 
 

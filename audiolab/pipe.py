@@ -36,7 +36,7 @@ def get_template(frame: AudioFrame, rate: Optional[int] = None) -> av.AudioStrea
     rate = rate or (frame[1] if isinstance(frame, tuple) else frame.rate)
     bytes_io = BytesIO()
     save_audio(bytes_io, frame, rate)
-    return info(bytes_io).stream
+    return info(bytes_io).backend.stream
 
 
 class AudioPipe:

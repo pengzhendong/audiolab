@@ -14,6 +14,7 @@
 
 from typing import Any, Optional, Union
 
+from av.codec import Codec
 from av.container import Container
 from humanize import naturalsize
 
@@ -29,12 +30,57 @@ class Info:
         # ffmpeg -i xx.flac -f wav - | > xx.wav
         # self.is_streamable = is_streamable(self.stream.codec_context)
         self.file = file
-        # self.backend = wave(file, forced_decoding)
-        # self.backend = soundfile(file, forced_decoding)
         self.backend = backend(file, forced_decoding)
 
-    def __getattr__(self, name):
-        return getattr(self.backend, name)
+    @property
+    def sample_rate(self) -> int:
+        return self.backend.sample_rate
+
+    @property
+    def codec(self) -> Union[Codec, str]:
+        return self.backend.codec
+
+    @property
+    def duration(self) -> Optional[Seconds]:
+        return self.backend.duration
+
+    @property
+    def num_frames(self) -> int:
+        return self.backend.num_frames
+
+    @property
+    def num_channels(self) -> int:
+        return self.backend.num_channels
+
+    @property
+    def bits_per_sample(self) -> int:
+        return self.backend.bits_per_sample
+
+    @property
+    def bit_rate(self) -> Optional[int]:
+        return self.backend.bit_rate
+
+    @property
+    def cdda_sectors(self) -> Optional[float]:
+        if self.duration is None:
+            return None
+        return round(self.duration * 75, 2)
+
+    @property
+    def channels(self) -> int:
+        return self.num_channels
+
+    @property
+    def rate(self) -> int:
+        return self.sample_rate
+
+    @property
+    def samplerate(self) -> int:
+        return self.sample_rate
+
+    @property
+    def precision(self) -> int:
+        return self.bits_per_sample
 
     @staticmethod
     def rstrip_zeros(s: Optional[Union[int, float, str]]) -> str:
@@ -79,14 +125,18 @@ class Info:
     def __str__(self):
         return get_template("info").render(
             name=self.file,
-            channels=self.channels,
-            rate=self.rate,
-            precision=self.precision,
-            duration=Info.format_duration(self.duration),
-            samples="N/A" if self.num_frames is None else self.num_frames,
-            cdda_sectors=Info.rstrip_zeros(self.cdda_sectors),
-            size=Info.format_size(self.size),
-            bit_rate=Info.format_bit_rate(self.bit_rate),
-            codec=self.codec if isinstance(self.codec, str) else self.codec.long_name,
-            metadata=self.metadata,
+            channels=self.backend.channels,
+            rate=self.backend.rate,
+            precision=self.backend.precision,
+            duration=Info.format_duration(self.backend.duration),
+            samples="N/A"
+            if self.backend.num_frames is None
+            else self.backend.num_frames,
+            cdda_sectors=Info.rstrip_zeros(self.backend.cdda_sectors),
+            size=Info.format_size(self.backend.size),
+            bit_rate=Info.format_bit_rate(self.backend.bit_rate),
+            codec=self.backend.codec
+            if isinstance(self.backend.codec, str)
+            else self.backend.codec.long_name,
+            metadata=self.backend.metadata,
         )

@@ -15,7 +15,6 @@
 from importlib.resources import files
 
 import numpy as np
-from av import AudioCodecContext
 from jinja2 import Environment, FileSystemLoader
 from numpy.random import randint, uniform
 
@@ -59,20 +58,3 @@ def get_template(name: str) -> str:
         The template.
     """
     return Environment(loader=loader).get_template(f"{name}.txt")
-
-
-def is_streamable(codec_context: AudioCodecContext) -> bool:
-    """
-    Check if the codec is streamable.
-
-    Args:
-        codec_context: The codec context.
-    Returns:
-        Whether the codec is streamable.
-
-    Note:
-        * https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/avcodec.h#L1045-L1051
-        * Each submitted frame except the last must contain exactly frame_size samples per channel.
-        * May be 0 when the codec has AV_CODEC_CAP_VARIABLE_FRAME_SIZE set, then the frame size is not restricted.
-    """
-    return codec_context.frame_size in (0, 1)

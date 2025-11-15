@@ -113,10 +113,10 @@ class Graph(filter.Graph):
         while True:
             try:
                 frame = super().pull()
-                return_ndarray = (
-                    self.return_ndarray if return_ndarray is None else return_ndarray
-                )
-                always_2d = self.always_2d if always_2d is None else always_2d
+                if return_ndarray is None:
+                    return_ndarray = self.return_ndarray
+                if always_2d is None:
+                    always_2d = self.always_2d
                 if return_ndarray:
                     ndarray = to_ndarray(frame, always_2d)
                     ndarray = self.pad(ndarray, fill_value)

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import math
 from typing import Any, Iterator, List, Optional
 
 import numpy as np
@@ -62,10 +61,10 @@ class Reader(Info):
             file = load_url(file, cache=True)
 
         super().__init__(file)
-        self.start_time = int(offset / self.stream.time_base)
+        self.container = self.backend.container
+        self.stream = self.backend.stream
+        self.backend.seek(offset)
         self.end_time = Seconds("inf") if duration is None else offset + duration
-        if self.start_time > 0:
-            self.container.seek(self.start_time, any_frame=True, stream=self.stream)
 
         if not all([dtype is None, format is None, rate is None, not to_mono]):
             filters = filters or []
@@ -80,14 +79,6 @@ class Reader(Info):
             self.stream, filters=filters, frame_size=frame_size, **kwargs
         )
         self.always_2d = kwargs.get("always_2d", True)
-
-    @property
-    def num_frames(self) -> int:
-        """
-        Get the number of the audio frames in the audio.
-        Note: Filters may change the number of frames.
-        """
-        return math.ceil(self.duration * self.rate / self.frame_size)
 
     def __iter__(self) -> Iterator[AudioFrame]:
         for frame in self.container.decode(self.stream):

@@ -136,7 +136,7 @@ def split_audio_frame(
     offset = int(offset * frame.rate)
     if offset <= 0:
         return None, frame
-    # number of audio samples (per channel)
+    # number of samples per channel
     if offset > frame.samples:
         return frame, None
 

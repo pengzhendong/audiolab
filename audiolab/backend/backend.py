@@ -14,9 +14,11 @@
 
 import io
 import os
+from functools import cached_property
 from io import BytesIO
 from typing import Any, Optional, Union
 
+import numpy as np
 from av.codec import Codec
 
 from audiolab.av.typing import Seconds
@@ -26,10 +28,51 @@ class Backend:
     def __init__(self, file: Any, forced_encoding: bool = False):
         pass
 
-    def seek(self, offset: int, whence: int = io.SEEK_SET):
+    @cached_property
+    def bits_per_sample(self) -> int:
         pass
 
-    @property
+    @cached_property
+    def bit_rate(self) -> Optional[int]:
+        bit_rate = None
+        if self.size is not None:
+            if self.duration is not None and self.duration > 0:
+                bit_rate = self.size * 8 / self.duration
+        return bit_rate
+
+    @cached_property
+    def codec(self) -> Union[Codec, str]:
+        pass
+
+    @cached_property
+    def duration(self) -> Optional[Seconds]:
+        pass
+
+    @cached_property
+    def format_name(self):
+        return "wav"
+
+    @cached_property
+    def num_channels(self) -> int:
+        pass
+
+    @cached_property
+    def num_frames(self) -> int:
+        pass
+
+    @cached_property
+    def metadata(self) -> dict:
+        return {}
+
+    @cached_property
+    def sample_rate(self) -> int:
+        pass
+
+    @cached_property
+    def seekable(self) -> bool:
+        return True
+
+    @cached_property
     def size(self) -> Optional[int]:
         if isinstance(self.file, str):
             if os.path.exists(self.file):
@@ -38,80 +81,8 @@ class Backend:
             return len(self.file.getbuffer())
         return None
 
-    @property
-    def seekable(self) -> bool:
-        return True
-
-    @property
-    def sample_rate(self) -> int:
+    def read(self, frames: int = np.iinfo(np.int32).max) -> np.ndarray:
         pass
 
-    @property
-    def codec(self) -> Union[Codec, str]:
+    def seek(self, offset: Seconds, whence: int = io.SEEK_SET) -> int:
         pass
-
-    @property
-    def duration(self) -> Optional[Seconds]:
-        pass
-
-    @property
-    def num_frames(self) -> int:
-        pass
-
-    @property
-    def num_channels(self) -> int:
-        pass
-
-    @property
-    def bits_per_sample(self) -> int:
-        pass
-
-    @property
-    def bit_rate(self) -> Optional[int]:
-        bit_rate = None
-        if self.size is not None:
-            if self.duration is not None and self.duration > 0:
-                bit_rate = self.size * 8 / self.duration
-        return bit_rate
-
-    @property
-    def format_name(self):
-        return "wav"
-
-    @property
-    def metadata(self) -> dict:
-        return {}
-
-    @property
-    def rate(self) -> int:
-        return self.sample_rate
-
-    @property
-    def samplerate(self) -> int:
-        return self.sample_rate
-
-    @property
-    def cdda_sectors(self) -> Optional[float]:
-        if self.duration is None:
-            return None
-        return round(self.duration * 75, 2)
-
-    @property
-    def num_cdda_sectors(self) -> Optional[float]:
-        return self.cdda_sectors
-
-    @property
-    def num_samples(self) -> int:
-        return self.num_frames
-
-    @property
-    def samples_per_channel(self) -> int:
-        return self.num_frames
-
-    @property
-    def channels(self) -> int:
-        return self.num_channels
-
-    @property
-    def precision(self) -> int:
-        return self.bits_per_sample

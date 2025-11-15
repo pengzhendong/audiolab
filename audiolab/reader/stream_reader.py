@@ -16,11 +16,11 @@ from io import BytesIO
 from typing import Iterator, List, Optional
 
 import av
+from av import AudioCodecContext
 
 from audiolab.av import aformat
 from audiolab.av.graph import Graph
 from audiolab.av.typing import AudioFormat, AudioFrame, Dtype, Filter
-from audiolab.av.utils import is_streamable
 
 
 class StreamReader:
@@ -63,13 +63,31 @@ class StreamReader:
         self.offset = None
         self.packet = None
 
+    def is_streamable(self, codec_context: AudioCodecContext) -> bool:
+        """
+        Check if the codec is streamable.
+
+        Args:
+            codec_context: The codec context.
+        Returns:
+            Whether the codec is streamable.
+
+        Note:
+            * https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/avcodec.h#L1045-L1051
+            * Each submitted frame except the last must contain exactly frame_size samples per channel.
+            * May be 0 when the codec has AV_CODEC_CAP_VARIABLE_FRAME_SIZE set, then the frame size is not restricted.
+        """
+        return codec_context.frame_size in (0, 1)
+
     @property
-    def codec_context(self) -> Optional[av.CodecContext]:
+    def codec_context(self) -> Optional[AudioCodecContext]:
         if self._codec_context is None:
             if self.packet is None:
                 return None
             self._codec_context = self.packet.stream.codec_context
-            assert is_streamable(self._codec_context), "Only support streamable codec"
+            assert self.is_streamable(self._codec_context), (
+                "Only support streamable codec"
+            )
         return self._codec_context
 
     @property

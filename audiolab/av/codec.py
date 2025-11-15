@@ -32,8 +32,6 @@ $ ffmpeg -encoders
 
 
 class CodecManager:
-    """Manages audio codec enums with lazy initialization."""
-
     def __init__(self):
         self.canonical_names: Dict[str, Set[str]] = defaultdict(set)
         self.decodecs: Dict[str, av.Codec] = {}
@@ -64,7 +62,6 @@ class CodecManager:
         self.Decodec = CodecEnum("Decodec", self.decodecs)
         self.Encodec = CodecEnum("Encodec", self.encodecs)
 
-        # Set docstrings
         template = get_template("codec")
         for name, codec in self.decodecs.items():
             getattr(self.Decodec, name).__doc__ = template.render(
@@ -76,10 +73,7 @@ class CodecManager:
             )
 
 
-# Create singleton instance
 _codec_manager = CodecManager()
-
-# Expose properties
 canonical_names = _codec_manager.canonical_names
 decodecs = _codec_manager.decodecs
 encodecs = _codec_manager.encodecs
