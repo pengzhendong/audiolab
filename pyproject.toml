@@ -20,6 +20,7 @@ dependencies = [
   "humanize",
   "jinja2",
   "smart_open",
+  "soundfile",
 ]
 
 [project.scripts]

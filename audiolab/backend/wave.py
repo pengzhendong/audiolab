@@ -1,0 +1,104 @@
+# Copyright (c) 2025 Zhendong Peng (pzd17@tsinghua.org.cn)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import io
+import wave
+from functools import cached_property
+from typing import Any, Optional
+
+import numpy as np
+
+from audiolab.av.typing import Seconds
+from audiolab.backend.backend import Backend
+
+_bits_to_codec_map = {
+    8: "8-bit Unsigned Integer PCM",
+    16: "16-bit Signed Integer PCM",
+    24: "24-bit Signed Integer PCM",
+    32: "32-bit Signed Integer PCM",
+}
+
+_bits_to_dtype_map = {8: np.uint8, 16: np.int16, 32: np.int32}
+
+
+class Wave(Backend):
+    def __init__(self, file: Any, forced_decoding: bool = False):
+        super().__init__(file)
+        self.wave = wave.open(file)
+        self.forced_decoding = forced_decoding
+
+    def __getattr__(self, name):
+        return getattr(self.wave, name)
+
+    def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
+        pos = 0
+        if whence == io.SEEK_SET:
+            pos = offset
+        elif whence == io.SEEK_CUR:
+            pos = self.tell() + offset
+        elif whence == io.SEEK_END:
+            pos = self.getnframes() + offset
+        self.setpos(pos)
+        return self.tell()
+
+    def frombuffer(self, buffer: bytes) -> np.ndarray:
+        if self.bits_per_sample == 24:
+            frames = np.frombuffer(buffer, np.uint8)
+            frames = (
+                (frames[2::3].astype(np.int32) << 16)
+                | (frames[1::3].astype(np.int32) << 8)
+                | frames[0::3].astype(np.int32)
+            )
+            frames[frames > 0x7FFFFF] -= 0x1000000
+        else:
+            dtype = _bits_to_dtype_map[self.bits_per_sample]
+            frames = np.frombuffer(buffer, dtype)
+        return frames.reshape(-1, self.num_channels)
+
+    def read(self, frames: int = np.iinfo(np.int32).max) -> np.ndarray:
+        buffer = self.wave.readframes(frames)
+        return self.frombuffer(buffer)
+
+    @property
+    def bits_per_sample(self) -> int:
+        return self.wave.getsampwidth() * 8
+
+    @property
+    def num_channels(self) -> int:
+        return self.wave.getnchannels()
+
+    @property
+    def sample_rate(self) -> int:
+        return self.wave.getframerate()
+
+    @property
+    def codec(self) -> str:
+        return _bits_to_codec_map[self.bits_per_sample]
+
+    @cached_property
+    def num_frames(self) -> Optional[int]:
+        if self.forced_decoding:
+            num_frames = self.read(np.iinfo(np.int32).max).shape[0]
+            self.wave.rewind()
+        else:
+            num_frames = self.wave.getnframes()
+            if num_frames >= np.iinfo(np.int32).max:
+                num_frames = None
+        return num_frames
+
+    @cached_property
+    def duration(self) -> Optional[Seconds]:
+        if self.num_frames is None:
+            return None
+        return Seconds(self.num_frames / self.sample_rate)
