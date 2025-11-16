@@ -26,7 +26,8 @@ from audiolab.av.typing import Seconds
 
 class Backend:
     def __init__(self, file: Any, forced_encoding: bool = False):
-        pass
+        self.file = file
+        self.forced_encoding = forced_encoding
 
     @cached_property
     def bits_per_sample(self) -> int:
@@ -49,8 +50,12 @@ class Backend:
         pass
 
     @cached_property
-    def format_name(self):
-        return "wav"
+    def format(self):
+        pass
+
+    @cached_property
+    def name(self) -> str:
+        return "<none>" if isinstance(self.file, BytesIO) else self.file
 
     @cached_property
     def num_channels(self) -> int:

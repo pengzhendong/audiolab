@@ -85,9 +85,7 @@ class StreamReader:
             if self.packet is None:
                 return None
             self._codec_context = self.packet.stream.codec_context
-            assert self.is_streamable(self._codec_context), (
-                "Only support streamable codec"
-            )
+            assert self.is_streamable(self._codec_context)
         return self._codec_context
 
     @property

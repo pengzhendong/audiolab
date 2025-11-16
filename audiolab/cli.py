@@ -128,6 +128,7 @@ def main(
 
     # Process each audio file
     for audio_file in audio_files:
+        # ffmpeg -i audio.flac -f wav - | > audio.wav
         info = audiolab.info(audio_file, forced_decoding)
         # If no specific options are selected, show all information (default behavior)
         if not show_any:

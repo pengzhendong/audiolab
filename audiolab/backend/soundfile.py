@@ -46,7 +46,7 @@ _subtype_to_bits_map = {
 
 class SoundFile(Backend):
     def __init__(self, file: Any, forced_decoding: bool = False):
-        super().__init__(file)
+        super().__init__(file, forced_decoding)
         self.file = file
         self.sf = sf.SoundFile(file)
         self.forced_decoding = forced_decoding
@@ -64,6 +64,10 @@ class SoundFile(Backend):
         if self.num_frames is None:
             return None
         return Seconds(self.num_frames / self.sample_rate)
+
+    @cached_property
+    def format(self) -> str:
+        return self.sf.format
 
     @cached_property
     def num_channels(self) -> int:

@@ -34,7 +34,8 @@ _bits_to_dtype_map = {8: np.uint8, 16: np.int16, 32: np.int32}
 
 class Wave(Backend):
     def __init__(self, file: Any, forced_decoding: bool = False):
-        super().__init__(file)
+        super().__init__(file, forced_decoding)
+        self.file = file
         self.wave = wave.open(file)
         self.forced_decoding = forced_decoding
 
@@ -51,6 +52,10 @@ class Wave(Backend):
         if self.num_frames is None:
             return None
         return Seconds(self.num_frames / self.sample_rate)
+
+    @cached_property
+    def format(self) -> str:
+        return "WAV"
 
     @cached_property
     def num_channels(self) -> int:

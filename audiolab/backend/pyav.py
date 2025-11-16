@@ -27,6 +27,8 @@ from audiolab.backend.backend import Backend
 
 class PyAV(Backend):
     def __init__(self, file: Any, forced_decoding: bool = False):
+        super().__init__(file, forced_decoding)
+        self.file = file
         self.container = av.open(file, metadata_encoding="latin1")
         self.stream = self.container.streams.audio[0]
         self.forced_decoding = forced_decoding
@@ -51,6 +53,10 @@ class PyAV(Backend):
         return self.stream.codec
 
     @cached_property
+    def format(self) -> str:
+        return self.container.format.name
+
+    @cached_property
     def duration(self) -> Optional[Seconds]:
         if self.forced_decoding:
             num_frames = 0
@@ -64,6 +70,10 @@ class PyAV(Backend):
             elif self.container.duration is not None:
                 duration = self.container.duration / time_base
         return None if duration is None else Seconds(duration)
+
+    @cached_property
+    def name(self) -> str:
+        return self.container.name
 
     @cached_property
     def num_channels(self) -> int:

@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import cached_property
 from typing import Any, Optional, Union
 
 from av.codec import Codec
-from av.container import Container
 from humanize import naturalsize
 
 from audiolab.av.typing import Seconds
@@ -27,38 +27,54 @@ class Info:
     def __init__(
         self, file: Any, forced_decoding: bool = False, backend: Backend = pyav
     ):
-        # ffmpeg -i xx.flac -f wav - | > xx.wav
-        # self.is_streamable = is_streamable(self.stream.codec_context)
         self.file = file
+        # backend = soundfile
+        # backend = wave
         self.backend = backend(file, forced_decoding)
 
-    @property
-    def sample_rate(self) -> int:
-        return self.backend.sample_rate
-
-    @property
-    def codec(self) -> Union[Codec, str]:
-        return self.backend.codec
-
-    @property
-    def duration(self) -> Optional[Seconds]:
-        return self.backend.duration
-
-    @property
-    def num_frames(self) -> int:
-        return self.backend.num_frames
-
-    @property
-    def num_channels(self) -> int:
-        return self.backend.num_channels
-
-    @property
+    @cached_property
     def bits_per_sample(self) -> int:
         return self.backend.bits_per_sample
 
     @property
     def bit_rate(self) -> Optional[int]:
         return self.backend.bit_rate
+
+    @cached_property
+    def codec(self) -> Union[Codec, str]:
+        return self.backend.codec
+
+    @cached_property
+    def duration(self) -> Optional[Seconds]:
+        return self.backend.duration
+
+    @cached_property
+    def format(self) -> str:
+        return self.backend.format
+
+    @cached_property
+    def name(self) -> str:
+        return self.backend.name
+
+    @property
+    def num_channels(self) -> int:
+        return self.backend.num_channels
+
+    @property
+    def num_frames(self) -> int:
+        return self.backend.num_frames
+
+    @property
+    def metadata(self) -> int:
+        return self.backend.metadata
+
+    @property
+    def sample_rate(self) -> int:
+        return self.backend.sample_rate
+
+    @property
+    def size(self) -> int:
+        return self.backend.size
 
     @property
     def cdda_sectors(self) -> Optional[float]:
@@ -106,15 +122,12 @@ class Info:
         return f"{int(hours):02d}:{int(minutes):02d}:{seconds:06.3f}"
 
     @staticmethod
-    def format_name(container: Container) -> str:
-        name = container.name
-        _format_name = container.format.name
-        if name.lower().endswith(_format_name.lower()):
+    def format_name(name: str, format: str) -> str:
+        if name.upper().endswith(format.upper()):
             return f"'{name}'"
-        # <none> for BytesIO, <stdin> for stdin
         if name in ("<none>", "<stdin>"):
-            return f"{name} ({_format_name})"
-        return f"'{name}' ({_format_name})"
+            return f"{name} ({format})"
+        return f"'{name}' ({format})"
 
     @staticmethod
     def format_size(size: int) -> str:
@@ -124,19 +137,15 @@ class Info:
 
     def __str__(self):
         return get_template("info").render(
-            name=self.file,
-            channels=self.backend.channels,
-            rate=self.backend.rate,
-            precision=self.backend.precision,
-            duration=Info.format_duration(self.backend.duration),
-            samples="N/A"
-            if self.backend.num_frames is None
-            else self.backend.num_frames,
-            cdda_sectors=Info.rstrip_zeros(self.backend.cdda_sectors),
-            size=Info.format_size(self.backend.size),
-            bit_rate=Info.format_bit_rate(self.backend.bit_rate),
-            codec=self.backend.codec
-            if isinstance(self.backend.codec, str)
-            else self.backend.codec.long_name,
-            metadata=self.backend.metadata,
+            name=Info.format_name(self.name, self.format),
+            channels=self.channels,
+            rate=self.rate,
+            precision=self.precision,
+            duration=Info.format_duration(self.duration),
+            samples="N/A" if self.num_frames is None else self.num_frames,
+            cdda_sectors=Info.rstrip_zeros(self.cdda_sectors),
+            size=Info.format_size(self.size),
+            bit_rate=Info.format_bit_rate(self.bit_rate),
+            codec=self.codec if isinstance(self.codec, str) else self.codec.long_name,
+            metadata=self.metadata,
         )
