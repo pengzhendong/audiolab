@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import io
 from functools import cached_property
 from typing import Any, Optional
 
@@ -32,6 +31,7 @@ class PyAV(Backend):
         self.container = av.open(file, metadata_encoding="latin1")
         self.stream = self.container.streams.audio[0]
         self.forced_decoding = forced_decoding
+        # self.accumulated_frames = np.array([], dtype=)
 
     @cached_property
     def bits_per_sample(self) -> int:
@@ -100,8 +100,16 @@ class PyAV(Backend):
             size = self.container.size
         return size
 
+    @cached_property
+    def seekable(self) -> bool:
+        # https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/avcodec.h#L1041-L1051
+        # Each submitted frame except the last must contain exactly frame_size samples per channel.
+        # May be 0 when the codec has AV_CODEC_CAP_VARIABLE_FRAME_SIZE set, then the frame size is not restricted.
+        return self.stream.codec_context.frame_size in (0, 1)
+
     def read(self, frames: int = np.iinfo(np.int32).max) -> np.ndarray:
         pass
 
-    def seek(self, offset: Seconds, whence: int = io.SEEK_SET) -> int:
-        pass
+    def seek(self, offset: Seconds):
+        offset = int(offset / self.stream.time_base)
+        self.container.seek(offset, any_frame=True, stream=self.stream)

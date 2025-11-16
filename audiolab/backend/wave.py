@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import io
 import wave
 from functools import cached_property
 from typing import Any, Optional
@@ -76,6 +75,10 @@ class Wave(Backend):
     def sample_rate(self) -> int:
         return self.wave.getframerate()
 
+    @cached_property
+    def seekable(self) -> bool:
+        return True
+
     def frombuffer(self, buffer: bytes) -> np.ndarray:
         if self.bits_per_sample == 24:
             frames = np.frombuffer(buffer, np.uint8)
@@ -94,11 +97,5 @@ class Wave(Backend):
         buffer = self.wave.readframes(frames)
         return self.frombuffer(buffer)
 
-    def seek(self, offset: Seconds, whence: int = io.SEEK_SET) -> int:
-        pos = int(offset * self.sample_rate)
-        if whence == io.SEEK_CUR:
-            pos += self.wave.tell()
-        elif whence == io.SEEK_END:
-            pos += self.wave.getnframes()
-        self.wave.setpos(pos)
-        return self.wave.tell()
+    def seek(self, offset: Seconds):
+        self.wave.setpos(int(offset * self.sample_rate))

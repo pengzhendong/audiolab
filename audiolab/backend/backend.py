@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import io
 import os
 from functools import cached_property
 from io import BytesIO
@@ -75,7 +74,7 @@ class Backend:
 
     @cached_property
     def seekable(self) -> bool:
-        return True
+        pass
 
     @cached_property
     def size(self) -> Optional[int]:
@@ -89,5 +88,5 @@ class Backend:
     def read(self, frames: int = np.iinfo(np.int32).max) -> np.ndarray:
         pass
 
-    def seek(self, offset: Seconds, whence: int = io.SEEK_SET) -> int:
+    def seek(self, offset: Seconds):
         pass

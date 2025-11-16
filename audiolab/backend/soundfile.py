@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import io
 from functools import cached_property
 from typing import Any, Optional
 
@@ -98,8 +97,12 @@ class SoundFile(Backend):
     def sample_rate(self) -> int:
         return self.sf.samplerate
 
-    def read(self, frames: int = np.iinfo(np.int32).max) -> np.ndarray:
-        pass
+    @cached_property
+    def seekable(self) -> bool:
+        return self.sf.seekable()
 
-    def seek(self, offset: Seconds, whence: int = io.SEEK_SET) -> int:
-        pass
+    def read(self, frames: int = np.iinfo(np.int32).max) -> np.ndarray:
+        return self.sf.read(frames)
+
+    def seek(self, offset: Seconds):
+        self.sf.seek(int(offset * self.sample_rate))
