@@ -36,15 +36,9 @@ class TestFormat:
         is_planar = name.endswith("p")
         assert get_format(name) == format
         if is_planar:
-            assert (
-                get_format(dtype, available_formats=[format.packed]).name
-                == format.packed.name
-            )
+            assert get_format(dtype, available_formats=[format.packed]).name == format.packed.name
         else:
-            assert (
-                get_format(dtype, available_formats=[format.planar]).name
-                == format.planar.name
-            )
+            assert get_format(dtype, available_formats=[format.planar]).name == format.planar.name
         assert get_format(np.dtype(dtype), is_planar) == format
         assert get_format(np.dtype(dtype).name, is_planar) == format
 

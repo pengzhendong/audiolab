@@ -68,9 +68,7 @@ class TestFrame:
                     duration_samples = int(duration * rate)
                     offset_samples = int(min(offset, duration) * rate)
                     always_2d = choice([True, False])
-                    ndarray = generate_ndarray(
-                        nb_channels, duration_samples, dtype, always_2d
-                    )
+                    ndarray = generate_ndarray(nb_channels, duration_samples, dtype, always_2d)
                     frame = from_ndarray(ndarray, format, layout, rate, pts=pts)
                     left, right = split_audio_frame(frame, offset)
                     if offset > 0:

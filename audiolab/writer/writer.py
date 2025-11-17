@@ -101,9 +101,7 @@ class Writer:
             frame, _rate = frame
             assert _rate == self.stream.rate
         if isinstance(frame, np.ndarray):
-            frame = from_ndarray(
-                frame, self.stream.format.name, self.stream.layout, self.stream.rate
-            )
+            frame = from_ndarray(frame, self.stream.format.name, self.stream.layout, self.stream.rate)
             assert frame.layout == self.stream.layout
         for packet in self.stream.encode(frame):
             self.container.mux(packet)

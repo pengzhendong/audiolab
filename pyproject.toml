@@ -31,6 +31,9 @@ Homepage = "https://github.com/pengzhendong/audiolab"
 Documentation = "https://github.com/pengzhendong/audiolab#readme"
 BugTracker = "https://github.com/pengzhendong/audiolab/issues"
 
+[tool.ruff]
+line-length = 120
+
 [tool.setuptools.dynamic]
 version = { file = "VERSION" }
 

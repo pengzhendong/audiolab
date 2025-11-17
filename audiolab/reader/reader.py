@@ -16,7 +16,7 @@ from typing import Any, Iterator, List, Optional
 
 import numpy as np
 
-from audiolab.av import aformat, load_url, split_audio_frame
+from audiolab.av import aformat, load_url
 from audiolab.av.graph import Graph
 from audiolab.av.typing import AudioFormat, AudioFrame, Dtype, Filter, Seconds
 from audiolab.reader.info import Info
@@ -37,7 +37,9 @@ class Reader(Info):
         frame_size: Optional[int] = None,
         frame_size_ms: Optional[int] = None,
         cache_url: bool = False,
-        **kwargs,
+        return_ndarray: bool = True,
+        always_2d: bool = True,
+        fill_value: Optional[float] = None,
     ):
         """
         Create a Reader object.
@@ -55,49 +57,55 @@ class Reader(Info):
             frame_size: The frame size of the audio frames.
             frame_size_ms: The frame size in milliseconds of the audio frames.
             cache_url: Whether to cache the audio file.
+            return_ndarray: Whether to return ndarrays.
             always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
+            fill_value: The fill value to pad the audio to the frame size.
         """
         if isinstance(file, str) and "://" in file and cache_url:
             file = load_url(file, cache=True)
 
         super().__init__(file)
-        self.container = self.backend.container
-        self.stream = self.backend.stream
-        self.backend.seek(offset)
-        self.end_time = Seconds("inf") if duration is None else offset + duration
+        self.backend.seek(int(offset * self.sample_rate))
+        self.frames = np.iinfo(np.uint32).max
+        if duration is not None:
+            self.frames = int(duration * self.sample_rate)
 
         if not all([dtype is None, format is None, rate is None, not to_mono]):
             filters = filters or []
             filters.append(aformat(dtype, is_planar, format, rate, to_mono))
 
         if frame_size_ms is not None:
-            frame_size = int(frame_size_ms * self.stream.rate // 1000)
+            frame_size = int(frame_size_ms * self.rate // 1000)
         elif frame_size is None:
             frame_size = np.iinfo(np.uint32).max
         self.frame_size = min(frame_size, np.iinfo(np.uint32).max)
+
+        self.always_2d = always_2d
         self.graph = Graph(
-            self.stream, filters=filters, frame_size=frame_size, **kwargs
+            rate=self.rate,
+            dtype=self.dtype,
+            layout=self.layout,
+            filters=filters,
+            frame_size=frame_size,
+            return_ndarray=return_ndarray,
+            always_2d=always_2d,
+            fill_value=fill_value,
         )
-        self.always_2d = kwargs.get("always_2d", True)
 
     def __iter__(self) -> Iterator[AudioFrame]:
-        for frame in self.container.decode(self.stream):
-            assert frame.time == float(frame.pts * self.stream.time_base)
-            if frame.time > self.end_time:
+        while self.frames > 0:
+            frames = min(self.frames, self.frame_size)
+            frame = self.backend.read(frames)
+            if frame.shape[1] == 0:
                 break
-            if frame.time + frame.samples / frame.rate > self.end_time:
-                frame, _ = split_audio_frame(frame, self.end_time - frame.time)
+            self.frames -= frame.shape[1]
             self.graph.push(frame)
             yield from self.graph.pull()
+            if frame.shape[1] < frames:
+                break
         yield from self.graph.pull(partial=True)
 
     def load_audio(self, always_2d: Optional[bool] = None) -> AudioFrame:
-        """
-        Load the audio into a numpy array.
-
-        Returns:
-            The numpy array of the audio.
-        """
         if always_2d is None:
             always_2d = self.always_2d
         frames, rates = zip(*self)

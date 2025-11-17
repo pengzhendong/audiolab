@@ -39,16 +39,14 @@ class TestWriter:
         for always_2d in (True, False):
             bytes_io = BytesIO()
             # always int16 for pcm_s16le even if dtype of ndarray is float32
-            ndarray = generate_ndarray(
-                nb_channels, int(rate * duration), np.int16, always_2d
-            )
+            ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16, always_2d)
             writer = Writer(bytes_io, rate, channels=1)
             writer.write(ndarray)
             writer.close()
 
             _info = info(bytes_io)
             assert _info.channels == nb_channels
-            assert _info.codec.name == "pcm_s16le"
+            assert "signed 16" in _info.codec.lower()
             assert _info.duration == duration
             assert _info.precision == 16
             assert _info.rate == rate
@@ -56,16 +54,12 @@ class TestWriter:
     def test_save_audio(self, nb_channels, rate, duration):
         for always_2d in (True, False):
             bytes_io = BytesIO()
-            ndarray = generate_ndarray(
-                nb_channels, int(rate * duration), np.int16, always_2d
-            )
+            ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16, always_2d)
             save_audio(bytes_io, ndarray, rate, container_format="webm")
 
             _info = info(bytes_io)
             assert _info.channels == nb_channels
-            assert _info.codec.name == "opus"
-            assert np.isclose(
-                _info.duration, duration + 0.007, atol=0.001
-            )  # Pre-skip / Encoder Delay for opus
+            assert _info.codec == "Opus"
+            assert np.isclose(_info.duration, duration + 0.007, atol=0.001)  # Pre-skip / Encoder Delay for opus
             assert _info.precision == 32  # always float32 for opus
             assert _info.rate == 48000  # always 48k for opus

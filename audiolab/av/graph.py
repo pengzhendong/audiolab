@@ -52,9 +52,7 @@ class Graph(filter.Graph):
         format = get_format(dtype, is_planar) if format is None else format
         format = format.name if isinstance(format, av.AudioFormat) else format
         time_base = Fraction(1, rate) if time_base is None else time_base
-        abuffer = super().add_abuffer(
-            None, rate, format, layout, channels, name, time_base
-        )
+        abuffer = super().add_abuffer(None, rate, format, layout, channels, name, time_base)
 
         nodes = [abuffer]
         if filters is not None:

@@ -37,17 +37,15 @@ class TestReader:
         return 0.5
 
     def test_reader(self, nb_channels, rate, duration):
-        frame_size_ms = 50
+        frame_size = 1024
         for always_2d in (True, False):
             bytes_io = BytesIO()
-            ndarray = generate_ndarray(
-                nb_channels, int(rate * duration), np.int16, always_2d
-            )
+            ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16, always_2d)
             save_audio(bytes_io, ndarray, rate=rate)
 
-            reader = Reader(bytes_io, frame_size_ms=frame_size_ms, always_2d=always_2d)
+            reader = Reader(bytes_io, frame_size=frame_size, always_2d=always_2d)
             assert reader.channels == nb_channels
-            assert reader.codec.name == "pcm_s16le"
+            assert "signed 16" in reader.codec.lower()
             assert reader.duration == duration
             assert reader.precision == 16
             assert reader.rate == rate
@@ -55,21 +53,27 @@ class TestReader:
 
     def test_load_audio(self, nb_channels, rate, duration):
         for always_2d in (True, False):
-            bytes_io = BytesIO()
-            ndarray = generate_ndarray(
-                nb_channels, int(rate * duration), np.int16, always_2d
-            )
-            save_audio(bytes_io, ndarray, rate=rate)
+            for offset in (0.0, 0.1, 0.2):
+                for _duration in (None, 0.1, 0.2, 0.3):
+                    bytes_io = BytesIO()
+                    ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16, always_2d)
+                    save_audio(bytes_io, ndarray, rate=rate)
 
-            audio, rate = load_audio(bytes_io, always_2d=always_2d)
-            assert audio.dtype == np.int16
-            if always_2d:
-                assert audio.shape == (nb_channels, int(rate * duration))
-            else:
-                assert audio.ndim == 1
-                assert audio.shape[0] == int(rate * duration)
-            assert rate == rate
-            assert np.allclose(ndarray, audio)
+                    if _duration is None:
+                        _duration = duration - offset
+                    _duration = min(_duration, duration - offset)
+
+                    audio, rate = load_audio(bytes_io, offset=offset, duration=_duration, always_2d=always_2d)
+                    assert audio.dtype == np.int16
+                    if always_2d:
+                        assert audio.shape == (nb_channels, int(rate * _duration))
+                        ndarray = ndarray[:, int(offset * rate) : int((offset + _duration) * rate)]
+                    else:
+                        assert audio.ndim == 1
+                        assert audio.shape[0] == int(rate * _duration)
+                        ndarray = ndarray[int(offset * rate) : int((offset + _duration) * rate)]
+                    assert rate == rate
+                    assert np.allclose(ndarray, audio)
 
     def test_load_audio_with_filters(self, nb_channels, rate, duration):
         for ratio in (0.9, 1.1):
@@ -87,9 +91,7 @@ class TestReader:
         ndarray = generate_ndarray(2, int(rate * duration), np.int16)
         save_audio(bytes_io, ndarray, rate=rate)
 
-        audio, rate = load_audio(
-            bytes_io, filters=[aformat(dtype=np.float32, rate=8000, to_mono=True)]
-        )
+        audio, rate = load_audio(bytes_io, filters=[aformat(dtype=np.float32, rate=8000, to_mono=True)])
         assert audio.dtype == np.float32
         assert audio.shape == (1, int(rate * duration))
         assert rate == 8000

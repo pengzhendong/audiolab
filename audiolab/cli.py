@@ -18,6 +18,7 @@ from typing import Any
 import click
 
 import audiolab
+from audiolab.backend import pyav
 from audiolab.reader.info import Info
 
 
@@ -68,9 +69,7 @@ from audiolab.reader.info import Info
     is_flag=True,
     help="Show estimated sample precision in bits",
 )
-@click.option(
-    "-e", "--show-encoding", is_flag=True, help="Show the name of the audio encoding"
-)
+@click.option("-e", "--show-encoding", is_flag=True, help="Show the name of the audio encoding")
 @click.option(
     "-a",
     "--show-comments",
@@ -129,7 +128,7 @@ def main(
     # Process each audio file
     for audio_file in audio_files:
         # ffmpeg -i audio.flac -f wav - | > audio.wav
-        info = audiolab.info(audio_file, forced_decoding)
+        info = audiolab.info(audio_file, forced_decoding, backend=pyav)
         # If no specific options are selected, show all information (default behavior)
         if not show_any:
             print(info)
@@ -164,6 +163,4 @@ def main(
 
     # Print total duration if any files were processed and any options were selected
     if len(audio_files) > 1 and not show_any:
-        print(
-            f"\nTotal duration of {len(audio_files)} files: {Info.format_duration(total_duration)}"
-        )
+        print(f"\nTotal duration of {len(audio_files)} files: {Info.format_duration(total_duration)}")

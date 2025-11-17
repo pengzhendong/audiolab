@@ -17,7 +17,7 @@ import pytest
 
 from audiolab.av.filter import atempo
 from audiolab.av.utils import generate_ndarray
-from audiolab.pipe import AudioPipe, get_template
+from audiolab.pipe import AudioPipe
 
 
 class TestPipe:
@@ -33,13 +33,6 @@ class TestPipe:
     def duration(self):
         return 0.5
 
-    def test_stream_template(self, nb_channels, rate, duration):
-        ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
-        template = get_template(ndarray, rate)
-        assert template.codec.name == "pcm_s16le"
-        assert template.rate == rate
-        assert template.channels == nb_channels
-
     def test_audio_pipe(self, nb_channels, rate, duration):
         num_frames = 5
         num_samples = int(rate * duration * num_frames)
@@ -51,6 +44,4 @@ class TestPipe:
                 for frame, _ in pipe.pull(partial=idx == num_frames - 1):
                     frames.append(frame)
             audio = np.concatenate(frames, axis=1)
-            assert np.isclose(
-                audio.shape[1] / rate * ratio, num_samples / rate, atol=0.05
-            )
+            assert np.isclose(audio.shape[1] / rate * ratio, num_samples / rate, atol=0.05)

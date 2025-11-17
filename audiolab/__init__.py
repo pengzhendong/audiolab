@@ -63,9 +63,7 @@ def encode(
         The audio as a PCM bytestring and the sample rate of the audio.
     """
     if isinstance(audio, (str, Path)):
-        audio, rate = load_audio(
-            audio, dtype=dtype, is_planar=is_planar, format=format, rate=rate
-        )
+        audio, rate = load_audio(audio, dtype=dtype, is_planar=is_planar, format=format, rate=rate)
 
     audio = clip(audio, np.int16)
     if to_mono and audio.ndim == 2 and audio.shape[0] > 1:

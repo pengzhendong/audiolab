@@ -20,6 +20,8 @@ import numpy as np
 from av import time_base
 from av.codec import Codec
 
+from audiolab.av.format import get_dtype
+from audiolab.av.frame import to_ndarray
 from audiolab.av.typing import Seconds
 from audiolab.backend.backend import Backend
 
@@ -31,7 +33,7 @@ class PyAV(Backend):
         self.container = av.open(file, metadata_encoding="latin1")
         self.stream = self.container.streams.audio[0]
         self.forced_decoding = forced_decoding
-        # self.accumulated_frames = np.array([], dtype=)
+        self.accumulated_frames = np.empty((self.num_channels, 0), dtype=self.dtype)
 
     @cached_property
     def bits_per_sample(self) -> int:
@@ -50,7 +52,11 @@ class PyAV(Backend):
 
     @cached_property
     def codec(self) -> Codec:
-        return self.stream.codec
+        return self.stream.codec.long_name
+
+    @cached_property
+    def dtype(self) -> np.dtype:
+        return get_dtype(self.stream.format)
 
     @cached_property
     def format(self) -> str:
@@ -108,8 +114,21 @@ class PyAV(Backend):
         return self.stream.codec_context.frame_size in (0, 1)
 
     def read(self, frames: int = np.iinfo(np.int32).max) -> np.ndarray:
-        pass
+        if self.accumulated_frames.shape[1] >= frames:
+            ndarray = self.accumulated_frames[:, :frames]
+            self.accumulated_frames = self.accumulated_frames[:, frames:]
+            return ndarray
 
-    def seek(self, offset: Seconds):
-        offset = int(offset / self.stream.time_base)
+        for frame in self.container.decode(self.stream):
+            assert frame.time == float(frame.pts * self.stream.time_base)
+            self.accumulated_frames = np.concatenate([self.accumulated_frames, to_ndarray(frame)], axis=1)
+            if self.accumulated_frames.shape[1] >= frames:
+                ndarray = self.accumulated_frames[:, :frames]
+                self.accumulated_frames = self.accumulated_frames[:, frames:]
+                return ndarray
+        ndarray = self.accumulated_frames
+        self.accumulated_frames = np.empty((self.num_channels, 0), dtype=self.dtype)
+        return ndarray
+
+    def seek(self, offset: int):
         self.container.seek(offset, any_frame=True, stream=self.stream)

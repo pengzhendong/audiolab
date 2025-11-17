@@ -12,33 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Iterator, Tuple, Union
+from typing import Any, Iterator, Optional, Tuple, Union
 
 import numpy as np
 
 from audiolab.av import aformat
 from audiolab.av.graph import Graph
+from audiolab.backend import Backend
 from audiolab.reader.info import Info
 from audiolab.reader.reader import Reader
 from audiolab.reader.stream_reader import StreamReader
 
 
-def info(file: Any, forced_decode: bool = False) -> Info:
+def info(file: Any, forced_decode: bool = False, backend: Optional[Backend] = None) -> Info:
     """
     Get the information of an audio file.
 
     Args:
         file: The input audio file, audio url, path to audio file, bytes of audio data, etc.
         forced_decode: Whether to forced decoding the audio file to get the duration.
+        backend: The backend to use to get the information.
     Returns:
         The information of the audio file.
     """
-    return Info(file, forced_decode)
+    return Info(file, forced_decode, backend)
 
 
-def load_audio(
-    file: Any, **kwargs
-) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
+def load_audio(file: Any, **kwargs) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
     reader = Reader(file, **kwargs)
     generator = reader.__iter__()
     if reader.frame_size < np.iinfo(np.uint32).max:

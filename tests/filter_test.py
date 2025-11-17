@@ -32,12 +32,8 @@ class TestFilter:
         for is_planar in (True, False):
             for dtype in format_dtypes.values():
                 format = get_format(dtype, is_planar)
-                assert aformat(dtype=np.dtype(dtype), is_planar=is_planar)[2] == {
-                    "sample_fmts": format.name
-                }
-                assert aformat(dtype=np.dtype(dtype).name, is_planar=is_planar)[2] == {
-                    "sample_fmts": format.name
-                }
+                assert aformat(dtype=np.dtype(dtype), is_planar=is_planar)[2] == {"sample_fmts": format.name}
+                assert aformat(dtype=np.dtype(dtype).name, is_planar=is_planar)[2] == {"sample_fmts": format.name}
 
         for rate in (8000, 16000, 24000, 48000):
             assert aformat(rate=rate)[2] == {"sample_rates": str(rate)}

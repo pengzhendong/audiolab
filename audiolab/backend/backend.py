@@ -20,6 +20,7 @@ from typing import Any, Optional, Union
 import numpy as np
 from av.codec import Codec
 
+from audiolab.av import standard_channel_layouts
 from audiolab.av.typing import Seconds
 
 
@@ -49,8 +50,17 @@ class Backend:
         pass
 
     @cached_property
+    def dtype(self) -> np.dtype:
+        pass
+
+    @cached_property
     def format(self):
         pass
+
+    @cached_property
+    def layout(self) -> str:
+        layouts = standard_channel_layouts[self.num_channels]
+        return layouts[0]
 
     @cached_property
     def name(self) -> str:

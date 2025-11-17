@@ -64,13 +64,9 @@ class CodecManager:
 
         template = get_template("codec")
         for name, codec in self.decodecs.items():
-            getattr(self.Decodec, name).__doc__ = template.render(
-                codec=codec, format_dtypes=format_dtypes, np=np
-            )
+            getattr(self.Decodec, name).__doc__ = template.render(codec=codec, format_dtypes=format_dtypes, np=np)
         for name, codec in self.encodecs.items():
-            getattr(self.Encodec, name).__doc__ = template.render(
-                codec=codec, format_dtypes=format_dtypes, np=np
-            )
+            getattr(self.Encodec, name).__doc__ = template.render(codec=codec, format_dtypes=format_dtypes, np=np)
 
 
 _codec_manager = CodecManager()

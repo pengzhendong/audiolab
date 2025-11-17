@@ -12,31 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from io import BytesIO
 from typing import Iterator, List, Optional
 
-import av
 import numpy as np
 
-from audiolab.av.typing import AudioFormat, AudioFrame, Dtype, Filter
-from audiolab.reader import Graph, aformat, info
-from audiolab.writer import save_audio
-
-
-def get_template(frame: AudioFrame, rate: Optional[int] = None) -> av.AudioStream:
-    """
-    Get a stream template of the audio frame.
-
-    Args:
-        frame: The audio frame.
-        rate: The sample rate of the audio frame.
-    Returns:
-        The stream template.
-    """
-    rate = rate or (frame[1] if isinstance(frame, tuple) else frame.rate)
-    bytes_io = BytesIO()
-    save_audio(bytes_io, frame, rate)
-    return info(bytes_io).backend.stream
+from audiolab.av import standard_channel_layouts
+from audiolab.av.typing import AudioFormat, Dtype, Filter
+from audiolab.reader import Graph, aformat
 
 
 class AudioPipe:
@@ -77,8 +59,12 @@ class AudioPipe:
 
     def push(self, frame: np.ndarray):
         if self.graph is None:
+            channels = frame.shape[0]
+            layouts = standard_channel_layouts[channels]
             self.graph = Graph(
-                template=get_template(frame, self.in_rate),
+                rate=self.in_rate,
+                dtype=frame.dtype,
+                layout=layouts[0],
                 filters=self.filters,
                 frame_size=self.frame_size,
                 return_ndarray=True,

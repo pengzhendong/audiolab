@@ -43,9 +43,7 @@ def aformat(
     if dtype is not None:
         kwargs["sample_fmts"] = get_format(dtype, is_planar).name
     if format is not None:
-        kwargs["sample_fmts"] = (
-            format.name if isinstance(format, av.AudioFormat) else format
-        )
+        kwargs["sample_fmts"] = format.name if isinstance(format, av.AudioFormat) else format
     if rate is not None:
         kwargs["sample_rates"] = rate
     if to_mono:

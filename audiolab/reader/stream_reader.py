@@ -121,14 +121,10 @@ class StreamReader:
                     # +---+---+---+---+---+
                     #             ↑
                     #             pts
-                    if self.offset is not None and (
-                        self.packet.pts is None or self.offset > self.packet.pts
-                    ):
+                    if self.offset is not None and (self.packet.pts is None or self.offset > self.packet.pts):
                         continue
                     for frame in self.codec_context.decode(packet):
-                        self.offset = frame.pts + int(
-                            frame.samples / packet.stream.rate / packet.stream.time_base
-                        )
+                        self.offset = frame.pts + int(frame.samples / packet.stream.rate / packet.stream.time_base)
                         self.graph.push(frame)
                         yield from self.graph.pull()
                     yield from self.graph.pull(partial=partial)

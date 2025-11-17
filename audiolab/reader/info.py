@@ -13,24 +13,44 @@
 # limitations under the License.
 
 from functools import cached_property
+from io import BytesIO
 from typing import Any, Optional, Union
 
+import numpy as np
 from av.codec import Codec
 from humanize import naturalsize
+from line_profiler import profile
 
 from audiolab.av.typing import Seconds
 from audiolab.av.utils import get_template
-from audiolab.backend import Backend, pyav
+from audiolab.backend import Backend, pyav, soundfile, wave
 
 
+@profile
 class Info:
     def __init__(
-        self, file: Any, forced_decoding: bool = False, backend: Backend = pyav
+        self,
+        file: Any,
+        forced_decoding: bool = False,
+        backend: Optional[Backend] = None,
     ):
         self.file = file
-        # backend = soundfile
-        # backend = wave
-        self.backend = backend(file, forced_decoding)
+        if backend is None:
+            backends = [pyav]
+            if isinstance(file, str) and file.lower().endswith(".wav"):
+                backends = [wave, soundfile] + backends
+        else:
+            backends = [backend]
+
+        for backend in backends:
+            try:
+                pos = file.tell() if isinstance(file, BytesIO) else 0
+                self.backend = backend(file, forced_decoding)
+                break
+            except Exception:
+                if isinstance(file, BytesIO):
+                    file.seek(pos)
+                continue
 
     @cached_property
     def bits_per_sample(self) -> int:
@@ -49,8 +69,16 @@ class Info:
         return self.backend.duration
 
     @cached_property
+    def dtype(self) -> np.dtype:
+        return self.backend.dtype
+
+    @cached_property
     def format(self) -> str:
         return self.backend.format
+
+    @cached_property
+    def layout(self) -> str:
+        return self.backend.layout
 
     @cached_property
     def name(self) -> str:
@@ -146,6 +174,6 @@ class Info:
             cdda_sectors=Info.rstrip_zeros(self.cdda_sectors),
             size=Info.format_size(self.size),
             bit_rate=Info.format_bit_rate(self.bit_rate),
-            codec=self.codec if isinstance(self.codec, str) else self.codec.long_name,
+            codec=self.codec,
             metadata=self.metadata,
         )

@@ -21,46 +21,24 @@ from audiolab.av.typing import AudioLayoutEnum
 """
 $ ffmpeg -layouts
 """
-standard_channel_layouts = (
-    "mono",
-    "stereo",
-    "2.1",
-    "3.0",
-    "3.0(back)",
-    "4.0",
-    "quad",
-    "quad(side)",
-    "3.1",
-    "5.0",
-    "5.0(side)",
-    "4.1",
-    "5.1",
-    "5.1(side)",
-    "6.0",
-    "6.0(front)",
-    "3.1.2",
-    "hexagonal",
-    "6.1",
-    "6.1(back)",
-    "6.1(front)",
-    "7.0",
-    "7.0(front)",
-    "7.1",
-    "7.1(wide)",
-    "7.1(wide-side)",
-    "5.1.2",
-    "octagonal",
-    "cube",
-    "5.1.4",
-    "7.1.2",
-    "7.1.4",
-    "7.2.3",
-    "9.1.4",
-    "hexadecagonal",
-    "downmix",
-    "22.2",
-)
+standard_channel_layouts = {
+    0: ["downmix"],
+    1: ["mono"],
+    2: ["stereo"],
+    3: ["2.1", "3.0", "3.0(back)"],
+    4: ["4.0", "quad", "quad(side)", "3.1"],
+    5: ["5.0", "5.0(side)", "4.1"],
+    6: ["5.1", "6.0", "6.0(front)", "hexagonal", "5.1(side)", "3.1.2"],
+    7: ["7.0", "7.0(front)", "6.1", "6.1(back)", "6.1(front)"],
+    8: ["7.1", "7.1(wide)", "7.1(wide-side)", "cube", "octagonal", "5.1.2"],
+    10: ["5.1.4", "7.1.2"],
+    12: ["7.1.4", "7.2.3"],
+    14: ["9.1.4"],
+    16: ["hexadecagonal"],
+    24: ["22.2"],
+}
+
 audio_layouts: Dict[str, av.AudioLayout] = {
-    name: av.AudioLayout(name) for name in standard_channel_layouts
+    name: av.AudioLayout(name) for layouts in standard_channel_layouts.values() for name in layouts
 }
 AudioLayout = AudioLayoutEnum("AudioLayout", audio_layouts)

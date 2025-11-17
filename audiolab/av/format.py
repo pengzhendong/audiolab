@@ -23,7 +23,6 @@ from av.codec.codec import UnknownCodecError
 from audiolab.av import typing
 from audiolab.av.utils import get_template
 
-
 """
 $ ffmpeg -sample_fmts
 """
@@ -41,14 +40,8 @@ format_dtypes = {
     "u8": "u1",
     "u8p": "u1",
 }
-dtype_formats = {
-    np.dtype(dtype): name
-    for name, dtype in format_dtypes.items()
-    if not name.endswith("p")
-}
-audio_formats: Dict[str, av.AudioFormat] = {
-    name: av.AudioFormat(name) for name in format_dtypes.keys()
-}
+dtype_formats = {np.dtype(dtype): name for name, dtype in format_dtypes.items() if not name.endswith("p")}
+audio_formats: Dict[str, av.AudioFormat] = {name: av.AudioFormat(name) for name in format_dtypes.keys()}
 AudioFormat = typing.AudioFormatEnum("AudioFormat", audio_formats)
 
 
@@ -91,8 +84,7 @@ def get_format(
         else:
             assert available_formats is not None
             available_formats = [
-                format.name if isinstance(format, typing.AudioFormat) else format
-                for format in available_formats
+                format.name if isinstance(format, typing.AudioFormat) else format for format in available_formats
             ]
             if dtype not in available_formats:
                 dtype = dtype.rstrip("p") if dtype.endswith("p") else dtype + "p"

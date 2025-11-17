@@ -42,6 +42,16 @@ _subtype_to_bits_map = {
     "ALAC_32": 32,
 }
 
+_subtype_to_dtype_map = {
+    "PCM_S8": np.int8,
+    "PCM_U8": np.uint8,
+    "PCM_16": np.int16,
+    "PCM_24": np.int32,
+    "PCM_32": np.int32,
+    "FLOAT": np.float32,
+    "DOUBLE": np.float64,
+}
+
 
 class SoundFile(Backend):
     def __init__(self, file: Any, forced_decoding: bool = False):
@@ -65,6 +75,10 @@ class SoundFile(Backend):
         return Seconds(self.num_frames / self.sample_rate)
 
     @cached_property
+    def dtype(self) -> np.dtype:
+        return _subtype_to_dtype_map.get(self.sf.subtype, np.float32)
+
+    @cached_property
     def format(self) -> str:
         return self.sf.format
 
@@ -76,13 +90,13 @@ class SoundFile(Backend):
     def num_frames(self) -> Optional[int]:
         if self.forced_decoding:
             num_frames = 0
-            while True:
-                try:
-                    self.sf.read(1)
-                    num_frames += 1
-                except sf.LibsndfileError:
-                    self.sf = sf.SoundFile(self.file)
-                    break
+            pos = self.sf.tell()
+            try:
+                frames = self.sf.read()
+                num_frames = frames.shape[0]
+            except sf.LibsndfileError:
+                self.sf = sf.SoundFile(self.file)
+            self.seek(pos)
         else:
             num_frames = self.sf.frames
             if num_frames >= np.iinfo(np.int32).max:
@@ -102,7 +116,8 @@ class SoundFile(Backend):
         return self.sf.seekable()
 
     def read(self, frames: int = np.iinfo(np.int32).max) -> np.ndarray:
-        return self.sf.read(frames)
+        ndarray = self.sf.read(frames, dtype=self.dtype)
+        return np.atleast_2d(ndarray.T)
 
-    def seek(self, offset: Seconds):
-        self.sf.seek(int(offset * self.sample_rate))
+    def seek(self, offset: int):
+        self.sf.seek(offset)

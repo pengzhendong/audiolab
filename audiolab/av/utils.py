@@ -21,26 +21,11 @@ from numpy.random import randint, uniform
 loader = FileSystemLoader(files("audiolab.av").joinpath("templates"))
 
 
-def generate_ndarray(
-    nb_channels: int, samples: int, dtype: np.dtype, always_2d: bool = True
-) -> np.ndarray:
-    """
-    Generate a random ndarray.
-
-    Args:
-        nb_channels: The number of channels.
-        samples: The number of samples.
-        dtype: The data type.
-        always_2d: Whether to always return a 2d ndarray.
-    Returns:
-        The ndarray.
-    """
+def generate_ndarray(nb_channels: int, samples: int, dtype: np.dtype, always_2d: bool = True) -> np.ndarray:
     if np.dtype(dtype).kind in ("i", "u"):
         min_value = np.iinfo(dtype).min
         max_value = np.iinfo(dtype).max
-        ndarray = randint(
-            min_value, max_value, size=(nb_channels, samples), dtype=dtype
-        )
+        ndarray = randint(min_value, max_value, size=(nb_channels, samples), dtype=dtype)
     else:
         ndarray = uniform(-1, 1, size=(nb_channels, samples)).astype(dtype)
     if not always_2d and nb_channels == 1:
@@ -49,12 +34,4 @@ def generate_ndarray(
 
 
 def get_template(name: str) -> str:
-    """
-    Get a template from the templates directory.
-
-    Args:
-        name: The name of the template.
-    Returns:
-        The template.
-    """
     return Environment(loader=loader).get_template(f"{name}.txt")

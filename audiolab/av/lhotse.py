@@ -121,10 +121,7 @@ class SmartOpen:
 
     @classmethod
     def setup(cls, transport_params: Optional[dict] = None):
-        if (
-            cls.transport_params is not None
-            and cls.transport_params != transport_params
-        ):
+        if cls.transport_params is not None and cls.transport_params != transport_params:
             logging.warning(
                 f"SmartOpen.setup second call overwrites existing transport_params with new version"
                 f"\t\n{cls.transport_params}\t\nvs\t\n{transport_params}"
@@ -136,9 +133,7 @@ class SmartOpen:
     def open(cls, uri, mode="rb", transport_params=None, **kwargs):
         if cls.smart_open is None:
             cls.setup(transport_params=transport_params)
-        transport_params = (
-            transport_params if transport_params else cls.transport_params
-        )
+        transport_params = transport_params if transport_params else cls.transport_params
         return cls.smart_open(
             uri,
             mode=mode,

@@ -17,18 +17,13 @@ from functools import cached_property
 from typing import Any, Optional
 
 import numpy as np
+from av.codec import Codec
 
 from audiolab.av.typing import Seconds
 from audiolab.backend.backend import Backend
 
-_bits_to_codec_map = {
-    8: "8-bit Unsigned Integer PCM",
-    16: "16-bit Signed Integer PCM",
-    24: "24-bit Signed Integer PCM",
-    32: "32-bit Signed Integer PCM",
-}
-
-_bits_to_dtype_map = {8: np.uint8, 16: np.int16, 32: np.int32}
+_bits_to_codec_map = {8: "pcm_u8le", 16: "pcm_s16le", 24: "pcm_s32le", 32: "pcm_s32le"}
+_bits_to_dtype_map = {8: np.uint8, 16: np.int16, 24: np.int32, 32: np.int32}
 
 
 class Wave(Backend):
@@ -44,13 +39,17 @@ class Wave(Backend):
 
     @cached_property
     def codec(self) -> str:
-        return _bits_to_codec_map[self.bits_per_sample]
+        return Codec(_bits_to_codec_map[self.bits_per_sample]).long_name
 
     @cached_property
     def duration(self) -> Optional[Seconds]:
         if self.num_frames is None:
             return None
         return Seconds(self.num_frames / self.sample_rate)
+
+    @cached_property
+    def dtype(self) -> np.dtype:
+        return _bits_to_dtype_map[self.bits_per_sample]
 
     @cached_property
     def format(self) -> str:
@@ -89,13 +88,12 @@ class Wave(Backend):
             )
             frames[frames > 0x7FFFFF] -= 0x1000000
         else:
-            dtype = _bits_to_dtype_map[self.bits_per_sample]
-            frames = np.frombuffer(buffer, dtype)
-        return frames.reshape(-1, self.num_channels)
+            frames = np.frombuffer(buffer, self.dtype)
+        return frames.reshape(-1, self.num_channels).T
 
     def read(self, frames: int = np.iinfo(np.int32).max) -> np.ndarray:
         buffer = self.wave.readframes(frames)
         return self.frombuffer(buffer)
 
-    def seek(self, offset: Seconds):
-        self.wave.setpos(int(offset * self.sample_rate))
+    def seek(self, offset: int):
+        self.wave.setpos(offset)

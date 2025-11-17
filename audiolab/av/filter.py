@@ -44,24 +44,14 @@ class FilterManager:
                             "name": opt.name,
                             "type": opt_type,
                             "default": opt.default,
-                            "help": opt.help
-                            if opt.name != "temp"
-                            else "set temperature °C",
+                            "help": opt.help if opt.name != "temp" else "set temperature °C",
                         }
                     )
-            self._filter_data[name] = {
-                "name": _filter.name,
-                "description": _filter.description,
-                "options": options,
-            }
+            self._filter_data[name] = {"name": _filter.name, "description": _filter.description, "options": options}
 
     def _create_filter_function(self, name: str):
         def filter_func(args=None, **kwargs):
-            return (
-                name,
-                None if args is None else str(args),
-                {k: str(v) for k, v in kwargs.items()},
-            )
+            return (name, None if args is None else str(args), {k: str(v) for k, v in kwargs.items()})
 
         filter_func.__name__ = name
         return filter_func
@@ -75,9 +65,7 @@ class FilterManager:
             filter_func = self._create_filter_function(name)
             data = self._filter_data[name]
             filter_func.__doc__ = get_template("filter").render(
-                name=data["name"],
-                description=data["description"],
-                options=data["options"],
+                name=data["name"], description=data["description"], options=data["options"]
             )
             globals()[name] = filter_func
 
