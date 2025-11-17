@@ -45,6 +45,7 @@ class ContainerFormatEnum(BaseEnum):
     pass
 
 
+UINT32_MAX = np.iinfo(np.uint32).max
 AudioFormat = Union[str, av.AudioFormat]
 AudioFrame = Union[np.ndarray, av.AudioFrame, Tuple[np.ndarray, int]]
 AudioLayout = Union[int, str, av.AudioLayout]

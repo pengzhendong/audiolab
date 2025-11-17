@@ -15,19 +15,37 @@
 import os
 from functools import cached_property
 from io import BytesIO
-from typing import Any, Optional, Union
+from typing import Any, Iterator, Optional, Union
 
 import numpy as np
 from av.codec import Codec
 
-from audiolab.av import standard_channel_layouts
-from audiolab.av.typing import Seconds
+from audiolab.av import load_url, standard_channel_layouts
+from audiolab.av.typing import UINT32_MAX, Seconds
+from audiolab.av.utils import pad
 
 
 class Backend:
-    def __init__(self, file: Any, forced_encoding: bool = False):
+    def __init__(
+        self,
+        file: Any,
+        frame_size: Optional[int] = None,
+        frame_size_ms: Optional[int] = None,
+        always_2d: bool = True,
+        fill_value: Optional[float] = None,
+        cache_url: bool = False,
+        forced_decoding: bool = False,
+        **kwargs,
+    ):
+        if isinstance(file, str) and "://" in file and cache_url:
+            file = load_url(file, cache=True)
+
         self.file = file
-        self.forced_encoding = forced_encoding
+        self._frame_size = frame_size
+        self.frame_size_ms = frame_size_ms
+        self.always_2d = always_2d
+        self.fill_value = fill_value
+        self.forced_decoding = forced_decoding
 
     @cached_property
     def bits_per_sample(self) -> int:
@@ -56,6 +74,13 @@ class Backend:
     @cached_property
     def format(self):
         pass
+
+    @cached_property
+    def frame_size(self) -> int:
+        frame_size = self._frame_size
+        if self.frame_size_ms is not None:
+            frame_size = int(self.frame_size_ms * self.sample_rate // 1000)
+        return min(UINT32_MAX if frame_size is None else frame_size, UINT32_MAX)
 
     @cached_property
     def layout(self) -> str:
@@ -95,7 +120,23 @@ class Backend:
             return len(self.file.getbuffer())
         return None
 
-    def read(self, frames: int = np.iinfo(np.int32).max) -> np.ndarray:
+    def load_audio(self, offset: Seconds = 0, duration: Optional[Seconds] = None) -> Iterator[np.ndarray]:
+        self.seek(int(offset * self.sample_rate))
+        frames = UINT32_MAX if duration is None else int(duration * self.sample_rate)
+        while frames > 0:
+            frame_size = min(frames, self.frame_size)
+            ndarray = self.read(frame_size)
+            if ndarray.shape[1] == 0:
+                break
+            frames -= frame_size
+
+            if self.frame_size < UINT32_MAX and self.fill_value is not None:
+                ndarray = pad(ndarray, self.frame_size, self.fill_value)
+            if not self.always_2d and ndarray.shape[0] == 1:
+                ndarray = ndarray[0]
+            yield ndarray
+
+    def read(self, nframes: int) -> np.ndarray:
         pass
 
     def seek(self, offset: Seconds):

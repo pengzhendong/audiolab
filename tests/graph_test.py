@@ -40,6 +40,7 @@ class TestGraph:
                     frame_size=frame_size,
                     fill_value=fill_value,
                 )
+                assert graph.rate == sample_rate
                 ndarray = generate_ndarray(1, num_samples, np.float32, always_2d)
                 graph.push(ndarray)
                 frames = []

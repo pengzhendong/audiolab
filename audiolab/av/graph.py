@@ -20,9 +20,10 @@ import av
 import numpy as np
 from av import filter
 
+from audiolab.av import standard_channel_layouts
 from audiolab.av.format import get_format
 from audiolab.av.frame import from_ndarray, to_ndarray
-from audiolab.av.typing import AudioFormat, AudioFrame, AudioLayout, Dtype, Filter
+from audiolab.av.typing import UINT32_MAX, AudioFormat, AudioFrame, AudioLayout, Dtype, Filter
 
 
 class Graph(filter.Graph):
@@ -38,7 +39,7 @@ class Graph(filter.Graph):
         name: Optional[str] = None,
         time_base: Optional[Fraction] = None,
         filters: Optional[List[Filter]] = None,
-        frame_size: int = -1,
+        frame_size: Optional[int] = None,
         return_ndarray: bool = True,
         always_2d: bool = True,
         fill_value: Optional[float] = None,
@@ -52,6 +53,8 @@ class Graph(filter.Graph):
         format = get_format(dtype, is_planar) if format is None else format
         format = format.name if isinstance(format, av.AudioFormat) else format
         time_base = Fraction(1, rate) if time_base is None else time_base
+        if layout is None:
+            layout = standard_channel_layouts[channels][0]
         abuffer = super().add_abuffer(None, rate, format, layout, channels, name, time_base)
 
         nodes = [abuffer]
@@ -67,8 +70,8 @@ class Graph(filter.Graph):
         super().link_nodes(*nodes).configure()
 
         self.frame_size = None
-        if frame_size > 0:
-            self.frame_size = min(frame_size, np.iinfo(np.uint32).max)
+        if frame_size is not None and frame_size > 0:
+            self.frame_size = min(frame_size, UINT32_MAX)
             super().set_audio_frame_size(self.frame_size)
 
         self.rate = rate
@@ -117,8 +120,7 @@ class Graph(filter.Graph):
                     always_2d = self.always_2d
                 if return_ndarray:
                     ndarray = to_ndarray(frame, always_2d)
-                    ndarray = self.pad(ndarray, fill_value)
-                    yield ndarray, frame.rate
+                    yield self.pad(ndarray, fill_value), frame.rate
                 else:
                     yield frame
             except av.EOFError:

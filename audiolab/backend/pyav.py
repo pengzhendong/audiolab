@@ -13,27 +13,45 @@
 # limitations under the License.
 
 from functools import cached_property
-from typing import Any, Optional
+from typing import Any, Iterator, Optional
 
 import av
 import numpy as np
 from av import time_base
 from av.codec import Codec
 
+from audiolab.av import split_audio_frame
 from audiolab.av.format import get_dtype
-from audiolab.av.frame import to_ndarray
-from audiolab.av.typing import Seconds
+from audiolab.av.graph import Graph
+from audiolab.av.typing import AudioFrame, Seconds
 from audiolab.backend.backend import Backend
 
 
 class PyAV(Backend):
-    def __init__(self, file: Any, forced_decoding: bool = False):
-        super().__init__(file, forced_decoding)
-        self.file = file
+    def __init__(
+        self,
+        file: Any,
+        frame_size: Optional[int] = None,
+        frame_size_ms: Optional[int] = None,
+        return_ndarray: bool = True,
+        always_2d: bool = True,
+        fill_value: Optional[float] = None,
+        cache_url: bool = False,
+        forced_decoding: bool = False,
+    ):
+        super().__init__(file, frame_size, frame_size_ms, always_2d, fill_value, cache_url, forced_decoding)
         self.container = av.open(file, metadata_encoding="latin1")
         self.stream = self.container.streams.audio[0]
-        self.forced_decoding = forced_decoding
-        self.accumulated_frames = np.empty((self.num_channels, 0), dtype=self.dtype)
+        self.return_ndarray = return_ndarray
+        self.graph = Graph(
+            rate=self.sample_rate,
+            dtype=self.dtype,
+            is_planar=self.is_planar,
+            channels=self.num_channels,
+            frame_size=frame_size,
+            return_ndarray=return_ndarray,
+            fill_value=fill_value,
+        )
 
     @cached_property
     def bits_per_sample(self) -> int:
@@ -78,6 +96,10 @@ class PyAV(Backend):
         return None if duration is None else Seconds(duration)
 
     @cached_property
+    def is_planar(self) -> bool:
+        return self.stream.format.is_planar
+
+    @cached_property
     def name(self) -> str:
         return self.container.name
 
@@ -113,22 +135,25 @@ class PyAV(Backend):
         # May be 0 when the codec has AV_CODEC_CAP_VARIABLE_FRAME_SIZE set, then the frame size is not restricted.
         return self.stream.codec_context.frame_size in (0, 1)
 
-    def read(self, frames: int = np.iinfo(np.int32).max) -> np.ndarray:
-        if self.accumulated_frames.shape[1] >= frames:
-            ndarray = self.accumulated_frames[:, :frames]
-            self.accumulated_frames = self.accumulated_frames[:, frames:]
-            return ndarray
-
+    def load_audio(self, offset: Seconds = 0, duration: Optional[Seconds] = None) -> Iterator[AudioFrame]:
+        self.seek(int(offset * self.sample_rate))
+        end_time = self.duration if duration is None else min(self.duration, offset + duration)
         for frame in self.container.decode(self.stream):
             assert frame.time == float(frame.pts * self.stream.time_base)
-            self.accumulated_frames = np.concatenate([self.accumulated_frames, to_ndarray(frame)], axis=1)
-            if self.accumulated_frames.shape[1] >= frames:
-                ndarray = self.accumulated_frames[:, :frames]
-                self.accumulated_frames = self.accumulated_frames[:, frames:]
-                return ndarray
-        ndarray = self.accumulated_frames
-        self.accumulated_frames = np.empty((self.num_channels, 0), dtype=self.dtype)
-        return ndarray
+            if frame.time > end_time:
+                break
+            offset = int(round(end_time - frame.time, 5) * frame.sample_rate)
+            if offset < frame.samples:
+                frame, _ = split_audio_frame(frame, offset)
+
+            self.graph.push(frame)
+            for frame in self.graph.pull():
+                yield frame[0] if self.return_ndarray else frame
+        for frame in self.graph.pull(partial=True):
+            yield frame[0] if self.return_ndarray else frame
+
+    def read(self, nframes: int) -> np.ndarray:
+        raise NotImplementedError
 
     def seek(self, offset: int):
         self.container.seek(offset, any_frame=True, stream=self.stream)

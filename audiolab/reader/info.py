@@ -19,18 +19,22 @@ from typing import Any, Optional, Union
 import numpy as np
 from av.codec import Codec
 from humanize import naturalsize
-from line_profiler import profile
 
 from audiolab.av.typing import Seconds
 from audiolab.av.utils import get_template
 from audiolab.backend import Backend, pyav, soundfile, wave
 
 
-@profile
 class Info:
     def __init__(
         self,
         file: Any,
+        frame_size: Optional[int] = None,
+        frame_size_ms: Optional[int] = None,
+        return_ndarray: bool = True,
+        always_2d: bool = True,
+        fill_value: Optional[float] = None,
+        cache_url: bool = False,
         forced_decoding: bool = False,
         backend: Optional[Backend] = None,
     ):
@@ -42,14 +46,18 @@ class Info:
         else:
             backends = [backend]
 
-        for backend in backends:
+        for idx, backend in enumerate(backends):
             try:
                 pos = file.tell() if isinstance(file, BytesIO) else 0
-                self.backend = backend(file, forced_decoding)
+                self.backend = backend(
+                    file, frame_size, frame_size_ms, return_ndarray, always_2d, fill_value, cache_url, forced_decoding
+                )
                 break
-            except Exception:
+            except Exception as e:
                 if isinstance(file, BytesIO):
                     file.seek(pos)
+                if idx == len(backends) - 1:
+                    raise e
                 continue
 
     @cached_property

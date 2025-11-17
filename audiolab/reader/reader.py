@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import cached_property
 from typing import Any, Iterator, List, Optional
 
 import numpy as np
 
-from audiolab.av import aformat, load_url
+from audiolab.av import aformat
 from audiolab.av.graph import Graph
 from audiolab.av.typing import AudioFormat, AudioFrame, Dtype, Filter, Seconds
+from audiolab.backend import pyav
 from audiolab.reader.info import Info
 
 
@@ -61,53 +63,49 @@ class Reader(Info):
             always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
             fill_value: The fill value to pad the audio to the frame size.
         """
-        if isinstance(file, str) and "://" in file and cache_url:
-            file = load_url(file, cache=True)
+        super().__init__(file, frame_size, frame_size_ms, False, cache_url)
 
-        super().__init__(file)
-        self.backend.seek(int(offset * self.sample_rate))
-        self.frames = np.iinfo(np.uint32).max
-        if duration is not None:
-            self.frames = int(duration * self.sample_rate)
-
+        self.offset = offset
+        self._duration = duration
         if not all([dtype is None, format is None, rate is None, not to_mono]):
             filters = filters or []
             filters.append(aformat(dtype, is_planar, format, rate, to_mono))
 
-        if frame_size_ms is not None:
-            frame_size = int(frame_size_ms * self.rate // 1000)
-        elif frame_size is None:
-            frame_size = np.iinfo(np.uint32).max
-        self.frame_size = min(frame_size, np.iinfo(np.uint32).max)
-
         self.always_2d = always_2d
-        self.graph = Graph(
+        is_planar = self.backend.is_planar if isinstance(self.backend, pyav) else False
+        graph = Graph(
             rate=self.rate,
             dtype=self.dtype,
+            is_planar=is_planar,
             layout=self.layout,
             filters=filters,
-            frame_size=frame_size,
+            frame_size=self.frame_size,
             return_ndarray=return_ndarray,
             always_2d=always_2d,
             fill_value=fill_value,
         )
+        if isinstance(self.backend, pyav):
+            self.backend.graph = graph
+        else:
+            self.graph = graph
+
+    @cached_property
+    def frame_size(self) -> int:
+        return self.backend.frame_size
 
     def __iter__(self) -> Iterator[AudioFrame]:
-        while self.frames > 0:
-            frames = min(self.frames, self.frame_size)
-            frame = self.backend.read(frames)
-            if frame.shape[1] == 0:
-                break
-            self.frames -= frame.shape[1]
-            self.graph.push(frame)
-            yield from self.graph.pull()
-            if frame.shape[1] < frames:
-                break
-        yield from self.graph.pull(partial=True)
+        for frame in self.backend.load_audio(self.offset, self._duration):
+            if isinstance(self.backend, pyav):
+                yield frame
+            else:
+                self.graph.push(frame)
+                yield from self.graph.pull()
+        if isinstance(self.backend, pyav):
+            yield from self.backend.graph.pull(partial=True)
+        else:
+            yield from self.graph.pull(partial=True)
 
-    def load_audio(self, always_2d: Optional[bool] = None) -> AudioFrame:
-        if always_2d is None:
-            always_2d = self.always_2d
+    def load_audio(self) -> AudioFrame:
         frames, rates = zip(*self)
         assert len(set(rates)) == 1
-        return np.concatenate(frames, axis=1 if always_2d else 0), rates[0]
+        return np.concatenate(frames, axis=1 if self.always_2d else 0), rates[0]

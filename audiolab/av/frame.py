@@ -20,7 +20,7 @@ import av
 import numpy as np
 
 from audiolab.av.format import get_dtype
-from audiolab.av.typing import AudioFormat, AudioLayout, Seconds
+from audiolab.av.typing import AudioFormat, AudioLayout
 
 logger = logging.getLogger(__name__)
 
@@ -99,12 +99,11 @@ def to_ndarray(frame: av.AudioFrame, always_2d: bool = True) -> np.ndarray:
     return ndarray
 
 
-def split_audio_frame(frame: av.AudioFrame, offset: Seconds) -> Tuple[av.AudioFrame, av.AudioFrame]:
-    offset = int(offset * frame.rate)
+def split_audio_frame(frame: av.AudioFrame, offset: int) -> Tuple[av.AudioFrame, av.AudioFrame]:
     if offset <= 0:
         return None, frame
     # number of samples per channel
-    if offset > frame.samples:
+    if offset >= frame.samples:
         return frame, None
 
     ndarray = to_ndarray(frame)

@@ -19,7 +19,6 @@ from numpy.random import choice, randint
 from audiolab.av.format import AudioFormat, get_dtype
 from audiolab.av.frame import clip, from_ndarray, split_audio_frame, to_ndarray
 from audiolab.av.layout import AudioLayout
-from audiolab.av.typing import Seconds
 from audiolab.av.utils import generate_ndarray
 
 
@@ -63,12 +62,10 @@ class TestFrame:
                 format = AudioFormat[format_name].value
                 dtype = get_dtype(format)
                 for rate in (8000, 16000, 24000, 48000):
-                    duration: Seconds = randint(0, 10)
-                    offset: Seconds = randint(0, 10)
-                    duration_samples = int(duration * rate)
-                    offset_samples = int(min(offset, duration) * rate)
+                    frames = int(randint(1, 10) * rate)
+                    offset = min(int(randint(0, 10) * rate), frames)
                     always_2d = choice([True, False])
-                    ndarray = generate_ndarray(nb_channels, duration_samples, dtype, always_2d)
+                    ndarray = generate_ndarray(nb_channels, frames, dtype, always_2d)
                     frame = from_ndarray(ndarray, format, layout, rate, pts=pts)
                     left, right = split_audio_frame(frame, offset)
                     if offset > 0:
@@ -76,14 +73,14 @@ class TestFrame:
                         assert left.format.name == format.name
                         assert left.layout.name == layout.name
                         assert left.pts == pts
-                        assert left.samples == offset_samples
+                        assert left.samples == offset
                     else:
                         assert left is None
-                    if offset <= duration:
+                    if offset < frames:
                         assert right.rate == rate
                         assert right.format.name == format.name
                         assert right.layout.name == layout.name
-                        assert right.pts == pts + offset_samples
-                        assert right.samples == duration_samples - offset_samples
+                        assert right.pts == pts + offset
+                        assert right.samples == frames - offset
                     else:
                         assert right is None

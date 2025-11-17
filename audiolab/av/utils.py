@@ -35,3 +35,13 @@ def generate_ndarray(nb_channels: int, samples: int, dtype: np.dtype, always_2d:
 
 def get_template(name: str) -> str:
     return Environment(loader=loader).get_template(f"{name}.txt")
+
+
+def pad(frame: np.ndarray, frame_size: int, fill_value: float = 0) -> np.ndarray:
+    pad_needed = frame_size - frame.shape[0 if frame.ndim == 1 else 1]
+    if pad_needed <= 0:
+        return frame
+    if frame.ndim == 1:
+        return np.pad(frame, (0, pad_needed), constant_values=fill_value)
+    else:
+        return np.pad(frame, ((0, 0), (0, pad_needed)), constant_values=fill_value)

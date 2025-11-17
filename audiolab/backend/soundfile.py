@@ -54,11 +54,19 @@ _subtype_to_dtype_map = {
 
 
 class SoundFile(Backend):
-    def __init__(self, file: Any, forced_decoding: bool = False):
-        super().__init__(file, forced_decoding)
-        self.file = file
+    def __init__(
+        self,
+        file: Any,
+        frame_size: Optional[int] = None,
+        frame_size_ms: Optional[int] = None,
+        always_2d: bool = True,
+        fill_value: Optional[float] = None,
+        cache_url: bool = False,
+        forced_decoding: bool = False,
+        **kwargs,
+    ):
+        super().__init__(file, frame_size, frame_size_ms, always_2d, fill_value, cache_url, forced_decoding)
         self.sf = sf.SoundFile(file)
-        self.forced_decoding = forced_decoding
 
     @cached_property
     def bits_per_sample(self) -> Optional[int]:
@@ -115,8 +123,8 @@ class SoundFile(Backend):
     def seekable(self) -> bool:
         return self.sf.seekable()
 
-    def read(self, frames: int = np.iinfo(np.int32).max) -> np.ndarray:
-        ndarray = self.sf.read(frames, dtype=self.dtype)
+    def read(self, nframes: int) -> np.ndarray:
+        ndarray = self.sf.read(nframes, dtype=self.dtype)
         return np.atleast_2d(ndarray.T)
 
     def seek(self, offset: int):

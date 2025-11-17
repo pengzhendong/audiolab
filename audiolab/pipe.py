@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Iterator, List, Optional
+from typing import Iterator, List, Optional, Tuple
 
 import numpy as np
 
-from audiolab.av import standard_channel_layouts
 from audiolab.av.typing import AudioFormat, Dtype, Filter
 from audiolab.reader import Graph, aformat
 
@@ -59,12 +58,10 @@ class AudioPipe:
 
     def push(self, frame: np.ndarray):
         if self.graph is None:
-            channels = frame.shape[0]
-            layouts = standard_channel_layouts[channels]
             self.graph = Graph(
                 rate=self.in_rate,
                 dtype=frame.dtype,
-                layout=layouts[0],
+                channels=frame.shape[0],
                 filters=self.filters,
                 frame_size=self.frame_size,
                 return_ndarray=True,
@@ -72,5 +69,5 @@ class AudioPipe:
             )
         self.graph.push(frame)
 
-    def pull(self, partial: bool = False) -> Iterator[np.ndarray]:
+    def pull(self, partial: bool = False) -> Iterator[Tuple[np.ndarray, int]]:
         yield from self.graph.pull(partial=partial)

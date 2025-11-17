@@ -18,6 +18,7 @@ import numpy as np
 
 from audiolab.av import aformat
 from audiolab.av.graph import Graph
+from audiolab.av.typing import UINT32_MAX
 from audiolab.backend import Backend
 from audiolab.reader.info import Info
 from audiolab.reader.reader import Reader
@@ -40,10 +41,10 @@ def info(file: Any, forced_decode: bool = False, backend: Optional[Backend] = No
 
 def load_audio(file: Any, **kwargs) -> Union[Iterator[Tuple[np.ndarray, int]], Tuple[np.ndarray, int]]:
     reader = Reader(file, **kwargs)
-    generator = reader.__iter__()
-    if reader.frame_size < np.iinfo(np.uint32).max:
-        return generator
-    return next(generator)
+    if reader.frame_size < UINT32_MAX:
+        return reader.__iter__()
+    else:
+        return reader.load_audio()
 
 
 __all__ = ["Graph", "Reader", "StreamReader", "aformat", "load_audio"]

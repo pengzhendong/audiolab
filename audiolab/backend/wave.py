@@ -27,11 +27,19 @@ _bits_to_dtype_map = {8: np.uint8, 16: np.int16, 24: np.int32, 32: np.int32}
 
 
 class Wave(Backend):
-    def __init__(self, file: Any, forced_decoding: bool = False):
-        super().__init__(file, forced_decoding)
-        self.file = file
+    def __init__(
+        self,
+        file: Any,
+        frame_size: Optional[int] = None,
+        frame_size_ms: Optional[int] = None,
+        always_2d: bool = True,
+        fill_value: Optional[float] = None,
+        cache_url: bool = False,
+        forced_decoding: bool = False,
+        **kwargs,
+    ):
+        super().__init__(file, frame_size, frame_size_ms, always_2d, fill_value, cache_url, forced_decoding)
         self.wave = wave.open(file)
-        self.forced_decoding = forced_decoding
 
     @cached_property
     def bits_per_sample(self) -> int:
@@ -91,8 +99,8 @@ class Wave(Backend):
             frames = np.frombuffer(buffer, self.dtype)
         return frames.reshape(-1, self.num_channels).T
 
-    def read(self, frames: int = np.iinfo(np.int32).max) -> np.ndarray:
-        buffer = self.wave.readframes(frames)
+    def read(self, nframes: int) -> np.ndarray:
+        buffer = self.wave.readframes(nframes)
         return self.frombuffer(buffer)
 
     def seek(self, offset: int):
