@@ -27,18 +27,8 @@ _bits_to_dtype_map = {8: np.uint8, 16: np.int16, 24: np.int32, 32: np.int32}
 
 
 class Wave(Backend):
-    def __init__(
-        self,
-        file: Any,
-        frame_size: Optional[int] = None,
-        frame_size_ms: Optional[int] = None,
-        always_2d: bool = True,
-        fill_value: Optional[float] = None,
-        cache_url: bool = False,
-        forced_decoding: bool = False,
-        **kwargs,
-    ):
-        super().__init__(file, frame_size, frame_size_ms, always_2d, fill_value, cache_url, forced_decoding)
+    def __init__(self, file: Any, frame_size: Optional[int] = None, forced_decoding: bool = False):
+        super().__init__(file, frame_size, forced_decoding)
         self.wave = wave.open(file)
 
     @cached_property
@@ -99,9 +89,9 @@ class Wave(Backend):
             frames = np.frombuffer(buffer, self.dtype)
         return frames.reshape(-1, self.num_channels).T
 
-    def read(self, nframes: int) -> np.ndarray:
+    def read(self, nframes: int) -> Optional[np.ndarray]:
         buffer = self.wave.readframes(nframes)
-        return self.frombuffer(buffer)
+        return self.frombuffer(buffer) if len(buffer) > 0 else None
 
     def seek(self, offset: int):
         self.wave.setpos(offset)

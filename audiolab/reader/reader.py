@@ -12,15 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import cached_property
+from functools import cached_property, partial
 from typing import Any, Iterator, List, Optional
 
-import numpy as np
-
-from audiolab.av import aformat
+from audiolab.av import aformat, load_url
+from audiolab.av.frame import pad, to_ndarray
 from audiolab.av.graph import Graph
-from audiolab.av.typing import AudioFormat, AudioFrame, Dtype, Filter, Seconds
-from audiolab.backend import pyav
+from audiolab.av.typing import UINT32_MAX, AudioFrame, Dtype, Filter, Seconds
+from audiolab.backend import pyav, soundfile
 from audiolab.reader.info import Info
 
 
@@ -32,14 +31,10 @@ class Reader(Info):
         duration: Optional[Seconds] = None,
         filters: Optional[List[Filter]] = None,
         dtype: Optional[Dtype] = None,
-        is_planar: bool = False,
-        format: Optional[AudioFormat] = None,
         rate: Optional[int] = None,
         to_mono: bool = False,
         frame_size: Optional[int] = None,
-        frame_size_ms: Optional[int] = None,
         cache_url: bool = False,
-        return_ndarray: bool = True,
         always_2d: bool = True,
         fill_value: Optional[float] = None,
     ):
@@ -52,42 +47,44 @@ class Reader(Info):
             duration: The duration of the audio to load.
             filters: The filters to apply to the audio.
             dtype: The data type of the audio frames.
-            is_planar: Whether the audio frames are planar.
-            format: The format of the audio frames.
             rate: The sample rate of the audio frames.
             to_mono: Whether to convert the audio frames to mono.
             frame_size: The frame size of the audio frames.
-            frame_size_ms: The frame size in milliseconds of the audio frames.
             cache_url: Whether to cache the audio file.
-            return_ndarray: Whether to return ndarrays.
             always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
             fill_value: The fill value to pad the audio to the frame size.
         """
-        super().__init__(file, frame_size, frame_size_ms, False, cache_url)
+        if isinstance(file, str) and "://" in file and cache_url:
+            file = load_url(file, cache=True)
 
+        self.filters = [] if filters is None else filters
+        if rate is None and not to_mono and len(self.filters) == 0:
+            if dtype is None:
+                super().__init__(file, frame_size)
+            else:
+                super().__init__(file, frame_size, backends=[soundfile, pyav])
+                if isinstance(self.backend, soundfile):
+                    self.backend.read = partial(self.backend.read, dtype=dtype)
+        else:
+            super().__init__(file, frame_size, backends=[pyav])
+
+        self.graph = None
+        if isinstance(self.backend, pyav):
+            if self.is_passthrough(dtype, rate, to_mono):
+                self.filters.append(aformat(dtype, rate=rate, to_mono=to_mono))
+                self.graph = Graph(
+                    rate=self.rate,
+                    dtype=self.dtype,
+                    is_planar=self.backend.is_planar,
+                    layout=self.layout,
+                    filters=self.filters,
+                    frame_size=self.frame_size,
+                    return_ndarray=True,
+                )
         self.offset = offset
         self._duration = duration
-        if not all([dtype is None, format is None, rate is None, not to_mono]):
-            filters = filters or []
-            filters.append(aformat(dtype, is_planar, format, rate, to_mono))
-
         self.always_2d = always_2d
-        is_planar = self.backend.is_planar if isinstance(self.backend, pyav) else False
-        graph = Graph(
-            rate=self.rate,
-            dtype=self.dtype,
-            is_planar=is_planar,
-            layout=self.layout,
-            filters=filters,
-            frame_size=self.frame_size,
-            return_ndarray=return_ndarray,
-            always_2d=always_2d,
-            fill_value=fill_value,
-        )
-        if isinstance(self.backend, pyav):
-            self.backend.graph = graph
-        else:
-            self.graph = graph
+        self.fill_value = fill_value
 
     @cached_property
     def frame_size(self) -> int:
@@ -95,17 +92,29 @@ class Reader(Info):
 
     def __iter__(self) -> Iterator[AudioFrame]:
         for frame in self.backend.load_audio(self.offset, self._duration):
-            if isinstance(self.backend, pyav):
-                yield frame
+            if self.graph is None:
+                if isinstance(self.backend, pyav):
+                    frame = to_ndarray(frame)
+                if self.fill_value is not None:
+                    frame = pad(frame, self.frame_size, self.fill_value)
+                yield frame if self.always_2d else frame.squeeze(), self.rate
             else:
                 self.graph.push(frame)
-                yield from self.graph.pull()
-        if isinstance(self.backend, pyav):
-            yield from self.backend.graph.pull(partial=True)
-        else:
-            yield from self.graph.pull(partial=True)
+                yield from self.pull()
+        if self.graph is not None:
+            yield from self.pull(partial=True)
 
-    def load_audio(self) -> AudioFrame:
-        frames, rates = zip(*self)
-        assert len(set(rates)) == 1
-        return np.concatenate(frames, axis=1 if self.always_2d else 0), rates[0]
+    def is_passthrough(self, dtype: Optional[Dtype] = None, rate: Optional[int] = None, to_mono: bool = False) -> bool:
+        if self.backend != pyav:
+            return True
+        convert = self.dtype != dtype
+        resample = self.rate != rate
+        to_mono = to_mono and self.num_channels > 1
+        return convert or resample or to_mono or self.frame_size < UINT32_MAX or len(self.filters) > 0
+
+    def pull(self, partial: bool = False) -> AudioFrame:
+        for frame in self.graph.pull(partial=partial):
+            frame, rate = frame
+            if self.fill_value is not None:
+                frame = pad(frame, self.frame_size, self.fill_value)
+            yield frame if self.always_2d else frame.squeeze(), rate

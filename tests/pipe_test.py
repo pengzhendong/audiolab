@@ -37,11 +37,12 @@ class TestPipe:
         num_frames = 5
         num_samples = int(rate * duration * num_frames)
         for ratio in (0.9, 1.1):
-            pipe = AudioPipe(in_rate=rate, filters=[atempo(ratio)])
-            frames = []
-            for idx in range(num_frames):
-                pipe.push(generate_ndarray(nb_channels, int(rate * duration), np.int16))
-                for frame, _ in pipe.pull(partial=idx == num_frames - 1):
-                    frames.append(frame)
-            audio = np.concatenate(frames, axis=1)
-            assert np.isclose(audio.shape[1] / rate * ratio, num_samples / rate, atol=0.05)
+            for always_2d in (True, False):
+                pipe = AudioPipe(in_rate=rate, filters=[atempo(ratio)], always_2d=always_2d)
+                frames = []
+                for idx in range(num_frames):
+                    pipe.push(generate_ndarray(nb_channels, int(rate * duration), np.int16))
+                    for frame, _ in pipe.pull(partial=idx == num_frames - 1):
+                        frames.append(frame)
+                audio = np.concatenate(frames, axis=1 if always_2d else 0)
+                assert np.isclose(audio.shape[1 if always_2d else 0] / rate * ratio, num_samples / rate, atol=0.05)

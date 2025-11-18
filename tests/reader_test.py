@@ -49,7 +49,6 @@ class TestReader:
             assert reader.duration == duration
             assert reader.precision == 16
             assert reader.rate == rate
-            assert np.allclose(ndarray, reader.load_audio()[0])
 
     def test_load_audio(self, nb_channels, rate, duration):
         for always_2d in (True, False):

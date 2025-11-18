@@ -14,7 +14,7 @@
 
 import numpy as np
 from av.audio.frame import format_dtypes
-from numpy.random import choice, randint
+from numpy.random import randint
 
 from audiolab.av.format import AudioFormat, get_dtype
 from audiolab.av.frame import clip, from_ndarray, split_audio_frame, to_ndarray
@@ -45,13 +45,12 @@ class TestFrame:
                 format = AudioFormat[format_name].value
                 dtype = get_dtype(format)
                 for rate in (8000, 16000, 24000, 48000):
-                    always_2d = choice([True, False])
-                    ndarray = generate_ndarray(nb_channels, rate, dtype, always_2d)
+                    ndarray = generate_ndarray(nb_channels, rate, dtype)
                     frame = from_ndarray(ndarray, format, layout, rate)
                     assert frame.format.name == format.name
                     assert frame.layout.name == layout.name
                     assert frame.rate == rate
-                    assert np.allclose(to_ndarray(frame, always_2d), ndarray)
+                    assert np.allclose(to_ndarray(frame), ndarray)
 
     def test_split_audio_frame(self):
         pts = 0
@@ -64,8 +63,7 @@ class TestFrame:
                 for rate in (8000, 16000, 24000, 48000):
                     frames = int(randint(1, 10) * rate)
                     offset = min(int(randint(0, 10) * rate), frames)
-                    always_2d = choice([True, False])
-                    ndarray = generate_ndarray(nb_channels, frames, dtype, always_2d)
+                    ndarray = generate_ndarray(nb_channels, frames, dtype)
                     frame = from_ndarray(ndarray, format, layout, rate, pts=pts)
                     left, right = split_audio_frame(frame, offset)
                     if offset > 0:

@@ -84,18 +84,12 @@ def from_ndarray(
     return frame
 
 
-def to_ndarray(frame: av.AudioFrame, always_2d: bool = True) -> np.ndarray:
-    # packed:
-    #   * [num_channels, num_samples] if always_2d is True
-    #   * [num_samples] if always_2d is False
-    # planar:
-    #   * [1, num_channels * num_samples]  if always_2d is True
-    #   * [num_channels, num_samples] if always_2d is False
+def to_ndarray(frame: av.AudioFrame) -> np.ndarray:
+    # packed: [num_channels, num_samples]
+    # planar: [1, num_channels * num_samples]
     ndarray = frame.to_ndarray()
     if frame.format.is_packed:
         ndarray = ndarray.reshape(-1, frame.layout.nb_channels).T
-    if not always_2d and ndarray.shape[0] == 1:
-        ndarray = ndarray[0]
     return ndarray
 
 
@@ -118,3 +112,13 @@ def split_audio_frame(frame: av.AudioFrame, offset: int) -> Tuple[av.AudioFrame,
     if frame.time_base is not None:
         left.time_base, right.time_base = frame.time_base, frame.time_base
     return left, right
+
+
+def pad(frame: np.ndarray, frame_size: int, fill_value: float = 0) -> np.ndarray:
+    pad_needed = frame_size - frame.shape[0 if frame.ndim == 1 else 1]
+    if pad_needed <= 0:
+        return frame
+    if frame.ndim == 1:
+        return np.pad(frame, (0, pad_needed), constant_values=fill_value)
+    else:
+        return np.pad(frame, ((0, 0), (0, pad_needed)), constant_values=fill_value)

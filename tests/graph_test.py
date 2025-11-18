@@ -30,25 +30,13 @@ class TestGraph:
         frame_size = 1024
         filters = [aformat(dtype=np.int16, rate=16000)]
         num_samples = int(sample_rate * duration)
-        for always_2d in (True, False):
-            for fill_value in (None, 0.0):
-                graph = Graph(
-                    rate=sample_rate,
-                    dtype=np.float32,
-                    layout="mono",
-                    filters=filters,
-                    frame_size=frame_size,
-                    fill_value=fill_value,
-                )
-                assert graph.rate == sample_rate
-                ndarray = generate_ndarray(1, num_samples, np.float32, always_2d)
-                graph.push(ndarray)
-                frames = []
-                for frame, rate in graph.pull(True, True, always_2d):
-                    assert rate == 16000
-                    if fill_value is not None:
-                        assert frame.shape[1 if always_2d else 0] == frame_size
-                    frames.append(frame)
-                samples = np.concatenate(frames, axis=1 if always_2d else 0)
-                if fill_value is None:
-                    assert samples.shape[1 if always_2d else 0] == 16000 * duration
+        graph = Graph(rate=sample_rate, dtype=np.float32, layout="mono", filters=filters, frame_size=frame_size)
+        assert graph.rate == sample_rate
+        ndarray = generate_ndarray(1, num_samples, np.float32)
+        graph.push(ndarray)
+        frames = []
+        for frame, rate in graph.pull(True, True):
+            assert rate == 16000
+            frames.append(frame)
+        samples = np.concatenate(frames, axis=1)
+        assert samples.shape[1] == 16000 * duration

@@ -36,13 +36,10 @@ class Graph(filter.Graph):
         format: Optional[AudioFormat] = None,
         layout: Optional[AudioLayout] = None,
         channels: Optional[int] = None,
-        name: Optional[str] = None,
         time_base: Optional[Fraction] = None,
         filters: Optional[List[Filter]] = None,
         frame_size: Optional[int] = None,
         return_ndarray: bool = True,
-        always_2d: bool = True,
-        fill_value: Optional[float] = None,
     ):
         if template is not None:
             rate = template.sample_rate if rate is None else rate
@@ -55,7 +52,7 @@ class Graph(filter.Graph):
         time_base = Fraction(1, rate) if time_base is None else time_base
         if layout is None:
             layout = standard_channel_layouts[channels][0]
-        abuffer = super().add_abuffer(None, rate, format, layout, channels, name, time_base)
+        abuffer = super().add_abuffer(None, rate, format, layout, channels, time_base=time_base)
 
         nodes = [abuffer]
         if filters is not None:
@@ -78,21 +75,6 @@ class Graph(filter.Graph):
         self.format = format
         self.layout = layout
         self.return_ndarray = return_ndarray
-        self.always_2d = always_2d
-        self.fill_value = fill_value
-
-    def pad(self, frame: np.ndarray, fill_value: Optional[float] = None):
-        fill_value = self.fill_value if fill_value is None else fill_value
-        if fill_value is None or self.frame_size is None:
-            return frame
-        pad_needed = self.frame_size - frame.shape[0 if frame.ndim == 1 else 1]
-        if pad_needed <= 0:
-            return frame
-
-        if frame.ndim == 1:
-            return np.pad(frame, (0, pad_needed), constant_values=fill_value)
-        else:
-            return np.pad(frame, ((0, 0), (0, pad_needed)), constant_values=fill_value)
 
     def push(self, frame: AudioFrame):
         if isinstance(frame, tuple):
@@ -102,13 +84,7 @@ class Graph(filter.Graph):
             frame = from_ndarray(frame, self.format, self.layout, self.rate)
         super().push(frame)
 
-    def pull(
-        self,
-        partial: bool = False,
-        return_ndarray: Optional[bool] = None,
-        always_2d: Optional[bool] = None,
-        fill_value: Optional[float] = None,
-    ) -> AudioFrame:
+    def pull(self, partial: bool = False, return_ndarray: Optional[bool] = None) -> AudioFrame:
         if partial:
             super().push(None)
         while True:
@@ -116,13 +92,7 @@ class Graph(filter.Graph):
                 frame = super().pull()
                 if return_ndarray is None:
                     return_ndarray = self.return_ndarray
-                if always_2d is None:
-                    always_2d = self.always_2d
-                if return_ndarray:
-                    ndarray = to_ndarray(frame, always_2d)
-                    yield self.pad(ndarray, fill_value), frame.rate
-                else:
-                    yield frame
+                yield (to_ndarray(frame), frame.rate) if return_ndarray else frame
             except av.EOFError:
                 break
             except av.FFmpegError as e:

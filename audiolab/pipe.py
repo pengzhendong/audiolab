@@ -16,6 +16,7 @@ from typing import Iterator, List, Optional, Tuple
 
 import numpy as np
 
+from audiolab.av.frame import pad
 from audiolab.av.typing import AudioFormat, Dtype, Filter
 from audiolab.reader import Graph, aformat
 
@@ -31,22 +32,9 @@ class AudioPipe:
         out_rate: Optional[int] = None,
         to_mono: bool = False,
         frame_size: Optional[int] = 1024,
+        fill_value: Optional[float] = None,
         always_2d: bool = True,
     ):
-        """
-        Create a Pipe object.
-
-        Args:
-            in_rate: The sample rate of the input audio frames.
-            filters: The filters to apply to the audio pipe.
-            dtype: The data type of the output audio frames.
-            is_planar: Whether the output audio frames are planar.
-            format: The format of the output audio frames.
-            out_rate: The sample rate of the output audio frames.
-            to_mono: Whether to convert the output audio frames to mono.
-            frame_size: The frame size of the audio frames.
-            always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
-        """
         self.in_rate = in_rate
         self.graph = None
         if not all([dtype is None, format is None, out_rate is None, to_mono is None]):
@@ -54,6 +42,7 @@ class AudioPipe:
             filters.append(aformat(dtype, is_planar, format, out_rate, to_mono))
         self.filters = filters
         self.frame_size = frame_size
+        self.fill_value = fill_value
         self.always_2d = always_2d
 
     def push(self, frame: np.ndarray):
@@ -65,9 +54,11 @@ class AudioPipe:
                 filters=self.filters,
                 frame_size=self.frame_size,
                 return_ndarray=True,
-                always_2d=self.always_2d,
             )
         self.graph.push(frame)
 
     def pull(self, partial: bool = False) -> Iterator[Tuple[np.ndarray, int]]:
-        yield from self.graph.pull(partial=partial)
+        for frame, rate in self.graph.pull(partial=partial):
+            if self.fill_value is not None:
+                frame = pad(frame, self.frame_size, self.fill_value)
+            yield frame if self.always_2d else frame.squeeze(), rate

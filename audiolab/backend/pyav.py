@@ -23,35 +23,23 @@ from av.codec import Codec
 from audiolab.av import split_audio_frame
 from audiolab.av.format import get_dtype
 from audiolab.av.graph import Graph
-from audiolab.av.typing import AudioFrame, Seconds
+from audiolab.av.typing import UINT32_MAX, AudioFrame, Seconds
 from audiolab.backend.backend import Backend
 
 
 class PyAV(Backend):
-    def __init__(
-        self,
-        file: Any,
-        frame_size: Optional[int] = None,
-        frame_size_ms: Optional[int] = None,
-        return_ndarray: bool = True,
-        always_2d: bool = True,
-        fill_value: Optional[float] = None,
-        cache_url: bool = False,
-        forced_decoding: bool = False,
-    ):
-        super().__init__(file, frame_size, frame_size_ms, always_2d, fill_value, cache_url, forced_decoding)
+    def __init__(self, file: Any, frame_size: Optional[int] = None, forced_decoding: bool = False):
+        super().__init__(file, frame_size, forced_decoding)
         self.container = av.open(file, metadata_encoding="latin1")
         self.stream = self.container.streams.audio[0]
-        self.return_ndarray = return_ndarray
-        self.graph = Graph(
-            rate=self.sample_rate,
-            dtype=self.dtype,
-            is_planar=self.is_planar,
-            channels=self.num_channels,
-            frame_size=frame_size,
-            return_ndarray=return_ndarray,
-            fill_value=fill_value,
-        )
+        if not self.is_passthrough:
+            self.graph = Graph(
+                rate=self.sample_rate,
+                dtype=self.dtype,
+                is_planar=self.is_planar,
+                channels=self.num_channels,
+                frame_size=frame_size,
+            )
 
     @cached_property
     def bits_per_sample(self) -> int:
@@ -96,6 +84,10 @@ class PyAV(Backend):
         return None if duration is None else Seconds(duration)
 
     @cached_property
+    def is_passthrough(self) -> bool:
+        return self.frame_size == UINT32_MAX
+
+    @cached_property
     def is_planar(self) -> bool:
         return self.stream.format.is_planar
 
@@ -137,23 +129,26 @@ class PyAV(Backend):
 
     def load_audio(self, offset: Seconds = 0, duration: Optional[Seconds] = None) -> Iterator[AudioFrame]:
         self.seek(int(offset * self.sample_rate))
-        end_time = self.duration if duration is None else min(self.duration, offset + duration)
-        for frame in self.container.decode(self.stream):
-            assert frame.time == float(frame.pts * self.stream.time_base)
-            if frame.time > end_time:
+        frames = UINT32_MAX if duration is None else int(duration * self.sample_rate)
+        while frames > 0:
+            frame = self.read()
+            if frame is None:
                 break
-            offset = int(round(end_time - frame.time, 5) * frame.sample_rate)
-            if offset < frame.samples:
-                frame, _ = split_audio_frame(frame, offset)
+            frame, _ = split_audio_frame(frame, frames)
+            frames -= frame.samples
+            if self.is_passthrough:
+                yield frame
+            else:
+                self.graph.push(frame)
+                yield from self.graph.pull()
+        if not self.is_passthrough:
+            yield from self.graph.pull(partial=True)
 
-            self.graph.push(frame)
-            for frame in self.graph.pull():
-                yield frame[0] if self.return_ndarray else frame
-        for frame in self.graph.pull(partial=True):
-            yield frame[0] if self.return_ndarray else frame
-
-    def read(self, nframes: int) -> np.ndarray:
-        raise NotImplementedError
+    def read(self) -> Optional[AudioFrame]:
+        try:
+            return next(self.container.decode(self.stream))
+        except StopIteration:
+            return None
 
     def seek(self, offset: int):
         self.container.seek(offset, any_frame=True, stream=self.stream)

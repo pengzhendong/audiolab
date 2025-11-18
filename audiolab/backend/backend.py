@@ -15,41 +15,19 @@
 import os
 from functools import cached_property
 from io import BytesIO
-from typing import Any, Iterator, Optional, Union
+from typing import Any, Iterator, Optional
 
 import numpy as np
-from av.codec import Codec
 
-from audiolab.av import load_url, standard_channel_layouts
+from audiolab.av import standard_channel_layouts
 from audiolab.av.typing import UINT32_MAX, Seconds
-from audiolab.av.utils import pad
 
 
 class Backend:
-    def __init__(
-        self,
-        file: Any,
-        frame_size: Optional[int] = None,
-        frame_size_ms: Optional[int] = None,
-        always_2d: bool = True,
-        fill_value: Optional[float] = None,
-        cache_url: bool = False,
-        forced_decoding: bool = False,
-        **kwargs,
-    ):
-        if isinstance(file, str) and "://" in file and cache_url:
-            file = load_url(file, cache=True)
-
+    def __init__(self, file: Any, frame_size: Optional[int] = None, forced_decoding: bool = False):
         self.file = file
         self._frame_size = frame_size
-        self.frame_size_ms = frame_size_ms
-        self.always_2d = always_2d
-        self.fill_value = fill_value
         self.forced_decoding = forced_decoding
-
-    @cached_property
-    def bits_per_sample(self) -> int:
-        pass
 
     @cached_property
     def bit_rate(self) -> Optional[int]:
@@ -60,26 +38,8 @@ class Backend:
         return bit_rate
 
     @cached_property
-    def codec(self) -> Union[Codec, str]:
-        pass
-
-    @cached_property
-    def duration(self) -> Optional[Seconds]:
-        pass
-
-    @cached_property
-    def dtype(self) -> np.dtype:
-        pass
-
-    @cached_property
-    def format(self):
-        pass
-
-    @cached_property
     def frame_size(self) -> int:
         frame_size = self._frame_size
-        if self.frame_size_ms is not None:
-            frame_size = int(self.frame_size_ms * self.sample_rate // 1000)
         return min(UINT32_MAX if frame_size is None else frame_size, UINT32_MAX)
 
     @cached_property
@@ -88,28 +48,12 @@ class Backend:
         return layouts[0]
 
     @cached_property
-    def name(self) -> str:
-        return "<none>" if isinstance(self.file, BytesIO) else self.file
-
-    @cached_property
-    def num_channels(self) -> int:
-        pass
-
-    @cached_property
-    def num_frames(self) -> int:
-        pass
-
-    @cached_property
     def metadata(self) -> dict:
         return {}
 
     @cached_property
-    def sample_rate(self) -> int:
-        pass
-
-    @cached_property
-    def seekable(self) -> bool:
-        pass
+    def name(self) -> str:
+        return "<none>" if isinstance(self.file, BytesIO) else self.file
 
     @cached_property
     def size(self) -> Optional[int]:
@@ -126,18 +70,7 @@ class Backend:
         while frames > 0:
             frame_size = min(frames, self.frame_size)
             ndarray = self.read(frame_size)
-            if ndarray.shape[1] == 0:
+            if ndarray is None:
                 break
-            frames -= frame_size
-
-            if self.frame_size < UINT32_MAX and self.fill_value is not None:
-                ndarray = pad(ndarray, self.frame_size, self.fill_value)
-            if not self.always_2d and ndarray.shape[0] == 1:
-                ndarray = ndarray[0]
+            frames -= ndarray.shape[1]
             yield ndarray
-
-    def read(self, nframes: int) -> np.ndarray:
-        pass
-
-    def seek(self, offset: Seconds):
-        pass

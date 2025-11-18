@@ -18,7 +18,7 @@ from typing import Any, Optional
 import numpy as np
 import soundfile as sf
 
-from audiolab.av.typing import Seconds
+from audiolab.av.typing import Dtype, Seconds
 from audiolab.backend.backend import Backend
 
 _subtype_to_bits_map = {
@@ -54,18 +54,8 @@ _subtype_to_dtype_map = {
 
 
 class SoundFile(Backend):
-    def __init__(
-        self,
-        file: Any,
-        frame_size: Optional[int] = None,
-        frame_size_ms: Optional[int] = None,
-        always_2d: bool = True,
-        fill_value: Optional[float] = None,
-        cache_url: bool = False,
-        forced_decoding: bool = False,
-        **kwargs,
-    ):
-        super().__init__(file, frame_size, frame_size_ms, always_2d, fill_value, cache_url, forced_decoding)
+    def __init__(self, file: Any, frame_size: Optional[int] = None, forced_decoding: bool = False):
+        super().__init__(file, frame_size, forced_decoding)
         self.sf = sf.SoundFile(file)
 
     @cached_property
@@ -123,9 +113,11 @@ class SoundFile(Backend):
     def seekable(self) -> bool:
         return self.sf.seekable()
 
-    def read(self, nframes: int) -> np.ndarray:
-        ndarray = self.sf.read(nframes, dtype=self.dtype)
-        return np.atleast_2d(ndarray.T)
+    def read(self, nframes: int, dtype: Optional[Dtype] = None) -> Optional[np.ndarray]:
+        if dtype is None:
+            dtype = self.dtype
+        frames = self.sf.read(nframes, dtype=dtype)
+        return np.atleast_2d(frames.T) if frames.shape[0] > 0 else None
 
     def seek(self, offset: int):
         self.sf.seek(offset)

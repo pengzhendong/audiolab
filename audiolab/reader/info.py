@@ -14,7 +14,7 @@
 
 from functools import cached_property
 from io import BytesIO
-from typing import Any, Optional, Union
+from typing import Any, List, Optional, Union
 
 import numpy as np
 from av.codec import Codec
@@ -30,28 +30,19 @@ class Info:
         self,
         file: Any,
         frame_size: Optional[int] = None,
-        frame_size_ms: Optional[int] = None,
-        return_ndarray: bool = True,
-        always_2d: bool = True,
-        fill_value: Optional[float] = None,
-        cache_url: bool = False,
         forced_decoding: bool = False,
-        backend: Optional[Backend] = None,
+        backends: Optional[List[Backend]] = None,
     ):
         self.file = file
-        if backend is None:
-            backends = [pyav]
+        if backends is None:
+            backends = [soundfile, pyav]
             if isinstance(file, str) and file.lower().endswith(".wav"):
-                backends = [wave, soundfile] + backends
-        else:
-            backends = [backend]
+                backends = [wave] + backends
 
         for idx, backend in enumerate(backends):
             try:
                 pos = file.tell() if isinstance(file, BytesIO) else 0
-                self.backend = backend(
-                    file, frame_size, frame_size_ms, return_ndarray, always_2d, fill_value, cache_url, forced_decoding
-                )
+                self.backend = backend(file, frame_size, forced_decoding)
                 break
             except Exception as e:
                 if isinstance(file, BytesIO):
