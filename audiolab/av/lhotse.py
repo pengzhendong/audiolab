@@ -14,12 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 from io import BytesIO
 from threading import Lock
 from typing import Callable, Dict, Optional
 
 from smart_open import open as sm_open
+
+from audiolab.av.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class AudioCache:
@@ -122,9 +125,10 @@ class SmartOpen:
     @classmethod
     def setup(cls, transport_params: Optional[dict] = None):
         if cls.transport_params is not None and cls.transport_params != transport_params:
-            logging.warning(
-                f"SmartOpen.setup second call overwrites existing transport_params with new version"
-                f"\t\n{cls.transport_params}\t\nvs\t\n{transport_params}"
+            logger.warning(
+                "SmartOpen.setup second call overwrites existing transport_params with new version\t\n%s\t\nvs\t\n%s",
+                cls.transport_params,
+                transport_params,
             )
         cls.transport_params = transport_params
         cls.smart_open = sm_open

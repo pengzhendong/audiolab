@@ -24,18 +24,30 @@ from audiolab.av.utils import generate_ndarray
 
 class TestFrame:
     def test_clip(self):
-        dtypes = (np.uint8, np.int16, np.int32, np.float32, np.float64)
-        for source_dtype in dtypes:
-            for target_dtype in dtypes:
-                target_dtype = np.dtype(target_dtype)
-                ndarray = generate_ndarray(1, 42, source_dtype)
-                ndarray = clip(ndarray, target_dtype)
-                if target_dtype.kind in ("i", "u"):
-                    min_value = np.iinfo(target_dtype).min
-                    max_value = np.iinfo(target_dtype).max
-                    assert np.all(ndarray >= min_value) and np.all(ndarray <= max_value)
-                else:
-                    assert np.all(ndarray >= -1) and np.all(ndarray <= 1)
+        dtypes = [
+            (np.uint8, np.int16),
+            (np.int16, np.int32),
+            (np.int16, np.float32),
+            (np.int32, np.float64),
+            (np.float32, np.float64),
+        ]
+        for source_dtype, target_dtype in dtypes:
+            source_dtype = np.dtype(source_dtype)
+            target_dtype = np.dtype(target_dtype)
+            original_ndarray = generate_ndarray(1, 7, source_dtype)
+            ndarray = clip(original_ndarray, target_dtype)
+            reconverted_ndarray = clip(ndarray, source_dtype)
+
+            min_value, max_value = ndarray.min(), ndarray.max()
+            if target_dtype.kind in ("i", "u"):
+                assert min_value >= np.iinfo(target_dtype).min and max_value <= np.iinfo(target_dtype).max
+            else:
+                assert min_value >= -1.0 and max_value < 1.0
+
+            if source_dtype.kind in ("i", "u"):
+                assert np.max(np.abs(original_ndarray - reconverted_ndarray)) <= 1
+            elif source_dtype.kind == "f":
+                assert np.allclose(original_ndarray, reconverted_ndarray, rtol=1e-5, atol=1e-8)
 
     def test_from_to_ndarray(self):
         for layout_name in ("mono", "stereo", "2.1", "3.0"):

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 from fractions import Fraction
 from typing import Optional, Tuple
 
@@ -21,39 +20,34 @@ import numpy as np
 
 from audiolab.av.format import get_dtype
 from audiolab.av.typing import AudioFormat, AudioLayout
+from audiolab.av.utils import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def clip(ndarray: np.ndarray, dtype: np.dtype) -> np.ndarray:
-    """
-    Clip the ndarray to the given data type.
-
-    Args:
-        ndarray: The ndarray to clip.
-        dtype: The data type to clip the ndarray to.
-    """
     source_type = ndarray.dtype
     target_type = np.dtype(dtype)
-    assert source_type.kind in ("f", "i", "u") and target_type.kind in ("f", "i", "u")
+    if source_type.kind != "f" and source_type == target_type:
+        return ndarray
 
-    min_value = np.iinfo(source_type).min if source_type.kind in ("i", "u") else -1
-    max_value = np.iinfo(source_type).max if source_type.kind in ("i", "u") else 1
-    if np.any(ndarray < min_value) or np.any(ndarray > max_value):
-        logger.warning(f"{source_type} array out of range: {ndarray.min()} ~ {ndarray.max()}")
-        ndarray = np.clip(ndarray, min_value, max_value)
-
-    ndarray = ndarray.astype(np.float64)
-    if source_type.kind == "u":
-        ndarray = ndarray / np.iinfo(source_type).max * 2 - 1
-    elif source_type.kind == "i":
-        ndarray = ndarray / np.iinfo(source_type).max
+    if source_type.kind == "f":
+        min_value, max_value = ndarray.min(), ndarray.max()
+        if min_value < -1.0 or max_value >= 1.0:
+            logger.warning("Cliping %s ndarray from: %g ~ %g to -1.0 ~ 1.0", source_type, min_value, max_value)
+            ndarray = np.clip(ndarray, -1.0, 1.0)
+    else:
+        ndarray = ndarray.astype(np.float64)
+        if source_type.kind == "u":
+            ndarray = ndarray / np.iinfo(source_type).max * 2 - 1
+        elif source_type.kind == "i":
+            ndarray = ndarray / (np.iinfo(source_type).max + 1)
 
     if target_type.kind == "u":
         ndarray = ((ndarray + 1) * 0.5 * np.iinfo(target_type).max).round()
     elif target_type.kind == "i":
         ndarray = (ndarray * np.iinfo(target_type).max).round()
-    return ndarray.astype(dtype)
+    return np.asarray(ndarray, dtype=dtype)
 
 
 def from_ndarray(

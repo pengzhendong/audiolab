@@ -114,12 +114,21 @@ class Info:
         return self.num_channels
 
     @property
+    def num_samples(self) -> int:
+        # Number of audio samples (per channel).
+        return self.num_frames
+
+    @property
     def rate(self) -> int:
         return self.sample_rate
 
     @property
     def samplerate(self) -> int:
         return self.sample_rate
+
+    @property
+    def samples(self) -> int:
+        return self.backend.num_frames
 
     @property
     def precision(self) -> int:
@@ -169,7 +178,7 @@ class Info:
             rate=self.rate,
             precision=self.precision,
             duration=Info.format_duration(self.duration),
-            samples="N/A" if self.num_frames is None else self.num_frames,
+            samples="N/A" if self.samples is None else self.samples,
             cdda_sectors=Info.rstrip_zeros(self.cdda_sectors),
             size=Info.format_size(self.size),
             bit_rate=Info.format_bit_rate(self.bit_rate),

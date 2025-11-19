@@ -18,7 +18,7 @@ from typing import Any
 import click
 
 import audiolab
-from audiolab.backend import pyav
+from audiolab.reader.backend import pyav
 from audiolab.reader.info import Info
 
 
