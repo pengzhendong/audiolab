@@ -20,7 +20,7 @@ import numpy as np
 from av.codec import Codec
 
 from audiolab.av.typing import Seconds
-from audiolab.backend.backend import Backend
+from audiolab.reader.backend.backend import Backend
 
 _bits_to_codec_map = {8: "pcm_u8le", 16: "pcm_s16le", 24: "pcm_s32le", 32: "pcm_s32le"}
 _bits_to_dtype_map = {8: np.uint8, 16: np.int16, 24: np.int32, 32: np.int32}

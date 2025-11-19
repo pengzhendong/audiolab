@@ -87,24 +87,10 @@ class StreamReader:
         return self._graph
 
     def push(self, frame: bytes):
-        """
-        Push a frame of audio data to the audio.
-
-        Args:
-            frame: The frame of audio data to push.
-        """
         self.bytes_io.write(frame)
         self.bytes_per_decode_attempt += len(frame)
 
     def pull(self, partial: bool = False) -> Iterator[AudioFrame]:
-        """
-        Pull an audio frame from the audio.
-
-        Args:
-            partial: Whether to pull a partial frame.
-        Yields:
-            The audio frame.
-        """
         if partial or self.bytes_per_decode_attempt * 2 >= self.frame_size:
             self.bytes_per_decode_attempt = 0
             try:

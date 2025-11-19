@@ -19,7 +19,7 @@ from audiolab.av import aformat, load_url
 from audiolab.av.frame import pad, to_ndarray
 from audiolab.av.graph import Graph
 from audiolab.av.typing import UINT32_MAX, AudioFrame, Dtype, Filter, Seconds
-from audiolab.backend import pyav, soundfile
+from audiolab.reader.backend import pyav, soundfile
 from audiolab.reader.info import Info
 
 

@@ -24,7 +24,7 @@ from audiolab.av import split_audio_frame
 from audiolab.av.format import get_dtype
 from audiolab.av.graph import Graph
 from audiolab.av.typing import UINT32_MAX, AudioFrame, Seconds
-from audiolab.backend.backend import Backend
+from audiolab.reader.backend.backend import Backend
 
 
 class PyAV(Backend):

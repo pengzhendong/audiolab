@@ -91,12 +91,6 @@ class Writer:
         self.stream = self.container.add_stream(codec.name, rate, options, **kwargs)
 
     def write(self, frame: AudioFrame):
-        """
-        Write an audio frame to the audio.
-
-        Args:
-            frame: The audio frame to write.
-        """
         if isinstance(frame, tuple):
             frame, _rate = frame
             assert _rate == self.stream.rate
@@ -107,9 +101,6 @@ class Writer:
             self.container.mux(packet)
 
     def close(self):
-        """
-        Close the audio.
-        """
         self.container.close()
         if isinstance(self.file, BytesIO):
             self.file.seek(0)

@@ -22,7 +22,7 @@ from humanize import naturalsize
 
 from audiolab.av.typing import Seconds
 from audiolab.av.utils import get_template
-from audiolab.backend import Backend, pyav, soundfile, wave
+from audiolab.reader.backend import Backend, pyav, soundfile, wave
 
 
 class Info:

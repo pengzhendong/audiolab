@@ -17,7 +17,7 @@ from typing import Any, Iterator, List, Optional, Union
 from audiolab.av import aformat
 from audiolab.av.graph import Graph
 from audiolab.av.typing import UINT32_MAX, AudioFrame
-from audiolab.backend import Backend
+from audiolab.reader.backend import Backend
 from audiolab.reader.info import Info
 from audiolab.reader.reader import Reader
 from audiolab.reader.stream_reader import StreamReader

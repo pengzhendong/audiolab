@@ -19,7 +19,7 @@ import numpy as np
 import soundfile as sf
 
 from audiolab.av.typing import Dtype, Seconds
-from audiolab.backend.backend import Backend
+from audiolab.reader.backend.backend import Backend
 
 _subtype_to_bits_map = {
     "PCM_S8": 8,
