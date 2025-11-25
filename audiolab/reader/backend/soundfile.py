@@ -21,7 +21,7 @@ import soundfile as sf
 from audiolab.av.typing import Dtype, Seconds
 from audiolab.reader.backend.backend import Backend
 
-_subtype_to_bits_map = {
+_subtype_to_bits = {
     "PCM_S8": 8,
     "PCM_U8": 8,
     "PCM_16": 16,
@@ -42,7 +42,7 @@ _subtype_to_bits_map = {
     "ALAC_32": 32,
 }
 
-_subtype_to_dtype_map = {
+_subtype_to_dtype = {
     "PCM_S8": np.int8,
     "PCM_U8": np.uint8,
     "PCM_16": np.int16,
@@ -60,7 +60,7 @@ class SoundFile(Backend):
 
     @cached_property
     def bits_per_sample(self) -> Optional[int]:
-        return _subtype_to_bits_map.get(self.sf.subtype, None)
+        return _subtype_to_bits.get(self.sf.subtype, None)
 
     @cached_property
     def codec(self) -> str:
@@ -74,7 +74,7 @@ class SoundFile(Backend):
 
     @cached_property
     def dtype(self) -> np.dtype:
-        return _subtype_to_dtype_map.get(self.sf.subtype, np.float32)
+        return _subtype_to_dtype.get(self.sf.subtype, np.float32)
 
     @cached_property
     def format(self) -> str:

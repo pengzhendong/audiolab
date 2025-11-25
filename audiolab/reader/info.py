@@ -22,7 +22,7 @@ from humanize import naturalsize
 
 from audiolab.av.typing import Seconds
 from audiolab.av.utils import get_template
-from audiolab.reader.backend import Backend, pyav, soundfile, wave
+from audiolab.reader.backend import Backend, pyav, soundfile
 
 
 class Info:
@@ -36,8 +36,6 @@ class Info:
         self.file = file
         if backends is None:
             backends = [soundfile, pyav]
-            if isinstance(file, str) and file.lower().endswith(".wav"):
-                backends = [wave] + backends
 
         for idx, backend in enumerate(backends):
             try:
@@ -49,7 +47,6 @@ class Info:
                     file.seek(pos)
                 if idx == len(backends) - 1:
                     raise e
-                continue
 
     @cached_property
     def bits_per_sample(self) -> int:

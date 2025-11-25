@@ -12,92 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from io import BytesIO
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
-import av
 import numpy as np
+import soundfile as sf
 
-from audiolab.av import from_ndarray
-from audiolab.av.format import get_format
-from audiolab.av.typing import (
-    AudioFormat,
-    AudioFrame,
-    AudioLayout,
-    Codec,
-    ContainerFormat,
-    Dtype,
-)
+from audiolab.av.typing import Dtype
+from audiolab.writer.backend import pyav, soundfile
 
 
 class Writer:
-    def __init__(
-        self,
-        file: Any,
-        rate: int,
-        container_format: ContainerFormat = "wav",
-        codec: Optional[Codec] = None,
-        channels: Optional[int] = None,
-        dtype: Optional[Dtype] = None,
-        is_planar: Optional[bool] = None,
-        format: Optional[AudioFormat] = None,
-        layout: Optional[AudioLayout] = None,
-        options: Optional[Dict[str, str]] = None,
-        **kwargs,
-    ):
-        """
-        Create a Writer object.
+    def __init__(self, file: Any, rate: int, dtype: Optional[Dtype] = None, format: str = "WAV"):
+        backend = soundfile if format.upper() in sf.available_formats() else pyav
+        self.backend = backend(file, rate, dtype, format)
 
-        Args:
-            file: The audio file, path to audio file, bytes, etc.
-            rate: The sample rate of the audio.
-            container_format: The format of the audio container.
-            codec: The codec of the audio container.
-            channels: The number of channels of the audio.
-            dtype: The data type of the audio.
-            is_planar: Whether the audio is planar.
-            format: The format of the audio.
-            layout: The layout of the audio.
-            options: The options of the audio.
-        """
-        if isinstance(file, BytesIO):
-            if isinstance(container_format, av.ContainerFormat):
-                container_format = container_format.name
-            self.container = av.open(file, "w", container_format)
-        else:
-            self.container = av.open(file, "w")
-        self.file = file
-        # set and check codec
-        codec = codec or self.container.default_audio_codec
-        if isinstance(codec, str):
-            codec = av.Codec(codec, "w")
-        assert codec.name in self.container.supported_codecs
-        # set and check format
-        if dtype is not None:
-            format = get_format(dtype, is_planar, codec.audio_formats)
-        else:
-            format = format or codec.audio_formats[0]
-        if isinstance(format, av.AudioFormat):
-            format = format.name
-        assert format in set(format.name for format in codec.audio_formats)
-        if layout is None:
-            assert channels in (1, 2)
-            layout = "mono" if channels == 1 else "stereo"
-
-        kwargs = {**kwargs, **{"format": format, "layout": layout}}
-        self.stream = self.container.add_stream(codec.name, rate, options, **kwargs)
-
-    def write(self, frame: AudioFrame):
-        if isinstance(frame, tuple):
-            frame, _rate = frame
-            assert _rate == self.stream.rate
-        if isinstance(frame, np.ndarray):
-            frame = from_ndarray(frame, self.stream.format.name, self.stream.layout, self.stream.rate)
-            assert frame.layout == self.stream.layout
-        for packet in self.stream.encode(frame):
-            self.container.mux(packet)
+    def write(self, frame: np.ndarray):
+        self.backend.write(frame)
 
     def close(self):
-        self.container.close()
-        if isinstance(self.file, BytesIO):
-            self.file.seek(0)
+        self.backend.close()

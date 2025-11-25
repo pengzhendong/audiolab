@@ -85,7 +85,7 @@ class PyAV(Backend):
 
     @cached_property
     def is_passthrough(self) -> bool:
-        return self.frame_size == UINT32_MAX
+        return not self.frame_size < UINT32_MAX
 
     @cached_property
     def is_planar(self) -> bool:

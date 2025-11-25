@@ -31,22 +31,20 @@ class TestFrame:
             (np.int32, np.float64),
             (np.float32, np.float64),
         ]
-        for source_dtype, target_dtype in dtypes:
-            source_dtype = np.dtype(source_dtype)
-            target_dtype = np.dtype(target_dtype)
-            original_ndarray = generate_ndarray(1, 7, source_dtype)
-            ndarray = clip(original_ndarray, target_dtype)
-            reconverted_ndarray = clip(ndarray, source_dtype)
+        for src_dtype, dst_dtype in dtypes:
+            original_ndarray = generate_ndarray(1, 7, src_dtype)
+            ndarray = clip(original_ndarray, dst_dtype)
+            reconverted_ndarray = clip(ndarray, src_dtype)
 
             min_value, max_value = ndarray.min(), ndarray.max()
-            if target_dtype.kind in ("i", "u"):
-                assert min_value >= np.iinfo(target_dtype).min and max_value <= np.iinfo(target_dtype).max
+            if np.dtype(dst_dtype).kind in ("i", "u"):
+                assert min_value >= np.iinfo(dst_dtype).min and max_value <= np.iinfo(dst_dtype).max
             else:
-                assert min_value >= -1.0 and max_value < 1.0
+                assert min_value >= -1.0 and max_value <= 1.0
 
-            if source_dtype.kind in ("i", "u"):
+            if np.dtype(src_dtype).kind in ("i", "u"):
                 assert np.max(np.abs(original_ndarray - reconverted_ndarray)) <= 1
-            elif source_dtype.kind == "f":
+            else:
                 assert np.allclose(original_ndarray, reconverted_ndarray, rtol=1e-5, atol=1e-8)
 
     def test_from_to_ndarray(self):

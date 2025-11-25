@@ -19,35 +19,37 @@ import av
 import numpy as np
 
 from audiolab.av.format import get_dtype
-from audiolab.av.typing import AudioFormat, AudioLayout
+from audiolab.av.typing import AudioFormat, AudioLayout, Dtype
 from audiolab.av.utils import get_logger
 
 logger = get_logger(__name__)
 
 
-def clip(ndarray: np.ndarray, dtype: np.dtype) -> np.ndarray:
-    source_type = ndarray.dtype
-    target_type = np.dtype(dtype)
-    if source_type.kind != "f" and source_type == target_type:
+def clip(ndarray: np.ndarray, dtype: Dtype) -> np.ndarray:
+    src_dtype = ndarray.dtype
+    dst_dtype = np.dtype(dtype)
+    if src_dtype.kind != "f" and src_dtype == dst_dtype:
         return ndarray
 
-    if source_type.kind == "f":
+    if src_dtype.kind == "f":
         min_value, max_value = ndarray.min(), ndarray.max()
-        if min_value < -1.0 or max_value >= 1.0:
-            logger.warning("Cliping %s ndarray from: %g ~ %g to -1.0 ~ 1.0", source_type, min_value, max_value)
+        if min_value < -1.0 or max_value > 1.0:
+            logger.warning("Cliping %s ndarray from: %g ~ %g to -1.0 ~ 1.0", src_dtype, min_value, max_value)
             ndarray = np.clip(ndarray, -1.0, 1.0)
     else:
         ndarray = ndarray.astype(np.float64)
-        if source_type.kind == "u":
-            ndarray = ndarray / np.iinfo(source_type).max * 2 - 1
-        elif source_type.kind == "i":
-            ndarray = ndarray / (np.iinfo(source_type).max + 1)
+        if src_dtype.kind == "u":
+            ndarray = ndarray / np.iinfo(src_dtype).max * 2 - 1
+        elif src_dtype.kind == "i":
+            ndarray = ndarray / np.iinfo(src_dtype).max
 
-    if target_type.kind == "u":
-        ndarray = ((ndarray + 1) * 0.5 * np.iinfo(target_type).max).round()
-    elif target_type.kind == "i":
-        ndarray = (ndarray * np.iinfo(target_type).max).round()
-    return np.asarray(ndarray, dtype=dtype)
+    if dst_dtype.kind in ("u", "i"):
+        max_value = np.float64(np.iinfo(dst_dtype).max)
+        if dst_dtype.kind == "u":
+            ndarray = (ndarray + 1) * 0.5 * max_value
+        else:
+            ndarray = ndarray * max_value
+    return np.asarray(ndarray, dtype=dst_dtype)
 
 
 def from_ndarray(
@@ -69,7 +71,8 @@ def from_ndarray(
 
     dtype = get_dtype(format)
     ndarray = clip(ndarray, dtype)
-    frame = av.AudioFrame.from_ndarray(ndarray, format=format.name, layout=layout)
+    ndarray = np.ascontiguousarray(ndarray)
+    frame = av.AudioFrame.from_ndarray(ndarray, format.name, layout)
     frame.rate = rate
     if pts is not None:
         frame.pts = pts
@@ -98,8 +101,8 @@ def split_audio_frame(frame: av.AudioFrame, offset: int) -> Tuple[av.AudioFrame,
     left, right = ndarray[:, :offset], ndarray[:, offset:]
     if frame.format.is_packed:
         left, right = left.T.reshape(1, -1), right.T.reshape(1, -1)
-    left = av.AudioFrame.from_ndarray(left, format=frame.format.name, layout=frame.layout)
-    right = av.AudioFrame.from_ndarray(right, format=frame.format.name, layout=frame.layout)
+    left = av.AudioFrame.from_ndarray(left, frame.format.name, frame.layout)
+    right = av.AudioFrame.from_ndarray(right, frame.format.name, frame.layout)
     left.rate, right.rate = frame.rate, frame.rate
     if frame.pts is not None:
         left.pts, right.pts = frame.pts, frame.pts + offset

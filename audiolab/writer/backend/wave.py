@@ -19,25 +19,35 @@ import numpy as np
 
 from audiolab.av.frame import clip
 from audiolab.av.typing import Dtype
+from audiolab.writer.backend.backend import Backend
 
-_dtype_to_bytes_map = {"uint8": 1, "int16": 2, "int32": 4}
+_dtype_to_bytes = {"uint8": 1, "int16": 2, "int32": 4}
 
 
-class Wave:
-    def __init__(self, file: Any, num_channels: int, sample_rate: int, dtype: Optional[Dtype] = None):
-        self.wave = wave.open(file, "w")
-        self.wave.setnchannels(num_channels)
-        self.wave.setframerate(sample_rate)
-        if dtype is None:
-            dtype = np.int16
-        self.dtype = np.dtype(dtype)
-        sampwidth = _dtype_to_bytes_map[self.dtype.name]
+class Wave(Backend):
+    def __init__(self, file: Any, sample_rate: int, dtype: Optional[Dtype] = None):
+        super().__init__(file, sample_rate, dtype)
+        self.wave = None
+        self.num_channels = None
+
+    def open(self):
+        self.wave = wave.open(self.file, "w")
+        self.wave.setframerate(self.sample_rate)
+        self.wave.setnchannels(self.num_channels)
+        sampwidth = _dtype_to_bytes[self.dtype.name]
         self.wave.setsampwidth(sampwidth)
 
     def write(self, frame: np.ndarray):
-        frame = clip(frame, self.dtype)
-        # [num_channels, num_samples] => [num_samples, num_channels]
-        self.wave.writeframes(frame.T.tobytes())
+        if self.dtype is None:
+            self.dtype = frame.dtype
+        frame = np.atleast_2d(clip(frame, self.dtype))
+        if self.num_channels is None:
+            self.num_channels = frame.shape[0]
+        if self.wave is None:
+            self.open()
+        self.wave.writeframes(frame.tobytes())
 
     def close(self):
-        self.wave.close()
+        if self.wave is not None and not self.is_closed:
+            self.wave.close()
+            super().close()

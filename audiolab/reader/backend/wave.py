@@ -22,8 +22,8 @@ from av.codec import Codec
 from audiolab.av.typing import Seconds
 from audiolab.reader.backend.backend import Backend
 
-_bits_to_codec_map = {8: "pcm_u8le", 16: "pcm_s16le", 24: "pcm_s32le", 32: "pcm_s32le"}
-_bits_to_dtype_map = {8: np.uint8, 16: np.int16, 24: np.int32, 32: np.int32}
+_bits_to_codec = {8: "pcm_u8le", 16: "pcm_s16le", 24: "pcm_s32le", 32: "pcm_s32le"}
+_bits_to_dtype = {8: np.uint8, 16: np.int16, 24: np.int32, 32: np.int32}
 
 
 class Wave(Backend):
@@ -37,7 +37,7 @@ class Wave(Backend):
 
     @cached_property
     def codec(self) -> str:
-        return Codec(_bits_to_codec_map[self.bits_per_sample]).long_name
+        return Codec(_bits_to_codec[self.bits_per_sample]).long_name
 
     @cached_property
     def duration(self) -> Optional[Seconds]:
@@ -47,7 +47,7 @@ class Wave(Backend):
 
     @cached_property
     def dtype(self) -> np.dtype:
-        return _bits_to_dtype_map[self.bits_per_sample]
+        return _bits_to_dtype[self.bits_per_sample]
 
     @cached_property
     def format(self) -> str:

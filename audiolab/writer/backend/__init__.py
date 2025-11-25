@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from audiolab.writer.backend.backend import Backend
 from audiolab.writer.backend.pyav import PyAV as pyav
 from audiolab.writer.backend.soundfile import SoundFile as soundfile
 from audiolab.writer.backend.wave import Wave as wave
 
-__all__ = ["pyav", "soundfile", "wave"]
+__all__ = ["Backend", "pyav", "soundfile", "wave"]

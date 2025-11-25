@@ -19,7 +19,6 @@ from io import BytesIO
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
-import av
 import numpy as np
 
 from audiolab.av import (
@@ -31,7 +30,7 @@ from audiolab.av import (
     split_audio_frame,
     to_ndarray,
 )
-from audiolab.av.typing import AudioFormat, ContainerFormat, Dtype
+from audiolab.av.typing import Dtype
 from audiolab.pipe import AudioPipe
 from audiolab.reader import Reader, StreamReader, aformat, info, load_audio
 from audiolab.writer import Writer, save_audio
@@ -41,11 +40,9 @@ def encode(
     audio: Union[str, Path, np.ndarray],
     rate: Optional[int] = None,
     dtype: Optional[Dtype] = None,
-    is_planar: bool = False,
-    format: Optional[AudioFormat] = None,
     to_mono: bool = False,
     make_wav: bool = True,
-    container_format: ContainerFormat = "wav",
+    format: str = "WAV",
 ) -> Tuple[str, int]:
     """
     Transform an audio to a PCM bytestring.
@@ -54,28 +51,21 @@ def encode(
         audio: The file path to an audio file or a numpy array.
         rate: The sample rate of the audio.
         dtype: The data type of the audio.
-        is_planar: Whether the audio is planar.
-        format: The format of the audio.
         to_mono: Whether to convert the audio to mono.
         make_wav: Whether to make the audio a WAV file.
-        container_format: The format of the audio container.
+        format: The format of the audio container.
     Returns:
         The audio as a PCM bytestring and the sample rate of the audio.
     """
     if isinstance(audio, (str, Path)):
-        audio, rate = load_audio(audio, dtype=dtype, is_planar=is_planar, format=format, rate=rate)
+        audio, rate = load_audio(audio, dtype=dtype, rate=rate, to_mono=to_mono)
 
     audio = clip(audio, np.int16)
-    if to_mono and audio.ndim == 2 and audio.shape[0] > 1:
-        audio = audio.mean(axis=0, keepdims=True).astype(audio.dtype)
     if make_wav:
-        assert rate is not None
         bytestream = BytesIO()
-        if isinstance(container_format, av.ContainerFormat):
-            container_format = container_format.name
-        save_audio(bytestream, audio, rate, container_format=container_format)
+        save_audio(bytestream, audio, rate, format=format)
         audio = b64encode(bytestream.getvalue()).decode("ascii")
-        audio = f"data:audio/{container_format};base64,{audio}"
+        audio = f"data:audio/{format};base64,{audio}"
     else:
         audio = np.ascontiguousarray(audio)
         audio = b64encode(audio).decode("ascii")

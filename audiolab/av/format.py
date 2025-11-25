@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from functools import lru_cache
-from typing import Dict, Iterable, Literal, Optional, Set, Union
+from typing import Dict, Iterator, Literal, Optional, Set
 
 import av
 import numpy as np
@@ -71,9 +71,9 @@ def get_dtype(format: typing.AudioFormat) -> np.dtype:
 
 
 def get_format(
-    dtype: Union[str, type, np.dtype],
+    dtype: typing.Dtype,
     is_planar: Optional[bool] = None,
-    available_formats: Optional[Iterable[typing.AudioFormat]] = None,
+    available_formats: Optional[Iterator[typing.AudioFormat]] = None,
 ) -> av.AudioFormat:
     if isinstance(dtype, str) and dtype not in format_dtypes or isinstance(dtype, type):
         dtype = np.dtype(dtype)

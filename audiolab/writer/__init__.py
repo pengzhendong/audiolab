@@ -28,10 +28,7 @@ def save_audio(file: Any, frame: AudioFrame, rate: Optional[int] = None, **kwarg
         frame, _rate = frame
     if isinstance(frame, av.AudioFrame):
         if kwargs.get("format", None) is None:
-            dtype = kwargs.get("dtype", None)
-            is_planar = kwargs.get("is_planar", None)
-            kwargs["dtype"] = dtype or get_dtype(frame.format)
-            kwargs["is_planar"] = is_planar or frame.format.is_planar
+            kwargs["dtype"] = kwargs.get("dtype", get_dtype(frame.format))
         _rate = frame.rate
         frame = to_ndarray(frame)
     if rate is None:
@@ -39,8 +36,6 @@ def save_audio(file: Any, frame: AudioFrame, rate: Optional[int] = None, **kwarg
         rate = _rate
     elif _rate is not None:
         assert rate == _rate
-    kwargs["channels"] = 1 if frame.ndim == 1 else frame.shape[0]
-    assert kwargs["channels"] in (1, 2)
 
     writer = Writer(file, rate, **kwargs)
     writer.write(frame)

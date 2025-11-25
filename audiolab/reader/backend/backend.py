@@ -26,9 +26,7 @@ from audiolab.av.typing import UINT32_MAX, Seconds
 class Backend:
     def __init__(self, file: Any, frame_size: Optional[int] = None, forced_decoding: bool = False):
         self.file = file
-        if frame_size is None:
-            frame_size = UINT32_MAX
-        self.frame_size = min(frame_size, UINT32_MAX)
+        self.frame_size = UINT32_MAX if frame_size is None else min(frame_size, UINT32_MAX)
         self.forced_decoding = forced_decoding
 
     @cached_property
