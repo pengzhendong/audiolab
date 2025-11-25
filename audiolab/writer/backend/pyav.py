@@ -27,13 +27,7 @@ from audiolab.writer.backend.backend import Backend
 
 
 class PyAV(Backend):
-    def __init__(
-        self,
-        file: Any,
-        sample_rate: int,
-        dtype: Optional[Dtype] = None,
-        format: ContainerFormat = "WAV",
-    ):
+    def __init__(self, file: Any, sample_rate: int, dtype: Optional[Dtype] = None, format: ContainerFormat = "WAV"):
         super().__init__(file, sample_rate, dtype, format)
         self.container = av.open(self.file, "w", format=self.format)
         self.num_channels = None

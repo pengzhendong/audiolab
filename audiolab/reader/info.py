@@ -38,8 +38,8 @@ class Info:
             backends = [soundfile, pyav]
 
         for idx, backend in enumerate(backends):
+            pos = file.tell() if isinstance(file, BytesIO) else 0
             try:
-                pos = file.tell() if isinstance(file, BytesIO) else 0
                 self.backend = backend(file, frame_size, forced_decoding)
                 break
             except Exception as e:

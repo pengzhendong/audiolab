@@ -16,32 +16,19 @@ import atexit
 from io import BytesIO
 from typing import Any, Optional
 
-import av
 import numpy as np
 
 from audiolab.av.typing import Dtype
 
 
 class Backend:
-    def __init__(
-        self,
-        file: Any,
-        sample_rate: int,
-        dtype: Optional[Dtype] = None,
-        format: str = "WAV",
-    ):
+    def __init__(self, file: Any, sample_rate: int, dtype: Optional[Dtype] = None, format: str = "WAV"):
         self.file = file
         self.sample_rate = sample_rate
-
         self.dtype = None
         if dtype is not None:
             self.dtype = np.dtype(dtype)
-
-        self.format = None
-        if isinstance(file, BytesIO):
-            self.format = format
-            if isinstance(format, av.ContainerFormat):
-                self.format = format.name
+        self.format = format
 
         self.is_closed = False
         atexit.register(self.close)

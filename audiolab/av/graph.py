@@ -20,9 +20,9 @@ import av
 import numpy as np
 from av import filter
 
-from audiolab.av import standard_channel_layouts
 from audiolab.av.format import get_format
 from audiolab.av.frame import from_ndarray, to_ndarray
+from audiolab.av.layout import standard_channel_layouts
 from audiolab.av.typing import UINT32_MAX, AudioFormat, AudioFrame, AudioLayout, Dtype, Filter
 
 

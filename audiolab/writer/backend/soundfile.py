@@ -26,13 +26,7 @@ _dtype_to_subtype = {"int16": "PCM_16", "int32": "PCM_32", "float32": "FLOAT", "
 
 
 class SoundFile(Backend):
-    def __init__(
-        self,
-        file: Any,
-        sample_rate: int,
-        dtype: Optional[Dtype] = None,
-        format: str = "WAV",
-    ):
+    def __init__(self, file: Any, sample_rate: int, dtype: Optional[Dtype] = None, format: str = "WAV"):
         super().__init__(file, sample_rate, dtype, format)
         self.sf = None
         self.num_channels = None

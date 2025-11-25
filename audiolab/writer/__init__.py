@@ -14,30 +14,14 @@
 
 from typing import Any, Optional
 
-import av
+import numpy as np
 
-from audiolab.av.format import get_dtype
-from audiolab.av.frame import to_ndarray
-from audiolab.av.typing import AudioFrame
+from audiolab.av.typing import Dtype
 from audiolab.writer.writer import Writer
 
 
-def save_audio(file: Any, frame: AudioFrame, rate: Optional[int] = None, **kwargs):
-    _rate = None
-    if isinstance(frame, tuple):
-        frame, _rate = frame
-    if isinstance(frame, av.AudioFrame):
-        if kwargs.get("format", None) is None:
-            kwargs["dtype"] = kwargs.get("dtype", get_dtype(frame.format))
-        _rate = frame.rate
-        frame = to_ndarray(frame)
-    if rate is None:
-        assert _rate is not None
-        rate = _rate
-    elif _rate is not None:
-        assert rate == _rate
-
-    writer = Writer(file, rate, **kwargs)
+def save_audio(file: Any, frame: np.ndarray, rate: int, dtype: Optional[Dtype] = None, format: str = "WAV"):
+    writer = Writer(file, rate, dtype, format)
     writer.write(frame)
     writer.close()
 

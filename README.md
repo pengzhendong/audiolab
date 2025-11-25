@@ -112,7 +112,7 @@ from audiolab.av.filter import aresample, asetrate, atempo
 
 # Speed perturbation
 filters = [atempo(1.5)]
-audio, rate = audiolab.load_audio("audio.wav", filters=filters)
+audio, rate = load_audio("audio.wav", filters=filters)
 
 # Pitch perturbation
 ratio = 1.5

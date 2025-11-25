@@ -20,14 +20,9 @@ import numpy as np
 from audiolab.av import filter
 from audiolab.av.codec import Decodec, Encodec, canonical_names, decodecs, encodecs
 from audiolab.av.container import ContainerFormat, container_formats, extension_formats
-from audiolab.av.format import (
-    AudioFormat,
-    audio_formats,
-    get_codecs,
-    get_dtype,
-    get_format,
-)
+from audiolab.av.format import AudioFormat, audio_formats, get_codecs, get_dtype, get_format
 from audiolab.av.frame import clip, from_ndarray, split_audio_frame, to_ndarray
+from audiolab.av.graph import Graph
 from audiolab.av.layout import AudioLayout, audio_layouts, standard_channel_layouts
 from audiolab.av.lhotse import AudioCache, load_url
 
@@ -59,6 +54,7 @@ __all__ = [
     "Decodec",
     "Encodec",
     "Filter",
+    "Graph",
     "aformat",
     "audio_formats",
     "audio_layouts",
