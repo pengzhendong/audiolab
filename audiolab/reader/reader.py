@@ -69,18 +69,17 @@ class Reader(Info):
             super().__init__(file, frame_size, backends=[pyav])
 
         self.graph = None
-        if isinstance(self.backend, pyav):
-            if self.is_passthrough(dtype, rate, to_mono):
-                self.filters.append(aformat(dtype, rate=rate, to_mono=to_mono))
-                self.graph = Graph(
-                    rate=self.rate,
-                    dtype=self.dtype,
-                    is_planar=self.backend.is_planar,
-                    layout=self.layout,
-                    filters=self.filters,
-                    frame_size=self.frame_size,
-                    return_ndarray=True,
-                )
+        if isinstance(self.backend, pyav) and not self.is_passthrough(dtype, rate, to_mono):
+            self.filters.append(aformat(dtype, rate=rate, to_mono=to_mono))
+            self.graph = Graph(
+                rate=self.rate,
+                dtype=self.dtype,
+                is_planar=self.backend.is_planar,
+                layout=self.layout,
+                filters=self.filters,
+                frame_size=self.frame_size,
+                return_ndarray=True,
+            )
         self.offset = offset
         self._duration = duration
         self.always_2d = always_2d
@@ -105,12 +104,9 @@ class Reader(Info):
             yield from self.pull(partial=True)
 
     def is_passthrough(self, dtype: Optional[Dtype] = None, rate: Optional[int] = None, to_mono: bool = False) -> bool:
-        if self.backend != pyav:
-            return True
-        convert = self.dtype != dtype
-        resample = self.rate != rate
         to_mono = to_mono and self.num_channels > 1
-        return convert or resample or to_mono or self.frame_size < UINT32_MAX or len(self.filters) > 0
+        passthrough = self.dtype == dtype and self.rate == rate and not to_mono
+        return passthrough and self.frame_size >= UINT32_MAX and len(self.filters) == 0
 
     def pull(self, partial: bool = False) -> AudioFrame:
         for frame in self.graph.pull(partial=partial):
