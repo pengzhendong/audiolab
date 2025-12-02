@@ -42,7 +42,7 @@ def load_audio(file: Any, **kwargs) -> Union[Iterator[AudioFrame], AudioFrame]:
     if reader.frame_size < UINT32_MAX:
         return iter(reader)
     else:
-        return list(reader)[0]
+        return next(iter(reader))
 
 
 __all__ = ["Graph", "Reader", "StreamReader", "aformat", "load_audio"]
