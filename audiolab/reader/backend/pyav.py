@@ -128,7 +128,7 @@ class PyAV(Backend):
         return self.stream.codec_context.frame_size in (0, 1)
 
     def load_audio(self, offset: Seconds = 0, duration: Optional[Seconds] = None) -> Iterator[AudioFrame]:
-        self.seek(int(offset * self.sample_rate))
+        self.seek(int(offset / self.stream.time_base))
         frames = UINT32_MAX if duration is None else int(duration * self.sample_rate)
         while frames > 0:
             frame = self.read()
