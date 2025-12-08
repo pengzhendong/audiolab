@@ -54,8 +54,11 @@ class Reader(Info):
             always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
             fill_value: The fill value to pad the audio to the frame size.
         """
-        if isinstance(file, str) and "://" in file and cache_url:
-            file = load_url(file, cache=True)
+        if isinstance(file, str) and "://" in file:
+            if cache_url:
+                file = load_url(file, cache=True)
+            elif offset == 0 and duration is None:
+                file = load_url(file, cache=False)
 
         self.filters = [] if filters is None else filters
         if rate is None and not to_mono and len(self.filters) == 0:
