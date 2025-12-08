@@ -23,18 +23,18 @@ from audiolab.reader.reader import Reader
 from audiolab.reader.stream_reader import StreamReader
 
 
-def info(file: Any, forced_decode: bool = False, backends: Optional[List[Backend]] = None) -> Info:
+def info(file: Any, forced_decoding: bool = False, backends: Optional[List[Backend]] = None) -> Info:
     """
     Get the information of an audio file.
 
     Args:
         file: The input audio file, audio url, path to audio file, bytes of audio data, etc.
-        forced_decode: Whether to forced decoding the audio file to get the duration.
+        forced_decoding: Whether to forced decoding the audio file to get the duration.
         backends: The list of backends to use to get the information.
     Returns:
         The information of the audio file.
     """
-    return Info(file, forced_decode, backends)
+    return Info(file, forced_decoding=forced_decoding, backends=backends)
 
 
 def load_audio(file: Any, **kwargs) -> Union[Iterator[AudioFrame], AudioFrame]:
