@@ -38,6 +38,10 @@ class Backend:
         return bit_rate
 
     @cached_property
+    def is_planar(self) -> bool:
+        return False
+
+    @cached_property
     def layout(self) -> str:
         layouts = standard_channel_layouts[self.num_channels]
         return layouts[0]

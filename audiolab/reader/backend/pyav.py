@@ -32,14 +32,13 @@ class PyAV(Backend):
         super().__init__(file, frame_size, forced_decoding)
         self.container = av.open(file, metadata_encoding="latin1")
         self.stream = self.container.streams.audio[0]
-        if not self.is_passthrough:
-            self.graph = Graph(
-                rate=self.sample_rate,
-                dtype=self.dtype,
-                is_planar=self.is_planar,
-                channels=self.num_channels,
-                frame_size=frame_size,
-            )
+        self.graph = Graph(
+            rate=self.sample_rate,
+            dtype=self.dtype,
+            is_planar=self.is_planar,
+            channels=self.num_channels,
+            frame_size=self.frame_size,
+        )
 
     @cached_property
     def bits_per_sample(self) -> int:
@@ -82,10 +81,6 @@ class PyAV(Backend):
             elif self.container.duration is not None:
                 duration = self.container.duration / time_base
         return None if duration is None else Seconds(duration)
-
-    @cached_property
-    def is_passthrough(self) -> bool:
-        return self.frame_size >= UINT32_MAX
 
     @cached_property
     def is_planar(self) -> bool:
@@ -136,13 +131,9 @@ class PyAV(Backend):
                 break
             frame, _ = split_audio_frame(frame, frames)
             frames -= frame.samples
-            if self.is_passthrough:
-                yield frame
-            else:
-                self.graph.push(frame)
-                yield from self.graph.pull()
-        if not self.is_passthrough:
-            yield from self.graph.pull(partial=True)
+            self.graph.push(frame)
+            yield from self.graph.pull()
+        yield from self.graph.pull(partial=True)
 
     def read(self) -> Optional[AudioFrame]:
         try:

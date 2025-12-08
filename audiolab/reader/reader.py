@@ -16,7 +16,7 @@ from functools import cached_property, partial
 from typing import Any, Iterator, List, Optional
 
 from audiolab.av import aformat, load_url
-from audiolab.av.frame import pad, to_ndarray
+from audiolab.av.frame import pad
 from audiolab.av.graph import Graph
 from audiolab.av.typing import UINT32_MAX, AudioFrame, Dtype, Filter, Seconds
 from audiolab.reader.backend import pyav, soundfile
@@ -69,17 +69,20 @@ class Reader(Info):
             super().__init__(file, frame_size, backends=[pyav])
 
         self.graph = None
-        if isinstance(self.backend, pyav) or not self.is_passthrough(dtype, rate, to_mono):
+        if not self.is_passthrough(dtype, rate, to_mono):
             self.filters.append(aformat(dtype, rate=rate, to_mono=to_mono))
-            self.graph = Graph(
+            graph = Graph(
                 rate=self.rate,
                 dtype=self.dtype,
                 is_planar=self.backend.is_planar,
-                layout=self.layout,
+                channels=self.num_channels,
                 filters=self.filters,
                 frame_size=self.frame_size,
-                return_ndarray=True,
             )
+            if isinstance(self.backend, pyav):
+                self.backend.graph = graph
+            else:
+                self.graph = graph
         self.offset = offset
         self._duration = duration
         self.always_2d = always_2d
@@ -92,11 +95,12 @@ class Reader(Info):
     def __iter__(self) -> Iterator[AudioFrame]:
         for frame in self.backend.load_audio(self.offset, self._duration):
             if self.graph is None:
+                rate = self.rate
                 if isinstance(self.backend, pyav):
-                    frame = to_ndarray(frame)
+                    frame, rate = frame
                 if self.fill_value is not None:
                     frame = pad(frame, self.frame_size, self.fill_value)
-                yield frame if self.always_2d else frame.squeeze(), self.rate
+                yield frame if self.always_2d else frame.squeeze(), rate
             else:
                 self.graph.push(frame)
                 yield from self.pull()
