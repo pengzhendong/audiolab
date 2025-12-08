@@ -69,7 +69,7 @@ class Reader(Info):
             super().__init__(file, frame_size, backends=[pyav])
 
         self.graph = None
-        if isinstance(self.backend, pyav) and not self.is_passthrough(dtype, rate, to_mono):
+        if isinstance(self.backend, pyav) or not self.is_passthrough(dtype, rate, to_mono):
             self.filters.append(aformat(dtype, rate=rate, to_mono=to_mono))
             self.graph = Graph(
                 rate=self.rate,
