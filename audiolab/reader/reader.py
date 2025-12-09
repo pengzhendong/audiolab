@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from functools import cached_property, partial
+from io import BytesIO
 from typing import Any, Iterator, List, Optional
 
 from audiolab.av import aformat, load_url
@@ -54,7 +55,9 @@ class Reader(Info):
             always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
             fill_value: The fill value to pad the audio to the frame size.
         """
-        if isinstance(file, str) and "://" in file:
+        if isinstance(file, bytes):
+            file = BytesIO(file)
+        elif isinstance(file, str) and "://" in file:
             if cache_url:
                 file = load_url(file, cache=True)
             elif offset == 0 and duration is None:
