@@ -28,8 +28,8 @@ pip install audiolab
 ```python
 from audiolab import load_audio
 
-# Load an audio file and convert to mono with specific sample rate
-audio, rate = load_audio("audio.wav", rate=16000, to_mono=True)
+# Load audio from 7 to 30 seconds (duration: 23s) and convert to 16kHz mono
+audio, rate = load_audio("audio.wav", offset=7, duration=23, rate=16000, to_mono=True)
 print(f"Sample rate: {rate} Hz")
 print(f"Audio shape: {audio.shape}")
 ```
