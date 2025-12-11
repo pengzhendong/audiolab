@@ -7,6 +7,8 @@ A Python library for audio processing built on top of [wave](https://docs.python
 
 ## Features
 
+- Load audio from multiple sources: local paths, HTTP URLs, bytes, and BytesIO streams
+  * When loading from HTTP URLs, range requests are utilized if supported by the server
 - Load audio files in various formats (WAV, MP3, FLAC, AAC, etc.)
 - Save audio files in different container formats
 - Support for audio streaming and real-time processing
@@ -62,6 +64,8 @@ print(info("audio.wav"))
 ```bash
 # Get information about an audio file
 audi audio.wav
+# Get audio information from URL
+audi https://modelscope.cn/datasets/pengzhendong/filesamples/resolve/master/audio/m4a/sample1.m4a
 
 # Show only specific information
 audi -r -c audio.wav  # Show sample rate and channels only
