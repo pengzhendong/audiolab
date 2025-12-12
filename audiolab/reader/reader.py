@@ -20,7 +20,7 @@ from audiolab.av import aformat, load_url
 from audiolab.av.frame import pad
 from audiolab.av.graph import Graph
 from audiolab.av.typing import UINT32_MAX, AudioFrame, Dtype, Filter, Seconds
-from audiolab.reader.backend import pyav, soundfile
+from audiolab.reader.backend import Backend, pyav, soundfile
 from audiolab.reader.info import Info
 
 
@@ -38,6 +38,7 @@ class Reader(Info):
         cache_url: bool = False,
         always_2d: bool = True,
         fill_value: Optional[float] = None,
+        backends: Optional[List[Backend]] = None,
     ):
         """
         Create a Reader object.
@@ -54,6 +55,7 @@ class Reader(Info):
             cache_url: Whether to cache the audio file.
             always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
             fill_value: The fill value to pad the audio to the frame size.
+            backends: The backends to use.
         """
         if isinstance(file, bytes):
             file = BytesIO(file)
@@ -63,32 +65,26 @@ class Reader(Info):
             elif offset == 0 and duration is None:
                 file = load_url(file, cache=False)
 
+        super().__init__(file, frame_size, backends=backends)
+        if isinstance(self.backend, soundfile):
+            self.backend.read = partial(self.backend.read, dtype=dtype)
         self.filters = [] if filters is None else filters
-        if rate is None and not to_mono and len(self.filters) == 0:
-            if dtype is None:
-                super().__init__(file, frame_size)
-            else:
-                super().__init__(file, frame_size, backends=[soundfile, pyav])
-                if isinstance(self.backend, soundfile):
-                    self.backend.read = partial(self.backend.read, dtype=dtype)
-        else:
-            super().__init__(file, frame_size, backends=[pyav])
-
-        self.graph = None
         if not self.is_passthrough(dtype, rate, to_mono):
             self.filters.append(aformat(dtype, rate=rate, to_mono=to_mono))
-            graph = Graph(
-                rate=self.rate,
-                dtype=self.dtype,
-                is_planar=self.backend.is_planar,
-                channels=self.num_channels,
-                filters=self.filters,
-                frame_size=self.frame_size,
-            )
+
+        self.graph = None
+        if len(self.filters) > 0:
             if isinstance(self.backend, pyav):
-                self.backend.graph = graph
+                self.backend.build_graph = partial(self.backend.build_graph, filters=self.filters)
             else:
-                self.graph = graph
+                self.graph = Graph(
+                    rate=self.rate,
+                    dtype=self.dtype,
+                    is_planar=self.backend.is_planar,
+                    channels=self.num_channels,
+                    filters=self.filters,
+                    frame_size=self.frame_size,
+                )
         self.offset = offset
         self._duration = duration
         self.always_2d = always_2d

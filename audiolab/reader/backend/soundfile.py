@@ -77,7 +77,7 @@ class SoundFile(Backend):
 
     @cached_property
     def dtype(self) -> np.dtype:
-        return _subtype_to_dtype.get(self.sf.subtype, np.float32)
+        return _subtype_to_dtype.get(self.sf.subtype, np.float64)
 
     @cached_property
     def format(self) -> str:
@@ -120,8 +120,7 @@ class SoundFile(Backend):
         if dtype is None:
             dtype = self.dtype
         frames = self.sf.read(nframes, dtype=dtype if dtype in _supported_dtypes else np.float64)
-        frames = clip(frames, dtype)
-        return np.atleast_2d(frames.T) if frames.shape[0] > 0 else None
+        return np.atleast_2d(clip(frames, dtype).T) if frames.shape[0] > 0 else None
 
     def seek(self, offset: int):
         self.sf.seek(offset)

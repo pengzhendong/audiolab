@@ -13,10 +13,9 @@
 # limitations under the License.
 
 from functools import cached_property
-from typing import Any, Iterator, Optional
+from typing import Any, Iterator, List, Optional
 
 import av
-import numpy as np
 from av import time_base
 from av.codec import Codec
 from av.error import EOFError
@@ -25,7 +24,7 @@ from av.format import Flags
 from audiolab.av import split_audio_frame
 from audiolab.av.format import get_dtype
 from audiolab.av.graph import Graph
-from audiolab.av.typing import UINT32_MAX, AudioFrame, Seconds
+from audiolab.av.typing import UINT32_MAX, AudioFormat, AudioFrame, Filter, Seconds
 from audiolab.reader.backend.backend import Backend
 
 
@@ -34,13 +33,8 @@ class PyAV(Backend):
         super().__init__(file, frame_size, forced_decoding)
         self.container = av.open(file, metadata_encoding="latin1")
         self.stream = self.container.streams.audio[0]
-        self.graph = Graph(
-            rate=self.sample_rate,
-            dtype=self.dtype,
-            is_planar=self.is_planar,
-            channels=self.num_channels,
-            frame_size=self.frame_size,
-        )
+        self.dtype = get_dtype(self.stream.format)
+        self.graph = None
 
     @cached_property
     def bits_per_sample(self) -> int:
@@ -60,10 +54,6 @@ class PyAV(Backend):
     @cached_property
     def codec(self) -> Codec:
         return self.stream.codec.long_name
-
-    @cached_property
-    def dtype(self) -> np.dtype:
-        return get_dtype(self.stream.format)
 
     @cached_property
     def format(self) -> str:
@@ -125,6 +115,18 @@ class PyAV(Backend):
         byte_seek = Flags.no_byte_seek not in flags
         return generic_index or seek_to_pts or byte_seek
 
+    def build_graph(self, format: AudioFormat, filters: Optional[List[Filter]] = None):
+        if self.graph is None:
+            self.dtype = get_dtype(format)
+            self.graph = Graph(
+                rate=self.sample_rate,
+                dtype=self.dtype,
+                is_planar=self.is_planar,
+                channels=self.num_channels,
+                filters=filters,
+                frame_size=self.frame_size,
+            )
+
     def load_audio(self, offset: Seconds = 0, duration: Optional[Seconds] = None) -> Iterator[AudioFrame]:
         self.seek(int(offset / self.stream.time_base))
         frames = UINT32_MAX if duration is None else int(duration * self.sample_rate)
@@ -134,6 +136,7 @@ class PyAV(Backend):
                 break
             frame, _ = split_audio_frame(frame, frames)
             frames -= frame.samples
+            self.build_graph(frame.format)
             self.graph.push(frame)
             yield from self.graph.pull()
         yield from self.graph.pull(partial=True)

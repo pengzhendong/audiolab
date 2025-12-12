@@ -26,6 +26,8 @@ logger = get_logger(__name__)
 
 
 def clip(ndarray: np.ndarray, dtype: Dtype) -> np.ndarray:
+    if any(dim == 0 for dim in ndarray.shape):
+        return ndarray
     src_dtype = ndarray.dtype
     dst_dtype = np.dtype(dtype)
     if src_dtype.kind != "f" and src_dtype == dst_dtype:
