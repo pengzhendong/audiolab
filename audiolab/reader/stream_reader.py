@@ -33,8 +33,6 @@ class StreamReader:
         rate: Optional[int] = None,
         to_mono: bool = False,
         frame_size: Optional[int] = 1024,
-        return_ndarray: bool = True,
-        always_2d: bool = True,
     ):
         """
         Create a StreamReader object.
@@ -47,7 +45,6 @@ class StreamReader:
             rate: The sample rate of the output audio frames.
             to_mono: Whether to convert the output audio frames to mono.
             frame_size: The frame size of the audio frames.
-            return_ndarray: Whether to return the audio frames as ndarrays.
         """
         self._codec_context = None
         self._graph = None
@@ -58,8 +55,6 @@ class StreamReader:
             filters.append(aformat(dtype, is_planar, format, rate, to_mono))
         self.filters = filters
         self.frame_size = frame_size
-        self.return_ndarray = return_ndarray
-        self.always_2d = always_2d
         self.offset = None
         self.packet = None
 
@@ -77,13 +72,7 @@ class StreamReader:
         if self._graph is None:
             if self.packet is None:
                 return None
-            self._graph = Graph(
-                self.packet.stream,
-                filters=self.filters,
-                frame_size=self.frame_size,
-                return_ndarray=self.return_ndarray,
-                always_2d=self.always_2d,
-            )
+            self._graph = Graph(self.packet.stream, filters=self.filters, frame_size=self.frame_size)
         return self._graph
 
     def push(self, frame: bytes):

@@ -19,6 +19,8 @@ import av
 import numpy as np
 from av import time_base
 from av.codec import Codec
+from av.error import EOFError
+from av.format import Flags
 
 from audiolab.av import split_audio_frame
 from audiolab.av.format import get_dtype
@@ -117,10 +119,11 @@ class PyAV(Backend):
 
     @cached_property
     def seekable(self) -> bool:
-        # https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/avcodec.h#L1041-L1051
-        # Each submitted frame except the last must contain exactly frame_size samples per channel.
-        # May be 0 when the codec has AV_CODEC_CAP_VARIABLE_FRAME_SIZE set, then the frame size is not restricted.
-        return self.stream.codec_context.frame_size in (0, 1)
+        flags = Flags(self.container.format.flags)
+        generic_index = Flags.generic_index in flags
+        seek_to_pts = Flags.seek_to_pts in flags
+        byte_seek = Flags.no_byte_seek not in flags
+        return generic_index or seek_to_pts or byte_seek
 
     def load_audio(self, offset: Seconds = 0, duration: Optional[Seconds] = None) -> Iterator[AudioFrame]:
         self.seek(int(offset / self.stream.time_base))
@@ -138,8 +141,9 @@ class PyAV(Backend):
     def read(self) -> Optional[AudioFrame]:
         try:
             return next(self.container.decode(self.stream))
-        except StopIteration:
+        except (EOFError, StopIteration):
             return None
 
     def seek(self, offset: int):
-        self.container.seek(offset, any_frame=True, stream=self.stream)
+        if offset > 0:
+            self.container.seek(offset, any_frame=True, stream=self.stream)

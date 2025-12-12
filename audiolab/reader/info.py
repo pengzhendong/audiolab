@@ -97,6 +97,10 @@ class Info:
         return self.backend.sample_rate
 
     @property
+    def seekable(self) -> bool:
+        return self.backend.seekable
+
+    @property
     def size(self) -> int:
         return self.backend.size
 

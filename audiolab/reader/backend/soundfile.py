@@ -18,6 +18,7 @@ from typing import Any, Optional
 import numpy as np
 import soundfile as sf
 
+from audiolab.av.frame import clip
 from audiolab.av.typing import Dtype, Seconds
 from audiolab.reader.backend.backend import Backend
 
@@ -51,6 +52,8 @@ _subtype_to_dtype = {
     "FLOAT": np.float32,
     "DOUBLE": np.float64,
 }
+
+_supported_dtypes = (np.int16, np.int32, np.float32, np.float64)
 
 
 class SoundFile(Backend):
@@ -116,7 +119,8 @@ class SoundFile(Backend):
     def read(self, nframes: int, dtype: Optional[Dtype] = None) -> Optional[np.ndarray]:
         if dtype is None:
             dtype = self.dtype
-        frames = self.sf.read(nframes, dtype=dtype)
+        frames = self.sf.read(nframes, dtype=dtype if dtype in _supported_dtypes else np.float64)
+        frames = clip(frames, dtype)
         return np.atleast_2d(frames.T) if frames.shape[0] > 0 else None
 
     def seek(self, offset: int):

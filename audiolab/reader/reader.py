@@ -114,9 +114,12 @@ class Reader(Info):
             yield from self.pull(partial=True)
 
     def is_passthrough(self, dtype: Optional[Dtype] = None, rate: Optional[int] = None, to_mono: bool = False) -> bool:
-        to_mono = to_mono and self.num_channels > 1
-        passthrough = self.dtype == dtype and self.rate == rate and not to_mono
-        return passthrough and self.frame_size >= UINT32_MAX and len(self.filters) == 0
+        passthrough = dtype is None or dtype == self.dtype
+        passthrough = passthrough and (rate is None or self.rate == rate)
+        passthrough = passthrough and not (to_mono and self.num_channels > 1)
+        passthrough = passthrough and self.frame_size >= UINT32_MAX
+        passthrough = passthrough and len(self.filters) == 0
+        return passthrough
 
     def pull(self, partial: bool = False) -> AudioFrame:
         for frame in self.graph.pull(partial=partial):
