@@ -137,7 +137,7 @@ def main(
 
         # Display information based on selected options
         if show_file_type:
-            print(info.container.format.name)
+            print(info.format)
         if show_sample_rate:
             print(info.sample_rate)
         if show_channels:
@@ -155,7 +155,7 @@ def main(
         if show_precision:
             print(info.precision)
         if show_encoding:
-            print(info.codec.long_name)
+            print(info.codec)
         if show_comments:
             if info.metadata:
                 for key, value in info.metadata.items():
