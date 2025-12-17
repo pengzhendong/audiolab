@@ -31,7 +31,7 @@ from audiolab.reader.backend.backend import Backend
 class PyAV(Backend):
     def __init__(self, file: Any, frame_size: Optional[int] = None, forced_decoding: bool = False):
         super().__init__(file, frame_size, forced_decoding)
-        self.container = av.open(file, metadata_encoding="latin1")
+        self.container = av.open(file, metadata_errors="ignore")
         self.stream = self.container.streams.audio[0]
         self.dtype = get_dtype(self.stream.format)
         self.graph = None
