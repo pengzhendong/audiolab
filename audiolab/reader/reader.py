@@ -20,7 +20,7 @@ from audiolab.av import aformat, load_url
 from audiolab.av.frame import pad
 from audiolab.av.graph import Graph
 from audiolab.av.typing import UINT32_MAX, AudioFrame, Dtype, Filter, Seconds
-from audiolab.reader.backend import Backend, pyav, soundfile
+from audiolab.reader.backend import pyav, soundfile
 from audiolab.reader.info import Info
 
 
@@ -38,7 +38,7 @@ class Reader(Info):
         cache_url: bool = False,
         always_2d: bool = True,
         fill_value: Optional[float] = None,
-        backends: Optional[List[Backend]] = None,
+        backends: Optional[List[str]] = None,
     ):
         """
         Create a Reader object.

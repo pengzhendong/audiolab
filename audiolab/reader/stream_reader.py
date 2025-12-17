@@ -64,7 +64,6 @@ class StreamReader:
             if self.packet is None:
                 return None
             self._codec_context = self.packet.stream.codec_context
-            assert self._codec_context.frame_size in (0, 1)
         return self._codec_context
 
     @property

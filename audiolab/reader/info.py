@@ -22,7 +22,15 @@ from humanize import naturalsize
 
 from audiolab.av.typing import Seconds
 from audiolab.av.utils import get_template
-from audiolab.reader.backend import Backend, pyav, soundfile
+from audiolab.reader.backend import pyav, soundfile, wave
+
+_backends = {
+    "av": pyav,
+    "pyav": pyav,
+    "sf": soundfile,
+    "soundfile": soundfile,
+    "wave": wave,
+}
 
 
 class Info:
@@ -31,15 +39,16 @@ class Info:
         file: Any,
         frame_size: Optional[int] = None,
         forced_decoding: bool = False,
-        backends: Optional[List[Backend]] = None,
+        backends: Optional[List[str]] = None,
     ):
         self.file = file
         if backends is None:
-            backends = [soundfile, pyav]
+            backends = ["soundfile", "pyav"]
 
         for idx, backend in enumerate(backends):
             pos = file.tell() if isinstance(file, BytesIO) else 0
             try:
+                backend = _backends.get(backend, pyav)
                 self.backend = backend(file, frame_size, forced_decoding)
                 break
             except Exception as e:
