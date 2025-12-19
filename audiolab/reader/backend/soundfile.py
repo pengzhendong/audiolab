@@ -123,4 +123,5 @@ class SoundFile(Backend):
         return np.atleast_2d(clip(frames, dtype).T) if frames.shape[0] > 0 else None
 
     def seek(self, offset: int):
-        self.sf.seek(offset)
+        if offset > 0:
+            self.sf.seek(offset)

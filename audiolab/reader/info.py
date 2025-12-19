@@ -50,6 +50,8 @@ class Info:
             try:
                 backend = _backends.get(backend, pyav)
                 self.backend = backend(file, frame_size, forced_decoding)
+                if self.duration is None and not isinstance(self.backend, pyav):
+                    continue
                 break
             except Exception as e:
                 if isinstance(file, BytesIO):

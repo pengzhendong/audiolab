@@ -94,4 +94,5 @@ class Wave(Backend):
         return self.frombuffer(buffer) if len(buffer) > 0 else None
 
     def seek(self, offset: int):
-        self.wave.setpos(offset)
+        if offset > 0:
+            self.wave.setpos(offset)
