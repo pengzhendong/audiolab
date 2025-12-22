@@ -63,8 +63,11 @@ class PyAV(Backend):
     def duration(self) -> Optional[Seconds]:
         if self.forced_decoding:
             num_frames = 0
-            for frame in self.container.decode(self.stream):
-                num_frames += frame.samples
+            try:
+                for frame in self.container.decode(self.stream):
+                    num_frames += frame.samples
+            except (EOFError, StopIteration):
+                pass
             duration = num_frames / self.stream.rate
         else:
             duration = None
