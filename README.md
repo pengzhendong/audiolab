@@ -63,13 +63,33 @@ print(info("audio.wav"))
 ```bash
 # Get information about an audio file
 audi audio.wav
-# Get audio information from URL
-audi https://modelscope.cn/datasets/pengzhendong/filesamples/resolve/master/audio/m4a/sample1.m4a
 
 # Show only specific information
 audi -r -c audio.wav  # Show sample rate and channels only
 audi -d audio.wav     # Show duration in hours, minutes and seconds
 audi -D audio.wav     # Show duration in seconds
+```
+
+```bash
+# Get audio information from URL
+audi https://modelscope.cn/datasets/pengzhendong/filesamples/resolve/master/audio/m4a/sample1.m4a
+
+Input File     : 'https://modelscope.cn/datasets/pengzhendong/filesamples/resolve/master/audio/m4a/sample1.m4a' (mov,mp4,m4a,3gp,3g2,mj2)
+Channels       : 2
+Sample Rate    : 44100
+Precision      : 32-bit
+Duration       : 00:02:02.093 = 5384301 samples ~ 9156.97 CDDA sectors
+File Size      : 2 MB
+Bit Rate       : 131.8 kbps
+Sample Encoding: AAC (Advanced Audio Coding)
+Comments       :
+    major_brand: M4A
+    minor_version: 512
+    compatible_brands: isomiso2
+    encoder: Lavf57.83.100
+    language: und
+    handler_name: SoundHandler
+    vendor_id: [0][0][0][0]
 ```
 
 #### CLI Options
