@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import requests
 from functools import cached_property, partial
 from io import BytesIO
 from typing import Any, Iterator, List, Optional
@@ -60,6 +61,9 @@ class Reader(Info):
         if isinstance(file, bytes):
             file = BytesIO(file)
         elif isinstance(file, str) and "://" in file:
+            response = requests.head(file, allow_redirects=False)
+            if response.status_code in [301, 302, 303, 307, 308]:
+                file = response.headers.get("Location")
             if cache_url:
                 file = load_url(file, cache=True)
             elif offset == 0 and duration is None:
