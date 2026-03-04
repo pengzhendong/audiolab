@@ -14,6 +14,9 @@
 
 from typing import Any, Iterator, List, Optional, Union
 
+import numpy as np
+from soundfile import LibsndfileError
+
 from audiolab.av import aformat
 from audiolab.av.graph import Graph
 from audiolab.av.typing import UINT32_MAX, AudioFrame
@@ -42,7 +45,12 @@ def load_audio(file: Any, **kwargs) -> Union[Iterator[AudioFrame], AudioFrame]:
     if reader.frame_size < UINT32_MAX:
         return iter(reader)
     else:
-        return next(iter(reader))
+        try:
+            return next(iter(reader))
+        except (StopIteration, LibsndfileError) as e:
+            if isinstance(e, LibsndfileError) and str(e) != "Internal psf_fseek() failed.":
+                raise e
+            return np.array([]), reader.rate
 
 
 __all__ = ["Graph", "Reader", "StreamReader", "aformat", "load_audio"]

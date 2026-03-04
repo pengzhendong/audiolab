@@ -131,18 +131,22 @@ class PyAV(Backend):
             )
 
     def load_audio(self, offset: Seconds = 0, duration: Optional[Seconds] = None) -> Iterator[AudioFrame]:
-        self.seek(int(offset / self.stream.time_base))
+        offset = int(offset / self.stream.time_base)
+        self.seek(offset)
         frames = UINT32_MAX if duration is None else int(duration * self.sample_rate)
         while frames > 0:
             frame = self.read()
             if frame is None:
                 break
-            frame, _ = split_audio_frame(frame, frames)
-            frames -= frame.samples
             self.build_graph(frame.format)
+            frame = self.split_frame(frame, offset, frames)
+            if frame is None:
+                continue
+            frames -= frame.samples
             self.graph.push(frame)
             yield from self.graph.pull()
-        yield from self.graph.pull(partial=True)
+        if self.graph is not None:
+            yield from self.graph.pull(partial=True)
 
     def read(self) -> Optional[AudioFrame]:
         try:
@@ -152,4 +156,11 @@ class PyAV(Backend):
 
     def seek(self, offset: int):
         if offset > 0:
-            self.container.seek(offset, any_frame=True, stream=self.stream)
+            self.container.seek(offset, stream=self.stream)
+
+    def split_frame(self, frame: AudioFrame, offset: int, frames: int):
+        offset = max(offset - frame.pts, 0) * frame.time_base * frame.sample_rate
+        _, frame = split_audio_frame(frame, int(offset))
+        if frame is not None:
+            frame, _ = split_audio_frame(frame, frames)
+        return frame
