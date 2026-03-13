@@ -19,6 +19,7 @@ dependencies = [
   "click",
   "humanize",
   "jinja2",
+  "requests",
   "smart_open",
   "soundfile",
 ]
