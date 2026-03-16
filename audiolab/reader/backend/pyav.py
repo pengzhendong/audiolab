@@ -18,7 +18,7 @@ from typing import Any, Iterator, List, Optional
 import av
 from av import time_base
 from av.codec import Codec
-from av.error import EOFError
+from av.error import EOFError, InvalidDataError
 from av.format import Flags
 
 from audiolab.av import split_audio_frame
@@ -66,7 +66,7 @@ class PyAV(Backend):
             try:
                 for frame in self.container.decode(self.stream):
                     num_frames += frame.samples
-            except (EOFError, StopIteration):
+            except (EOFError, InvalidDataError, StopIteration):
                 pass
             duration = num_frames / self.stream.rate
         else:
@@ -151,7 +151,7 @@ class PyAV(Backend):
     def read(self) -> Optional[AudioFrame]:
         try:
             return next(self.container.decode(self.stream))
-        except (EOFError, StopIteration):
+        except (EOFError, InvalidDataError, StopIteration):
             return None
 
     def seek(self, offset: int):
