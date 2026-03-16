@@ -108,8 +108,12 @@ class Reader(Info):
                     frame = pad(frame, self.frame_size, self.fill_value)
                 yield frame if self.always_2d else frame.squeeze(), rate
             else:
-                self.graph.push(frame)
-                yield from self.pull()
+                # 256 MB = 256 * 1024 * 1024 = 268435456 Bytes
+                max_length = min(frame.shape[1], int((268435456 / frame.shape[0]) // frame.dtype.itemsize - 2))
+                for i in range(0, frame.shape[0], max_length):
+                    chunk = frame[:, i : i + max_length]
+                    self.graph.push(chunk)
+                    yield from self.pull()
         if self.graph is not None:
             yield from self.pull(partial=True)
 
