@@ -36,6 +36,19 @@ class PyAV(Backend):
         self.dtype = get_dtype(self.stream.format)
         self.graph = None
 
+    def close(self):
+        container = self.container
+        if container is None:
+            return
+        self.container = None
+        self.stream = None
+        self.graph = None
+        try:
+            container.close()
+        except Exception:
+            pass
+        super().close()
+
     @cached_property
     def bits_per_sample(self) -> int:
         return self.stream.format.bits

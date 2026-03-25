@@ -55,6 +55,11 @@ class SoundFile(Backend):
         self.sf.write(frame.T)
 
     def close(self):
-        if self.sf is not None and not self.is_closed:
-            self.sf.close()
-            super().close()
+        _sf = self.sf
+        if _sf is not None:
+            self.sf = None
+            try:
+                _sf.close()
+            except Exception:
+                pass
+        super().close()

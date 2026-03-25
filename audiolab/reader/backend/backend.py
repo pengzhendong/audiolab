@@ -29,6 +29,24 @@ class Backend:
         self.frame_size = UINT32_MAX if frame_size is None else min(frame_size, UINT32_MAX)
         self.forced_decoding = forced_decoding
 
+    def close(self):
+        file = self.file
+        if file is None:
+            return
+        self.file = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def __del__(self):
+        try:
+            self.close()
+        except:
+            pass
+
     @cached_property
     def bit_rate(self) -> Optional[int]:
         bit_rate = None

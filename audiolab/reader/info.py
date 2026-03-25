@@ -42,6 +42,7 @@ class Info:
         backends: Optional[List[str]] = None,
     ):
         self.file = file
+        self.backend = None
         if backends is None:
             backends = ["soundfile", "pyav"]
 
@@ -51,13 +52,42 @@ class Info:
                 backend = _backends.get(backend, pyav)
                 self.backend = backend(file, frame_size, forced_decoding)
                 if self.duration is None and not isinstance(self.backend, pyav):
+                    self.backend.close()
+                    self.backend = None
+                    if isinstance(file, BytesIO):
+                        file.seek(pos)
                     continue
                 break
             except Exception as e:
+                if self.backend is not None:
+                    self.backend.close()
+                    self.backend = None
                 if isinstance(file, BytesIO):
                     file.seek(pos)
                 if idx == len(backends) - 1:
                     raise e
+
+    def close(self):
+        backend = self.backend
+        if backend is None:
+            return
+        self.backend = None
+        try:
+            backend.close()
+        except Exception:
+            pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
 
     @cached_property
     def bits_per_sample(self) -> int:

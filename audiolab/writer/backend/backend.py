@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import atexit
 from io import BytesIO
 from typing import Any, Optional
 
@@ -25,16 +24,28 @@ class Backend:
     def __init__(self, file: Any, sample_rate: int, dtype: Optional[Dtype] = None, format: str = "WAV"):
         self.file = file
         self.sample_rate = sample_rate
-        self.dtype = None
-        if dtype is not None:
-            self.dtype = np.dtype(dtype)
+        self.dtype = np.dtype(dtype) if dtype is not None else None
         self.format = format
 
-        self.is_closed = False
-        atexit.register(self.close)
-
     def close(self):
-        if not self.is_closed:
-            if isinstance(self.file, BytesIO):
-                self.file.seek(0)
-            self.is_closed = True
+        file = self.file
+        if file is None:
+            return
+        self.file = None
+        if isinstance(file, BytesIO):
+            try:
+                file.seek(0)
+            except (AttributeError, ValueError):
+                pass
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()

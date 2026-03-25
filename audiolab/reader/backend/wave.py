@@ -31,6 +31,17 @@ class Wave(Backend):
         super().__init__(file, frame_size, forced_decoding)
         self.wave = wave.open(file)
 
+    def close(self):
+        _wave = self.wave
+        if _wave is None:
+            return
+        self.wave = None
+        try:
+            _wave.close()
+        except Exception:
+            pass
+        super().close()
+
     @cached_property
     def bits_per_sample(self) -> int:
         return self.wave.getsampwidth() * 8

@@ -43,14 +43,22 @@ def info(file: Any, forced_decoding: bool = False, backends: Optional[List[Backe
 def load_audio(file: Any, **kwargs) -> Union[Iterator[AudioFrame], AudioFrame]:
     reader = Reader(file, **kwargs)
     if reader.frame_size < UINT32_MAX:
-        return iter(reader)
+
+        def _gen():
+            try:
+                yield from reader
+            finally:
+                reader.close()
+
+        return _gen()
     else:
-        try:
-            return next(iter(reader))
-        except (StopIteration, LibsndfileError) as e:
-            if isinstance(e, LibsndfileError) and str(e) != "Internal psf_fseek() failed.":
-                raise e
-            return np.array([]), reader.rate
+        with reader:
+            try:
+                return next(iter(reader))
+            except (StopIteration, LibsndfileError) as e:
+                if isinstance(e, LibsndfileError) and str(e) != "Internal psf_fseek() failed.":
+                    raise e
+                return np.array([]), reader.rate
 
 
 __all__ = ["Graph", "Reader", "StreamReader", "aformat", "load_audio"]

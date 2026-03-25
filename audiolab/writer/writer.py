@@ -30,4 +30,22 @@ class Writer:
         self.backend.write(frame)
 
     def close(self):
-        self.backend.close()
+        backend = self.backend
+        if backend is not None:
+            self.backend = None
+            try:
+                backend.close()
+            except Exception:
+                pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass

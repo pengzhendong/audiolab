@@ -94,6 +94,12 @@ class Reader(Info):
         self.always_2d = always_2d
         self.fill_value = fill_value
 
+    def close(self):
+        if self.backend is None:
+            return
+        self.graph = None
+        super().close()
+
     @cached_property
     def frame_size(self) -> int:
         return self.backend.frame_size

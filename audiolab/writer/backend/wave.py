@@ -48,6 +48,11 @@ class Wave(Backend):
         self.wave.writeframes(frame.tobytes())
 
     def close(self):
-        if self.wave is not None and not self.is_closed:
-            self.wave.close()
-            super().close()
+        _wave = self.wave
+        if _wave is not None:
+            self.wave = None
+            try:
+                _wave.close()
+            except Exception:
+                pass
+        super().close()

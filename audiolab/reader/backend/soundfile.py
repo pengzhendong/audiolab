@@ -61,6 +61,17 @@ class SoundFile(Backend):
         super().__init__(file, frame_size, forced_decoding)
         self.sf = sf.SoundFile(file)
 
+    def close(self):
+        _sf = self.sf
+        if _sf is None:
+            return
+        self.sf = None
+        try:
+            _sf.close()
+        except Exception:
+            pass
+        super().close()
+
     @cached_property
     def bits_per_sample(self) -> Optional[int]:
         return _subtype_to_bits.get(self.sf.subtype, None)

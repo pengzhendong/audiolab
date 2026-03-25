@@ -21,9 +21,8 @@ from audiolab.writer.writer import Writer
 
 
 def save_audio(file: Any, frame: np.ndarray, rate: int, dtype: Optional[Dtype] = None, format: str = "WAV"):
-    writer = Writer(file, rate, dtype, format)
-    writer.write(frame)
-    writer.close()
+    with Writer(file, rate, dtype, format) as writer:
+        writer.write(frame)
 
 
 __all__ = ["Writer", "save_audio"]
