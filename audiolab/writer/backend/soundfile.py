@@ -17,16 +17,16 @@ from typing import Any, Optional
 
 import numpy as np
 import soundfile as sf
+from numpy.typing import DTypeLike
 
 from audiolab.av.frame import clip
-from audiolab.av.typing import Dtype
 from audiolab.writer.backend.backend import Backend
 
 _dtype_to_subtype = {"int16": "PCM_16", "int32": "PCM_32", "float32": "FLOAT", "float64": "DOUBLE"}
 
 
 class SoundFile(Backend):
-    def __init__(self, file: Any, sample_rate: int, dtype: Optional[Dtype] = None, format: str = "WAV"):
+    def __init__(self, file: Any, sample_rate: int, dtype: Optional[DTypeLike] = None, format: str = "WAV"):
         super().__init__(file, sample_rate, dtype, format)
         self.sf = None
         self.num_channels = None

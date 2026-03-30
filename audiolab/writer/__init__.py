@@ -15,14 +15,15 @@
 from typing import Any, Optional
 
 import numpy as np
+from numpy.typing import DTypeLike
 
-from audiolab.av.typing import Dtype
 from audiolab.writer.writer import Writer
 
 
-def save_audio(file: Any, frame: np.ndarray, rate: int, dtype: Optional[Dtype] = None, format: str = "WAV"):
-    with Writer(file, rate, dtype, format) as writer:
-        writer.write(frame)
+def save_audio(file: Any, frame: np.ndarray, rate: int, dtype: Optional[DTypeLike] = None, format: str = "WAV"):
+    writer = Writer(file, rate, dtype, format)
+    writer.write(frame)
+    writer.close()
 
 
 __all__ = ["Writer", "save_audio"]

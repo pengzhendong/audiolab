@@ -17,17 +17,18 @@ from typing import Any, Optional, Tuple
 import av
 import numpy as np
 from av.codec.codec import UnknownCodecError
+from numpy.typing import DTypeLike
 
 from audiolab.av import from_ndarray
 from audiolab.av.format import dtype_formats
 from audiolab.av.frame import clip
 from audiolab.av.layout import standard_channel_layouts
-from audiolab.av.typing import ContainerFormat, Dtype
+from audiolab.av.typing import ContainerFormat
 from audiolab.writer.backend.backend import Backend
 
 
 class PyAV(Backend):
-    def __init__(self, file: Any, sample_rate: int, dtype: Optional[Dtype] = None, format: ContainerFormat = "WAV"):
+    def __init__(self, file: Any, sample_rate: int, dtype: Optional[DTypeLike] = None, format: ContainerFormat = "WAV"):
         super().__init__(file, sample_rate, dtype, format)
         self.container = av.open(self.file, "w", format=self.format)
         self.num_channels = None

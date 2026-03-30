@@ -17,10 +17,12 @@ from functools import cached_property, partial
 from io import BytesIO
 from typing import Any, Iterator, List, Optional
 
+from numpy.typing import DTypeLike
+
 from audiolab.av import aformat, load_url
 from audiolab.av.frame import pad
 from audiolab.av.graph import Graph
-from audiolab.av.typing import UINT32_MAX, AudioFrame, Dtype, Filter, Seconds
+from audiolab.av.typing import UINT32_MAX, AudioFrame, Filter, Seconds
 from audiolab.reader.backend import pyav, soundfile
 from audiolab.reader.info import Info
 
@@ -32,7 +34,7 @@ class Reader(Info):
         offset: Seconds = 0.0,
         duration: Optional[Seconds] = None,
         filters: Optional[List[Filter]] = None,
-        dtype: Optional[Dtype] = None,
+        dtype: Optional[DTypeLike] = None,
         rate: Optional[int] = None,
         to_mono: bool = False,
         frame_size: Optional[int] = None,
@@ -123,7 +125,9 @@ class Reader(Info):
         if self.graph is not None:
             yield from self.pull(partial=True)
 
-    def is_passthrough(self, dtype: Optional[Dtype] = None, rate: Optional[int] = None, to_mono: bool = False) -> bool:
+    def is_passthrough(
+        self, dtype: Optional[DTypeLike] = None, rate: Optional[int] = None, to_mono: bool = False
+    ) -> bool:
         passthrough = dtype is None or dtype == self.dtype
         passthrough = passthrough and (rate is None or self.rate == rate)
         passthrough = passthrough and not (to_mono and self.num_channels > 1)

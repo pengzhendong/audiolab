@@ -19,6 +19,7 @@ import av
 import numpy as np
 from av import Codec, codecs_available
 from av.codec.codec import UnknownCodecError
+from numpy.typing import DTypeLike
 
 from audiolab.av import typing
 from audiolab.av.utils import get_template
@@ -71,7 +72,7 @@ def get_dtype(format: typing.AudioFormat) -> np.dtype:
 
 
 def get_format(
-    dtype: typing.Dtype,
+    dtype: DTypeLike,
     is_planar: Optional[bool] = None,
     available_formats: Optional[Iterator[typing.AudioFormat]] = None,
 ) -> av.AudioFormat:

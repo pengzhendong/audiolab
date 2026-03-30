@@ -16,16 +16,16 @@ import wave
 from typing import Any, Optional
 
 import numpy as np
+from numpy.typing import DTypeLike
 
 from audiolab.av.frame import clip
-from audiolab.av.typing import Dtype
 from audiolab.writer.backend.backend import Backend
 
 _dtype_to_bytes = {"uint8": 1, "int16": 2, "int32": 4}
 
 
 class Wave(Backend):
-    def __init__(self, file: Any, sample_rate: int, dtype: Optional[Dtype] = None):
+    def __init__(self, file: Any, sample_rate: int, dtype: Optional[DTypeLike] = None):
         super().__init__(file, sample_rate, dtype)
         self.wave = None
         self.num_channels = None

@@ -17,9 +17,10 @@ from typing import Any, Optional
 
 import numpy as np
 import soundfile as sf
+from numpy.typing import DTypeLike
 
 from audiolab.av.frame import clip
-from audiolab.av.typing import Dtype, Seconds
+from audiolab.av.typing import Seconds
 from audiolab.reader.backend.backend import Backend
 
 _subtype_to_bits = {
@@ -127,7 +128,7 @@ class SoundFile(Backend):
     def seekable(self) -> bool:
         return self.sf.seekable()
 
-    def read(self, nframes: int, dtype: Optional[Dtype] = None) -> Optional[np.ndarray]:
+    def read(self, nframes: int, dtype: Optional[DTypeLike] = None) -> Optional[np.ndarray]:
         if dtype is None:
             dtype = self.dtype
         frames = self.sf.read(nframes, dtype=dtype if dtype in _supported_dtypes else np.float64)

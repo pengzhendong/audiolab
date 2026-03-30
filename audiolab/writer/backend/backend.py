@@ -16,12 +16,11 @@ from io import BytesIO
 from typing import Any, Optional
 
 import numpy as np
-
-from audiolab.av.typing import Dtype
+from numpy.typing import DTypeLike
 
 
 class Backend:
-    def __init__(self, file: Any, sample_rate: int, dtype: Optional[Dtype] = None, format: str = "WAV"):
+    def __init__(self, file: Any, sample_rate: int, dtype: Optional[DTypeLike] = None, format: str = "WAV"):
         self.file = file
         self.sample_rate = sample_rate
         self.dtype = np.dtype(dtype) if dtype is not None else None

@@ -15,9 +15,10 @@
 from typing import Iterator, List, Optional, Tuple
 
 import numpy as np
+from numpy.typing import DTypeLike
 
 from audiolab.av.frame import pad
-from audiolab.av.typing import AudioFormat, Dtype, Filter
+from audiolab.av.typing import AudioFormat, Filter
 from audiolab.reader import Graph, aformat
 
 
@@ -26,7 +27,7 @@ class AudioPipe:
         self,
         in_rate: int,
         filters: Optional[List[Filter]] = None,
-        dtype: Optional[Dtype] = None,
+        dtype: Optional[DTypeLike] = None,
         is_planar: bool = False,
         format: Optional[AudioFormat] = None,
         out_rate: Optional[int] = None,

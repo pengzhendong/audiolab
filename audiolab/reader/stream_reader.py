@@ -17,17 +17,18 @@ from typing import Iterator, List, Optional
 
 import av
 from av import AudioCodecContext
+from numpy.typing import DTypeLike
 
 from audiolab.av import aformat
 from audiolab.av.graph import Graph
-from audiolab.av.typing import AudioFormat, AudioFrame, Dtype, Filter
+from audiolab.av.typing import AudioFormat, AudioFrame, Filter
 
 
 class StreamReader:
     def __init__(
         self,
         filters: Optional[List[Filter]] = None,
-        dtype: Optional[Dtype] = None,
+        dtype: Optional[DTypeLike] = None,
         is_planar: bool = False,
         format: Optional[AudioFormat] = None,
         rate: Optional[int] = None,

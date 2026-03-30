@@ -19,11 +19,12 @@ from typing import List, Optional
 import av
 import numpy as np
 from av import filter
+from numpy.typing import DTypeLike
 
 from audiolab.av.format import get_format
 from audiolab.av.frame import from_ndarray, to_ndarray
 from audiolab.av.layout import standard_channel_layouts
-from audiolab.av.typing import UINT32_MAX, AudioFormat, AudioFrame, AudioLayout, Dtype, Filter
+from audiolab.av.typing import UINT32_MAX, AudioFormat, AudioFrame, AudioLayout, Filter
 
 
 class Graph(filter.Graph):
@@ -31,7 +32,7 @@ class Graph(filter.Graph):
         self,
         template: Optional[av.AudioStream] = None,
         rate: Optional[int] = None,
-        dtype: Optional[Dtype] = None,
+        dtype: Optional[DTypeLike] = None,
         is_planar: bool = False,
         format: Optional[AudioFormat] = None,
         layout: Optional[AudioLayout] = None,

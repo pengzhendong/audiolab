@@ -51,6 +51,5 @@ AudioFrame = Union[np.ndarray, av.AudioFrame, Tuple[np.ndarray, int]]
 AudioLayout = Union[int, str, av.AudioLayout]
 Codec = Union[str, av.Codec]
 ContainerFormat = Union[str, av.ContainerFormat]
-Dtype = Union[str, type, np.dtype]
 Filter = Union[str, Tuple[str, str], Tuple[str, Dict[str, str]], Tuple[str, str, Dict[str, str]]]
 Seconds = float

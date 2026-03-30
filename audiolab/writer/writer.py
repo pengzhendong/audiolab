@@ -16,13 +16,13 @@ from typing import Any, Optional
 
 import numpy as np
 import soundfile as sf
+from numpy.typing import DTypeLike
 
-from audiolab.av.typing import Dtype
 from audiolab.writer.backend import pyav, soundfile
 
 
 class Writer:
-    def __init__(self, file: Any, rate: int, dtype: Optional[Dtype] = None, format: str = "WAV"):
+    def __init__(self, file: Any, rate: int, dtype: Optional[DTypeLike] = None, format: str = "WAV"):
         backend = soundfile if format.upper() in sf.available_formats() else pyav
         self.backend = backend(file, rate, dtype, format)
 

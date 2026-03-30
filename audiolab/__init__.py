@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Optional, Tuple, Union
 
 import numpy as np
+from numpy.typing import DTypeLike
 
 from audiolab.av import (
     AudioCache,
@@ -30,7 +31,6 @@ from audiolab.av import (
     split_audio_frame,
     to_ndarray,
 )
-from audiolab.av.typing import Dtype
 from audiolab.pipe import AudioPipe
 from audiolab.reader import Reader, StreamReader, aformat, info, load_audio
 from audiolab.writer import Writer, save_audio
@@ -39,7 +39,7 @@ from audiolab.writer import Writer, save_audio
 def encode(
     audio: Union[str, Path, np.ndarray],
     rate: Optional[int] = None,
-    dtype: Optional[Dtype] = None,
+    dtype: Optional[DTypeLike] = None,
     to_mono: bool = False,
     make_wav: bool = True,
     format: str = "WAV",

@@ -17,15 +17,16 @@ from typing import Optional, Tuple
 
 import av
 import numpy as np
+from numpy.typing import DTypeLike
 
 from audiolab.av.format import get_dtype
-from audiolab.av.typing import AudioFormat, AudioLayout, Dtype
+from audiolab.av.typing import AudioFormat, AudioLayout
 from audiolab.av.utils import get_logger
 
 logger = get_logger(__name__)
 
 
-def clip(ndarray: np.ndarray, dtype: Dtype) -> np.ndarray:
+def clip(ndarray: np.ndarray, dtype: DTypeLike) -> np.ndarray:
     if any(dim == 0 for dim in ndarray.shape):
         return ndarray
     src_dtype = ndarray.dtype
