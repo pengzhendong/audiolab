@@ -7,7 +7,7 @@ name = "audiolab"
 authors = [{ name = "Zhendong Peng", email = "pzd17@tsinghua.org.cn" }]
 description = "AudioLab"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 requires-python = ">=3.8"
 dynamic = ["version"]
 classifiers = [
@@ -15,7 +15,7 @@ classifiers = [
   "Operating System :: OS Independent",
 ]
 dependencies = [
-  "av",
+  "av>=17.0.0",
   "click",
   "humanize",
   "jinja2",
