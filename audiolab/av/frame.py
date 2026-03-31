@@ -21,38 +21,48 @@ from numpy.typing import DTypeLike
 
 from audiolab.av.format import get_dtype
 from audiolab.av.typing import AudioFormat, AudioLayout
-from audiolab.av.utils import get_logger
 
-logger = get_logger(__name__)
+_IINFO_CACHE = {np.dtype("int8"): 128, np.dtype("uint8"): 255, np.dtype("int16"): 32768, np.dtype("int32"): 2147483648}
 
 
 def clip(ndarray: np.ndarray, dtype: DTypeLike) -> np.ndarray:
-    if any(dim == 0 for dim in ndarray.shape):
+    if ndarray.size == 0:
         return ndarray
     src_dtype = ndarray.dtype
-    dst_dtype = np.dtype(dtype)
+    dst_dtype = dtype if isinstance(dtype, np.dtype) else np.dtype(dtype)
     if src_dtype.kind != "f" and src_dtype == dst_dtype:
         return ndarray
 
     if src_dtype.kind == "f":
-        min_value, max_value = ndarray.min(), ndarray.max()
-        if min_value < -1.0 or max_value > 1.0:
-            logger.warning("Cliping %s ndarray from: %g ~ %g to -1.0 ~ 1.0", src_dtype, min_value, max_value)
-            ndarray = np.clip(ndarray, -1.0, 1.0)
+        ndarray = np.clip(ndarray, -1.0, 1.0)
+        src_weight = 1.0
+        src_bias = 0.0
     else:
         ndarray = ndarray.astype(np.float64)
         if src_dtype.kind == "u":
-            ndarray = ndarray / np.iinfo(src_dtype).max * 2 - 1
+            src_weight = 1.0 / _IINFO_CACHE[src_dtype] * 2
+            src_bias = -1.0
         elif src_dtype.kind == "i":
-            ndarray = ndarray / np.iinfo(src_dtype).max
+            src_weight = 1.0 / _IINFO_CACHE[src_dtype]
+            src_bias = 0.0
 
-    if dst_dtype.kind in ("u", "i"):
-        max_value = np.float64(np.iinfo(dst_dtype).max)
-        if dst_dtype.kind == "u":
-            ndarray = (ndarray + 1) * 0.5 * max_value
-        else:
-            ndarray = ndarray * max_value
-    return np.asarray(ndarray, dtype=dst_dtype)
+    if dst_dtype.kind == "f":
+        dst_weight = 1.0
+        dst_bias = 0.0
+    elif dst_dtype.kind == "u":
+        dst_weight = 0.5 * _IINFO_CACHE[dst_dtype]
+        dst_bias = dst_weight
+    elif dst_dtype.kind == "i":
+        dst_weight = _IINFO_CACHE[dst_dtype]
+        dst_bias = 0.0
+
+    weight = src_weight * dst_weight
+    bias = src_bias * dst_weight + dst_bias
+    if weight != 1.0:
+        np.multiply(ndarray, weight, out=ndarray)
+    if bias != 0.0:
+        np.add(ndarray, bias, out=ndarray)
+    return ndarray.astype(dst_dtype)
 
 
 def from_ndarray(
