@@ -72,11 +72,11 @@ class Reader(Info):
                 file = load_url(file, cache=False)
 
         super().__init__(file, frame_size, backends=backends)
-        if isinstance(self.backend, soundfile):
-            self.backend.read = partial(self.backend.read, dtype=dtype)
         self.filters = [] if filters is None else filters
         if not self.is_passthrough(dtype, rate, to_mono):
             self.filters.append(aformat(dtype, rate=rate, to_mono=to_mono))
+        elif isinstance(self.backend, soundfile):
+            self.backend.read = partial(self.backend.read, dtype=dtype)
 
         self.graph = None
         if len(self.filters) > 0:
@@ -128,7 +128,7 @@ class Reader(Info):
     def is_passthrough(
         self, dtype: Optional[DTypeLike] = None, rate: Optional[int] = None, to_mono: bool = False
     ) -> bool:
-        passthrough = dtype is None or dtype == self.dtype
+        passthrough = isinstance(self.backend, soundfile) or dtype is None or dtype == self.dtype
         passthrough = passthrough and (rate is None or self.rate == rate)
         passthrough = passthrough and not (to_mono and self.num_channels > 1)
         passthrough = passthrough and self.frame_size >= UINT32_MAX
