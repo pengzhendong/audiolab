@@ -17,6 +17,7 @@ import pytest
 
 from audiolab.av.format import (
     AudioFormat,
+    _get_dtype,
     audio_formats,
     format_dtypes,
     get_dtype,
@@ -47,3 +48,11 @@ class TestFormat:
         format = AudioFormat[name].value
         assert get_dtype(name) == np.dtype(dtype)
         assert get_dtype(format) == np.dtype(dtype)
+
+    def test_get_dtype_cache_uses_normalized_format_names(self):
+        _get_dtype.cache_clear()
+
+        for _ in range(1000):
+            assert get_dtype(AudioFormat.s16.value) == np.dtype(np.int16)
+
+        assert _get_dtype.cache_info().currsize == 1

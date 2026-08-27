@@ -14,6 +14,7 @@
 
 import logging
 import sys
+from functools import lru_cache
 
 import numpy as np
 from jinja2 import Environment, PackageLoader, Template
@@ -35,13 +36,12 @@ def get_template(name: str) -> Template:
     return environment.get_template(f"{name}.txt")
 
 
+@lru_cache(maxsize=128)
 def get_logger(name, level=logging.INFO):
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-    if not logger.handlers:
-        logger.propagate = False
-        handler = logging.StreamHandler(sys.stderr)
-        formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s - %(message)s")
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+    logger = logging.Logger(name, level)
+    logger.propagate = False
+    handler = logging.StreamHandler(sys.stderr)
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s - %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
     return logger

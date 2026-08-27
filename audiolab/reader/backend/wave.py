@@ -21,7 +21,7 @@ import numpy as np
 from av.codec import Codec
 
 from audiolab.av.typing import Seconds
-from audiolab.reader.backend.backend import Backend
+from audiolab.reader.backend.backend import FORCED_DECODE_CHUNK_FRAMES, Backend
 
 _bits_to_codec = {8: "pcm_u8le", 16: "pcm_s16le", 24: "pcm_s32le", 32: "pcm_s32le"}
 _bits_to_dtype = {8: np.uint8, 16: np.int16, 24: np.int32, 32: np.int32}
@@ -70,8 +70,11 @@ class Wave(Backend):
     @cached_property
     def num_frames(self) -> int | None:
         if self.forced_decoding:
-            num_frames = self.read(np.iinfo(np.int32).max).shape[1]
-            self.wave.rewind()
+            position = self.wave.tell()
+            num_frames = 0
+            while buffer := self.wave.readframes(FORCED_DECODE_CHUNK_FRAMES):
+                num_frames += len(buffer) // (self.wave.getnchannels() * self.wave.getsampwidth())
+            self.wave.setpos(position)
         else:
             num_frames = self.wave.getnframes()
             if num_frames >= np.iinfo(np.int32).max:

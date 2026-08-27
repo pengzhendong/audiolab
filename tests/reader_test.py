@@ -14,6 +14,7 @@
 
 from io import BytesIO
 
+import av
 import numpy as np
 import pytest
 
@@ -144,6 +145,35 @@ class TestReader:
         decoded = np.concatenate([first[0], *(audio for audio, _ in remaining)], axis=1)
 
         assert np.array_equal(decoded, expected)
+
+    def test_stream_reader_rejects_input_after_decoder_failure(self, monkeypatch):
+        stream_reader_module = __import__("audiolab.reader.stream_reader", fromlist=["stream_reader"])
+        monkeypatch.setattr(
+            stream_reader_module.av,
+            "open",
+            lambda *args, **kwargs: (_ for _ in ()).throw(av.InvalidDataError(22, "bad stream")),
+        )
+        reader = StreamReader()
+        reader.push(b"broken")
+
+        with pytest.raises(av.InvalidDataError):
+            list(reader.pull())
+
+        assert reader.buffered_bytes == 0
+        assert reader._state.error is None
+        with pytest.raises(RuntimeError, match="decoder has failed"):
+            reader.push(b"more")
+
+    def test_stream_reader_close_releases_error_and_graph(self):
+        reader = StreamReader()
+        reader._state.error = RuntimeError("retained traceback")
+        reader._state.graph = object()
+
+        reader.close()
+
+        assert reader._state.error is None
+        assert reader._state.graph is None
+        assert reader._thread is None
 
     def test_reader_bounds_default_read_size(self, rate):
         source = BytesIO()

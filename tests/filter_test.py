@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from types import SimpleNamespace
 
 import numpy as np
@@ -20,6 +21,7 @@ from av.filter import filters_available
 
 from audiolab.av import aformat, filter
 from audiolab.av.format import format_dtypes, get_format
+from audiolab.av.utils import get_logger
 
 
 class TestFilter:
@@ -67,3 +69,17 @@ class TestFilter:
     def test_missing_filter_raises_attribute_error(self):
         with pytest.raises(AttributeError, match="not an FFmpeg audio filter"):
             _ = filter.definitely_missing
+
+    def test_dynamic_loggers_do_not_accumulate_in_global_registry(self):
+        registry = logging.Logger.manager.loggerDict
+        before = set(registry)
+        names = [f"audiolab.dynamic.{index}" for index in range(1000)]
+        get_logger.cache_clear()
+        try:
+            loggers = [get_logger(name) for name in names]
+            assert all(logger.name == name for logger, name in zip(loggers, names, strict=True))
+            assert set(registry) == before
+        finally:
+            get_logger.cache_clear()
+            for name in names:
+                registry.pop(name, None)

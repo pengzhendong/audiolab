@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import wave
 from io import BytesIO
 from typing import ClassVar
 
@@ -82,6 +83,48 @@ class TestInfo:
         with Info(source, forced_decoding=True, backends=["wave"]) as info:
             assert info.num_channels == 2
             assert info.num_frames == num_frames
+
+    def test_forced_decoding_counts_soundfile_in_bounded_chunks(self, monkeypatch):
+        sample_rate = 16_000
+        num_frames = 150_000
+        source = BytesIO()
+        sf.write(source, np.zeros((num_frames, 1), dtype=np.int16), sample_rate, format="WAV", subtype="PCM_16")
+        source.seek(0)
+        read_sizes = []
+        original_read = sf.SoundFile.read
+
+        def bounded_read(sound_file, frames=-1, *args, **kwargs):
+            read_sizes.append(frames)
+            return original_read(sound_file, frames, *args, **kwargs)
+
+        monkeypatch.setattr(sf.SoundFile, "read", bounded_read)
+
+        with Info(source, forced_decoding=True, backends=["soundfile"]) as metadata:
+            assert metadata.num_frames == num_frames
+
+        assert len(read_sizes) >= 3
+        assert all(0 < size <= 65_536 for size in read_sizes)
+
+    def test_forced_decoding_counts_wave_in_bounded_chunks(self, monkeypatch):
+        sample_rate = 16_000
+        num_frames = 150_000
+        source = BytesIO()
+        sf.write(source, np.zeros((num_frames, 1), dtype=np.int16), sample_rate, format="WAV", subtype="PCM_16")
+        source.seek(0)
+        read_sizes = []
+        original_readframes = wave.Wave_read.readframes
+
+        def bounded_readframes(wave_file, frames):
+            read_sizes.append(frames)
+            return original_readframes(wave_file, frames)
+
+        monkeypatch.setattr(wave.Wave_read, "readframes", bounded_readframes)
+
+        with Info(source, forced_decoding=True, backends=["wave"]) as metadata:
+            assert metadata.num_frames == num_frames
+
+        assert len(read_sizes) >= 3
+        assert all(0 < size <= 65_536 for size in read_sizes)
 
     def test_unknown_backend_is_rejected(self):
         with pytest.raises(ValueError, match="Unknown audio backend"):

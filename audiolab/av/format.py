@@ -72,10 +72,14 @@ def get_codecs(sample_format: typing.AudioFormatLike, mode: Literal["r", "w"] = 
         raise ValueError(f"Unsupported audio sample format: {sample_format!r}") from None
 
 
-@cache
 def get_dtype(sample_format: typing.AudioFormatLike) -> np.dtype:
     if isinstance(sample_format, av.AudioFormat):
         sample_format = sample_format.name
+    return _get_dtype(sample_format)
+
+
+@cache
+def _get_dtype(sample_format: str) -> np.dtype:
     try:
         return np.dtype(format_dtypes[sample_format])
     except KeyError:

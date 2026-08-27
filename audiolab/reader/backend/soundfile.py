@@ -22,7 +22,7 @@ from numpy.typing import DTypeLike
 
 from audiolab.av.frame import clip
 from audiolab.av.typing import Seconds
-from audiolab.reader.backend.backend import Backend
+from audiolab.reader.backend.backend import FORCED_DECODE_CHUNK_FRAMES, Backend
 
 _subtype_to_bits = {
     "PCM_S8": 8,
@@ -105,11 +105,22 @@ class SoundFile(Backend):
             num_frames = 0
             pos = self.sf.tell()
             try:
-                audio = self.sf.read()
-                num_frames = audio.shape[0]
+                while True:
+                    audio = self.sf.read(FORCED_DECODE_CHUNK_FRAMES)
+                    if audio.shape[0] == 0:
+                        break
+                    num_frames += audio.shape[0]
             except sf.LibsndfileError:
+                sound_file = self.sf
+                with contextlib.suppress(Exception):
+                    sound_file.close()
+                seek = getattr(self.source, "seek", None)
+                if seek is not None:
+                    with contextlib.suppress(OSError, ValueError):
+                        seek(0)
                 self.sf = sf.SoundFile(self.source)
-            self.seek(pos)
+                num_frames = 0
+            self.sf.seek(pos)
         else:
             num_frames = self.sf.frames
             if num_frames >= np.iinfo(np.int32).max:
@@ -135,5 +146,4 @@ class SoundFile(Backend):
         return np.atleast_2d(clip(audio, dtype).T) if audio.shape[0] > 0 else None
 
     def seek(self, offset: int):
-        if offset > 0:
-            self.sf.seek(offset)
+        self.sf.seek(offset)

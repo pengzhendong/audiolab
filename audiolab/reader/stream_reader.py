@@ -116,10 +116,17 @@ class _StreamingInput:
         with self._condition:
             self._cancelled = True
             self._finished = True
-            self._buffer = bytearray()
-            self._buffer_offset = 0
-            self._bytes_read = self._bytes_written
+            self._discard_buffer()
             self._condition.notify_all()
+
+    def discard_buffer(self) -> None:
+        with self._condition:
+            self._discard_buffer()
+
+    def _discard_buffer(self) -> None:
+        self._buffer = bytearray()
+        self._buffer_offset = 0
+        self._bytes_read = self._bytes_written
 
     def seekable_archive(self):
         with self._condition:
@@ -145,6 +152,11 @@ class _StreamingInput:
         with self._condition:
             return self._cancelled
 
+    @property
+    def finished(self) -> bool:
+        with self._condition:
+            return self._finished
+
 
 class _DecoderState:
     def __init__(self, filters: list[FilterSpec] | None, frame_size: int):
@@ -154,6 +166,8 @@ class _DecoderState:
         self.frame_size = frame_size
         self.graph: Graph | None = None
         self.error: BaseException | None = None
+        self.failed = False
+        self.awaiting_archive = False
         self.output_count = 0
 
 
@@ -196,6 +210,8 @@ class StreamReader:
         self._closed = False
 
     def push(self, data: bytes) -> None:
+        if self._state.failed:
+            raise RuntimeError("Cannot push data after the decoder has failed; call reset() first")
         if self._finalized or self._closed:
             raise RuntimeError("Cannot push data after the stream has been finalized or closed")
         self._state.source.push(data)
@@ -206,12 +222,13 @@ class StreamReader:
             return
         if self._finalized or (self._new_bytes == 0 and not partial):
             yield from self._drain_outputs()
-            if self._state.error is not None:
-                raise self._state.error
+            self._raise_decoder_error()
             return
 
         self._new_bytes = 0
         target = self._state.source.release(final=partial)
+        if self._state.awaiting_archive:
+            self._state.source.discard_buffer()
         self._start_decoder()
         if partial:
             self._finalized = True
@@ -220,30 +237,75 @@ class StreamReader:
             self._state.source.wait_until_processed(target)
 
         yield from self._drain_outputs()
-        if self._state.error is not None:
-            raise self._state.error
+        self._raise_decoder_error()
 
     def _start_decoder(self) -> None:
-        if self._thread is not None:
+        if self._thread is not None and (
+            self._thread.is_alive() or not (self._state.awaiting_archive and self._state.source.finished)
+        ):
             return
         self._thread = Thread(target=self._decode, args=(self._state,), name="audiolab-stream-reader", daemon=True)
         self._thread.start()
 
     @staticmethod
     def _decode(state: _DecoderState) -> None:
+        expected_errors = (av.EOFError, av.InvalidDataError, av.OSError, av.PermissionError)
+        decode_error: BaseException | None = None
         try:
-            with contextlib.suppress(av.EOFError, av.InvalidDataError, av.OSError, av.PermissionError):
+            if state.awaiting_archive:
+                archive = state.source.seekable_archive()
+                if archive is not None:
+                    with contextlib.suppress(*expected_errors):
+                        StreamReader._decode_source(state, archive)
+                state.awaiting_archive = False
+                return
+
+            try:
                 StreamReader._decode_source(state, state.source)
+            except expected_errors as error:
+                decode_error = error
+
             archive = state.source.seekable_archive()
-            if not state.source.cancelled and state.output_count == 0 and archive is not None:
-                StreamReader._decode_source(state, archive)
-        except (av.EOFError, av.InvalidDataError, av.OSError, av.PermissionError):
-            pass
+            if not state.source.finished and state.output_count == 0 and archive is not None:
+                state.awaiting_archive = True
+                state.source.discard_buffer()
+                return
+            if state.source.finished and not state.source.cancelled and state.output_count == 0 and archive is not None:
+                try:
+                    StreamReader._decode_source(state, archive)
+                    decode_error = None
+                except expected_errors as error:
+                    decode_error = error
+
+            if not state.source.finished and not state.source.cancelled:
+                state.failed = True
+                StreamReader._store_error(
+                    state,
+                    decode_error or RuntimeError("Decoder stopped before the stream was finalized"),
+                )
         except BaseException as error:
-            state.error = error
+            state.failed = True
+            StreamReader._store_error(state, error)
         finally:
-            state.source.close_archive()
+            state.graph = None
+            if state.failed:
+                state.source.cancel()
+            if not state.awaiting_archive:
+                state.source.close_archive()
             state.source.worker_done()
+
+    @staticmethod
+    def _store_error(state: _DecoderState, error: BaseException) -> None:
+        error = error.with_traceback(None)
+        error.__cause__ = None
+        error.__context__ = None
+        state.error = error
+
+    def _raise_decoder_error(self) -> None:
+        error = self._state.error
+        self._state.error = None
+        if error is not None:
+            raise error.with_traceback(None)
 
     @staticmethod
     def _decode_source(state: _DecoderState, source) -> None:
@@ -283,6 +345,9 @@ class StreamReader:
         self._state.source.close_archive()
         for _ in self._drain_outputs():
             pass
+        self._state.error = None
+        self._state.graph = None
+        self._thread = None
 
     def __enter__(self):
         return self

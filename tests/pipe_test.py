@@ -61,3 +61,23 @@ class TestPipe:
 
         assert len(filters) == 1
         assert len(pipe.filters) == 2
+
+    def test_audio_pipe_applies_backpressure_until_output_is_drained(self, rate):
+        pipe = AudioPipe(input_sample_rate=rate, frame_size=4, max_buffered_bytes=16)
+        chunk = np.zeros((1, 8), dtype=np.int16)
+        pipe.push(chunk)
+
+        with pytest.raises(BufferError, match="pull"):
+            pipe.push(np.zeros((1, 1), dtype=np.int16))
+
+        list(pipe.pull())
+        pipe.push(chunk)
+
+    def test_audio_pipe_reset_releases_buffered_graph(self, rate):
+        pipe = AudioPipe(input_sample_rate=rate)
+        pipe.push(np.zeros((1, 8), dtype=np.int16))
+
+        pipe.reset()
+
+        assert pipe.graph is None
+        assert pipe.buffered_bytes == 0

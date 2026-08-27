@@ -24,6 +24,8 @@ import numpy as np
 from audiolab.av import standard_channel_layouts
 from audiolab.av.typing import UINT32_MAX, Seconds
 
+FORCED_DECODE_CHUNK_FRAMES = 65_536
+
 
 class Backend:
     def __init__(self, source: Any, frame_size: int | None = None, forced_decoding: bool = False):
