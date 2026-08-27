@@ -1,18 +1,21 @@
 # audiolab
 
 [![PyPI](https://img.shields.io/pypi/v/audiolab)](https://pypi.org/project/audiolab/)
-[![License](https://img.shields.io/github/license/pengzhendong/audiolab)](LICENSE)
+[![License](https://img.shields.io/github/license/pengzhendong/audiolab)](https://github.com/pengzhendong/audiolab/blob/master/LICENSE)
 
-A Python library for audio processing built on top of [soundfile](https://python-soundfile.readthedocs.io), and [PyAV](https://github.com/PyAV-Org/PyAV) (bindings for FFmpeg). audiolab provides a simple and efficient interface for loading, processing, and saving audio files.
+`audiolab` is a compact Python toolkit for loading, transforming, streaming, inspecting, and saving audio. It accepts local files, URLs, encoded bytes, and file-like objects, and returns NumPy arrays with a consistent channels-first layout.
 
-## Features
+Common operations such as resampling, mono conversion, dtype conversion, speed changes, and pitch shifts use optimized processing paths automatically. You describe the result you want; `audiolab` chooses the implementation.
 
-- Load audio from multiple sources: local paths, HTTP URLs, bytes, and BytesIO streams
-- Load audio files in various formats (WAV, MP3, FLAC, AAC, etc.)
-- Save audio files in different container formats
-- Support for audio streaming and real-time processing (resampling, speeding up, and other filters)
-- Command-line interface for audio file inspection
-- Support for audio transformations and filtering
+## Highlights
+
+- Decode WAV, FLAC, MP3, AAC, M4A, WebM, and other formats supported by the installed audio libraries.
+- Read from paths, URLs, `bytes`, and binary file-like objects.
+- Resample, convert to mono, change dtype, alter speed, and shift pitch through one high-level API.
+- Process complete files, decoded PCM chunks, or incoming encoded byte streams.
+- Apply advanced audio filters when the high-level transforms are not enough.
+- Write NumPy audio to files and file-like objects.
+- Inspect audio metadata from Python or the `audi` command.
 
 ## Installation
 
@@ -20,151 +23,201 @@ A Python library for audio processing built on top of [soundfile](https://python
 pip install audiolab
 ```
 
-## Quick Start
+Python 3.10 or newer is required.
 
-### Load an audio file
+## Quick start
+
+### Load and transform audio
+
+```python
+import numpy as np
+
+from audiolab import load_audio
+
+audio, sample_rate = load_audio(
+    "speech.mp3",
+    offset=7.0,
+    duration=23.0,
+    sample_rate=16_000,
+    to_mono=True,
+    dtype=np.float32,
+)
+
+print(audio.shape)  # (channels, samples); here channels == 1
+print(sample_rate)  # 16000
+```
+
+By default, decoded arrays are two-dimensional and channels-first: `(channels, samples)`. Set `always_2d=False` if you want mono audio returned as a one-dimensional array.
+
+### Change speed and pitch
 
 ```python
 from audiolab import load_audio
 
-# Load audio from 7 to 30 seconds (duration: 23s) and convert to 16kHz mono
-audio, rate = load_audio("audio.wav", offset=7, duration=23, sample_rate=16000, to_mono=True)
+# 25% faster, with the original pitch preserved.
+faster, sample_rate = load_audio("speech.wav", speed=1.25)
 
-# High-level time and pitch controls; the processing backend is selected automatically.
-faster, rate = load_audio("audio.wav", speed=1.25)
-higher, rate = load_audio("audio.wav", pitch_shift=2)
-print(f"Sample rate: {rate} Hz")
-print(f"Audio shape: {audio.shape}")
+# Two semitones higher, with approximately the original duration preserved.
+higher, sample_rate = load_audio("speech.wav", pitch_shift=2)
+
+# Both operations can be combined.
+transformed, sample_rate = load_audio("speech.wav", speed=0.9, pitch_shift=-3)
 ```
 
-### Save an audio file
+`speed` must be positive. Values above `1` shorten the audio; values below `1` lengthen it. `pitch_shift` is measured in semitones and does not change the reported sample rate.
+
+### Save audio
 
 ```python
 import numpy as np
+
 from audiolab import save_audio
 
-# Create a simple sine wave
-rate = 44100
-duration = 5
-t = np.linspace(0, duration, rate * duration)
-audio = np.sin(2 * np.pi * 440 * t)
+sample_rate = 44_100
+time = np.arange(sample_rate * 5) / sample_rate
+tone = np.sin(2 * np.pi * 440 * time).astype(np.float32)
 
-# Save as WAV file
-save_audio("tone.wav", audio, rate)
+save_audio("tone.wav", tone, sample_rate)
 ```
 
-### Get audio file information
+## Choose the right interface
 
-```python
-from audiolab import info
+| Input and goal | Use | Result |
+| --- | --- | --- |
+| Decode a complete source into memory | `load_audio` | One NumPy array and its sample rate |
+| Iterate through a file or URL as decoded chunks | `Reader` | An iterator of `(audio, sample_rate)` |
+| Decode encoded bytes as they arrive | `StreamReader` | Pulled decoded chunks |
+| Transform NumPy PCM chunks | `AudioPipe` | Pulled transformed chunks |
+| Save one complete NumPy array | `save_audio` | An audio file or file-like object |
+| Write NumPy PCM chunks incrementally | `Writer` | A streamed audio output |
+| Inspect metadata | `info` or `audi` | Codec, duration, rate, channels, and more |
 
-# Get information about an audio file
-print(info("audio.wav"))
+```mermaid
+flowchart LR
+    A[Complete file, URL, or bytes] --> B{Need the whole signal?}
+    B -->|Yes| C[load_audio]
+    B -->|No| D[Reader]
+    E[Incoming encoded bytes] --> F[StreamReader]
+    G[NumPy PCM chunks] --> H[AudioPipe]
+    C --> I[NumPy audio]
+    D --> I
+    F --> I
+    H --> I
+    I --> J{Write output?}
+    J -->|Complete array| K[save_audio]
+    J -->|Chunk by chunk| L[Writer]
 ```
 
-### Command-line usage
+## Processing model
 
-```bash
-# Get information about an audio file
-audi audio.wav
+The same high-level transform arguments work with `load_audio`, `Reader`, `StreamReader`, and `AudioPipe`:
 
-# Show only specific information
-audi -r -c audio.wav  # Show sample rate and channels only
-audi -d audio.wav     # Show duration in hours, minutes and seconds
-audi -D audio.wav     # Show duration in seconds
+| Argument | Meaning |
+| --- | --- |
+| `sample_rate` / `output_sample_rate` | Target sample rate in Hz |
+| `to_mono` | Mix all input channels into one channel |
+| `dtype` | Target NumPy dtype, such as `np.float32` or `np.int16` |
+| `speed` | Playback-speed multiplier while preserving pitch |
+| `pitch_shift` | Pitch change in semitones while preserving duration |
+
+The public API does not require selecting a resampler or processing engine:
+
+```mermaid
+flowchart LR
+    A[Decoded audio] --> B{Requested operations}
+    B -->|Rate, channels, dtype, speed, pitch| C[Optimized built-in processing]
+    B -->|Custom filters| D[Advanced filter processing]
+    C --> E[Framing and buffering]
+    D --> E
+    E --> F[NumPy output]
 ```
 
-```bash
-# Get audio information from URL
-audi https://modelscope.cn/datasets/pengzhendong/filesamples/resolve/master/audio/m4a/sample1.m4a
-
-Input File     : 'https://modelscope.cn/datasets/pengzhendong/filesamples/resolve/master/audio/m4a/sample1.m4a' (mov,mp4,m4a,3gp,3g2,mj2)
-Channels       : 2
-Sample Rate    : 44100
-Precision      : 32-bit
-Duration       : 00:02:02.093 = 5384301 samples ~ 9156.97 CDDA sectors
-File Size      : 2 MB
-Bit Rate       : 131.8 kbps
-Sample Encoding: AAC (Advanced Audio Coding)
-Comments       :
-    major_brand: M4A
-    minor_version: 512
-    compatible_brands: isomiso2
-    encoder: Lavf57.83.100
-    language: und
-    handler_name: SoundHandler
-    vendor_id: [0][0][0][0]
-```
-
-#### CLI Options
-
-- `-f, --forced-decoding`          Forced decoding the audio file to get the duration
-- `-t, --show-file-type`           Show detected file-type
-- `-r, --show-sample-rate`         Show sample-rate
-- `-c, --show-channels`            Show number of channels
-- `-s, --show-samples`             Show number of samples (N/A if unavailable)
-- `-d, --show-duration-hms`        Show duration in hours, minutes and seconds (N/A if unavailable)
-- `-D, --show-duration-seconds`    Show duration in seconds (N/A if unavailable)
-- `-b, --show-bits-per-sample`     Show number of bits per sample (N/A if not applicable)
-- `-B, --show-bitrate`             Show the bitrate averaged over the whole file (N/A if unavailable)
-- `-p, --show-precision`           Show estimated sample precision in bits
-- `-e, --show-encoding`            Show the name of the audio encoding
-- `-a, --show-comments`            Show file comments (annotations) if available
-- `--help`                         Show this message and exit
-
-If no specific options are selected, all information will be displayed by default.
-
-## API Overview
-
-### Core Functions
-
-- `load_audio()`: Load audio from file
-- `save_audio()`: Save audio to file
-- `info()`: Get information about an audio file
-- `encode()`: Transform audio to PCM bytestring
-
-### Classes
-
-- `Reader`: Read audio files with advanced options
-- `StreamReader`: Read audio streams
-- `Writer`: Write audio files with custom parameters
-
-## Advanced Usage
-
-### Apply filters during loading
-
-Common conversion, speed, and pitch operations use optimized processing paths
-automatically. Raw FFmpeg filters remain available for advanced effects.
+For advanced effects, pass an ordered `filters` list. Common transforms should stay in the high-level arguments so they can use the optimized path.
 
 ```python
 from audiolab import load_audio
 from audiolab.av.filter import highpass
 
-# Common transforms stay at the high-level API.
-audio, rate = load_audio("audio.wav", speed=1.5, pitch_shift=2)
-
-# Advanced FFmpeg effects can still be supplied explicitly.
-audio, rate = load_audio("audio.wav", filters=[highpass(f=200)])
+audio, sample_rate = load_audio(
+    "speech.wav",
+    filters=[highpass(f=200)],
+    sample_rate=16_000,
+    to_mono=True,
+)
 ```
 
-### Streaming processing
+See [Audio processing and filters](https://github.com/pengzhendong/audiolab/blob/master/docs/filters.md) for transform semantics, filter composition, and performance guidance.
+
+## Streaming
+
+Use `Reader` when the source is already available but the decoded signal should not be held entirely in memory:
 
 ```python
-import numpy as np
-from audiolab import AudioPipe, Reader, save_audio
+from audiolab import Reader, Writer
 
-frames = []
-reader = Reader("audio.wav")
-pipe = AudioPipe(input_sample_rate=reader.sample_rate, speed=2)
-for frame, _ in reader:
-    pipe.push(frame)
-    for frame, _ in pipe.pull():
-        frames.append(frame)
-for frame, _ in pipe.pull(True):
-    frames.append(frame)
-save_audio("output.wav", np.concatenate(frames, axis=1), reader.sample_rate)
+with Reader("input.flac", sample_rate=16_000, to_mono=True, frame_size=4096) as reader:
+    with Writer("output.wav", reader.output_sample_rate) as writer:
+        for audio, _ in reader:
+            writer.write(audio)
 ```
+
+Use `AudioPipe` when you already have NumPy chunks:
+
+```python
+from audiolab import AudioPipe
+
+pipe = AudioPipe(input_sample_rate=48_000, output_sample_rate=16_000, to_mono=True)
+
+for input_chunk in pcm_chunks:
+    pipe.push(input_chunk)
+    for output_chunk, output_rate in pipe.pull():
+        consume(output_chunk, output_rate)
+
+# Flush delayed samples and finalize the pipe exactly once.
+for output_chunk, output_rate in pipe.pull(partial=True):
+    consume(output_chunk, output_rate)
+```
+
+See the [streaming guide](https://github.com/pengzhendong/audiolab/blob/master/docs/streaming.md) for `Reader`, `StreamReader`, `AudioPipe`, finalization, buffering, and incremental writing.
+
+## Inspect audio
+
+From Python:
+
+```python
+from audiolab import info
+
+metadata = info("audio.m4a")
+print(metadata.sample_rate, metadata.num_channels, metadata.duration)
+print(metadata)
+metadata.close()
+```
+
+From the command line:
+
+```bash
+audi audio.m4a            # Show all available metadata
+audi -r -c audio.wav      # Show sample rate and channel count
+audi -d audio.wav         # Show human-readable duration
+audi -D audio.wav         # Show duration in seconds
+audi --help               # Show every option
+```
+
+## API at a glance
+
+| API | Purpose |
+| --- | --- |
+| `load_audio(source, **options)` | Eagerly decode and transform a complete source |
+| `Reader(source, **options)` | Incrementally decode and transform an available source |
+| `StreamReader(**options)` | Incrementally decode pushed encoded bytes |
+| `AudioPipe(input_sample_rate, **options)` | Transform pushed NumPy PCM chunks |
+| `save_audio(destination, audio, sample_rate, ...)` | Save a complete NumPy array |
+| `Writer(destination, sample_rate, ...)` | Write NumPy chunks incrementally |
+| `info(source, ...)` | Read source metadata |
+| `encode(audio, ...)` | Encode audio as a base64 data string or raw PCM base64 |
+
+Low-level frame, format, and advanced filter helpers remain available under `audiolab.av` for specialized integrations; ordinary applications should prefer the high-level interfaces above.
 
 ## License
 
-[Apache License 2.0](LICENSE)
+[Apache License 2.0](https://github.com/pengzhendong/audiolab/blob/master/LICENSE)
