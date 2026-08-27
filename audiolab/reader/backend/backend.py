@@ -44,7 +44,7 @@ class Backend:
     def __del__(self):
         try:
             self.close()
-        except:
+        except Exception:
             pass
 
     @cached_property

@@ -20,7 +20,8 @@ import pytest
 from audiolab.av.filter import aresample, atempo
 from audiolab.av.utils import generate_ndarray
 from audiolab.reader import Reader, StreamReader, aformat, load_audio
-from audiolab.reader.reader import URL_REQUEST_TIMEOUT, _iter_audio_chunks
+from audiolab.reader.reader import _iter_audio_chunks
+from audiolab.reader.source import URL_REQUEST_TIMEOUT
 from audiolab.writer import save_audio
 
 
@@ -50,6 +51,16 @@ class TestReader:
             assert reader.duration == duration
             assert reader.precision == 16
             assert reader.rate == rate
+
+    def test_reader_frame_size_without_filters(self, nb_channels, rate, duration):
+        bytes_io = BytesIO()
+        ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
+        save_audio(bytes_io, ndarray, rate=rate)
+
+        frames = list(load_audio(bytes_io, frame_size=1024))
+
+        assert [frame.shape[1] for frame, _ in frames] == [1024] * 7 + [832]
+        assert np.array_equal(np.concatenate([frame for frame, _ in frames], axis=1), ndarray)
 
     def test_load_audio(self, nb_channels, rate, duration):
         input_rate = rate
@@ -97,6 +108,16 @@ class TestReader:
         assert audio.dtype == np.float32
         assert audio.shape == (1, int(output_rate * duration))
         assert output_rate == 8000
+
+    def test_dtype_conversion_with_custom_filters(self, nb_channels, rate, duration):
+        bytes_io = BytesIO()
+        ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
+        save_audio(bytes_io, ndarray, rate=rate)
+
+        audio, output_rate = load_audio(bytes_io, filters=[atempo(1.0)], dtype=np.float32)
+
+        assert audio.dtype == np.float32
+        assert output_rate == rate
 
     def test_filter_inputs_are_not_mutated(self, nb_channels, rate, duration):
         bytes_io = BytesIO()
@@ -146,9 +167,9 @@ class TestReader:
             calls.append(("load", url, cache))
             return BytesIO(bytes_io.getvalue())
 
-        reader_module = __import__("audiolab.reader.reader", fromlist=["reader"])
-        monkeypatch.setattr(reader_module.requests, "head", head)
-        monkeypatch.setattr(reader_module, "load_url", load_url)
+        source_module = __import__("audiolab.reader.source", fromlist=["source"])
+        monkeypatch.setattr(source_module.requests, "head", head)
+        monkeypatch.setattr(source_module, "load_url", load_url)
 
         reader = Reader("https://example.com/audio.wav")
 

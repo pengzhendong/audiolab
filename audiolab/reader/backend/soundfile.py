@@ -61,6 +61,7 @@ class SoundFile(Backend):
     def __init__(self, file: Any, frame_size: Optional[int] = None, forced_decoding: bool = False):
         super().__init__(file, frame_size, forced_decoding)
         self.sf = sf.SoundFile(file)
+        self.output_dtype: Optional[DTypeLike] = None
 
     def close(self):
         _sf = self.sf
@@ -130,7 +131,7 @@ class SoundFile(Backend):
 
     def read(self, nframes: int, dtype: Optional[DTypeLike] = None) -> Optional[np.ndarray]:
         if dtype is None:
-            dtype = self.dtype
+            dtype = self.output_dtype if self.output_dtype is not None else self.dtype
         frames = self.sf.read(nframes, dtype=dtype if dtype in _supported_dtypes else np.float64)
         return np.atleast_2d(clip(frames, dtype).T) if frames.shape[0] > 0 else None
 

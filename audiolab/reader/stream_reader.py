@@ -19,7 +19,7 @@ import av
 from av import AudioCodecContext
 from numpy.typing import DTypeLike
 
-from audiolab.av import aformat
+from audiolab.av import build_filter_chain
 from audiolab.av.graph import Graph
 from audiolab.av.typing import AudioFormat, AudioFrame, Filter
 
@@ -51,11 +51,14 @@ class StreamReader:
         self._graph = None
         self.bytes_io = BytesIO()
         self.bytes_per_decode_attempt = 0
-        filters = None if filters is None else list(filters)
-        if dtype is not None or format is not None or rate is not None or to_mono:
-            filters = [] if filters is None else filters
-            filters.append(aformat(dtype, is_planar, format, rate, to_mono))
-        self.filters = filters
+        self.filters = build_filter_chain(
+            filters,
+            dtype=dtype,
+            is_planar=is_planar,
+            format=format,
+            rate=rate,
+            to_mono=to_mono,
+        )
         self.frame_size = frame_size
         self.offset = None
         self.packet = None

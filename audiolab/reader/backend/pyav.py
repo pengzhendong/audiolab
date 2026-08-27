@@ -35,6 +35,7 @@ class PyAV(Backend):
         self.stream = self.container.streams.audio[0]
         self.dtype = get_dtype(self.stream.format)
         self.graph = None
+        self.output_filters: Optional[List[Filter]] = None
 
     def close(self):
         container = self.container
@@ -43,6 +44,7 @@ class PyAV(Backend):
         self.container = None
         self.stream = None
         self.graph = None
+        self.output_filters = None
         try:
             container.close()
         except Exception:
@@ -133,6 +135,7 @@ class PyAV(Backend):
 
     def build_graph(self, format: AudioFormat, filters: Optional[List[Filter]] = None):
         if self.graph is None:
+            filters = self.output_filters if filters is None else filters
             self.dtype = get_dtype(format)
             self.graph = Graph(
                 rate=self.sample_rate,

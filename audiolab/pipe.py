@@ -17,9 +17,9 @@ from typing import Iterator, List, Optional, Tuple
 import numpy as np
 from numpy.typing import DTypeLike
 
+from audiolab.av import Graph, build_filter_chain
 from audiolab.av.frame import pad
 from audiolab.av.typing import AudioFormat, Filter
-from audiolab.reader import Graph, aformat
 
 
 class AudioPipe:
@@ -38,11 +38,14 @@ class AudioPipe:
     ):
         self.in_rate = in_rate
         self.graph = None
-        filters = None if filters is None else list(filters)
-        if dtype is not None or format is not None or out_rate is not None or to_mono:
-            filters = [] if filters is None else filters
-            filters.append(aformat(dtype, is_planar, format, out_rate, to_mono))
-        self.filters = filters
+        self.filters = build_filter_chain(
+            filters,
+            dtype=dtype,
+            is_planar=is_planar,
+            format=format,
+            rate=out_rate,
+            to_mono=to_mono,
+        )
         self.frame_size = frame_size
         self.fill_value = fill_value
         self.always_2d = always_2d

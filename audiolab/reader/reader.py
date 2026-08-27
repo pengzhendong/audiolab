@@ -12,21 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import cached_property, partial
-from io import BytesIO
+from functools import cached_property
 from typing import Any, Iterator, List, Optional
 
-import requests
+import numpy as np
 from numpy.typing import DTypeLike
 
-from audiolab.av import aformat, load_url
+from audiolab.av import build_filter_chain
 from audiolab.av.frame import pad
 from audiolab.av.graph import Graph
-from audiolab.av.typing import UINT32_MAX, AudioFrame, Filter, Seconds
+from audiolab.av.typing import AudioFrame, Filter, Seconds
 from audiolab.reader.backend import pyav, soundfile
 from audiolab.reader.info import Info
+from audiolab.reader.source import prepare_source
 
-URL_REQUEST_TIMEOUT = 10
 MAX_FILTER_CHUNK_BYTES = 256 * 1024 * 1024
 
 
@@ -70,27 +69,31 @@ class Reader(Info):
             fill_value: The fill value to pad the audio to the frame size.
             backends: The backends to use.
         """
-        if isinstance(file, bytes):
-            file = BytesIO(file)
-        elif isinstance(file, str) and "://" in file:
-            with requests.head(file, allow_redirects=True, timeout=URL_REQUEST_TIMEOUT) as response:
-                file = response.url
-            if cache_url:
-                file = load_url(file, cache=True)
-            elif offset == 0 and duration is None:
-                file = load_url(file, cache=False)
-
+        file = prepare_source(file, offset=offset, duration=duration, cache_url=cache_url)
         super().__init__(file, frame_size, backends=backends)
-        self.filters = [] if filters is None else list(filters)
-        if not self.is_passthrough(dtype, rate, to_mono):
-            self.filters.append(aformat(dtype, rate=rate, to_mono=to_mono))
-        elif isinstance(self.backend, soundfile):
-            self.backend.read = partial(self.backend.read, dtype=dtype)
+        needs_format_filter = self._needs_format_filter(
+            dtype,
+            rate,
+            to_mono,
+            allow_direct_dtype=not filters,
+        )
+        self.filters = (
+            build_filter_chain(
+                filters,
+                dtype=dtype,
+                rate=rate,
+                to_mono=to_mono,
+                add_format=needs_format_filter,
+            )
+            or []
+        )
+        if not needs_format_filter and isinstance(self.backend, soundfile):
+            self.backend.output_dtype = dtype
 
         self.graph = None
         if len(self.filters) > 0:
             if isinstance(self.backend, pyav):
-                self.backend.build_graph = partial(self.backend.build_graph, filters=self.filters)
+                self.backend.output_filters = self.filters
             else:
                 self.graph = Graph(
                     rate=self.rate,
@@ -134,12 +137,22 @@ class Reader(Info):
     def is_passthrough(
         self, dtype: Optional[DTypeLike] = None, rate: Optional[int] = None, to_mono: bool = False
     ) -> bool:
-        passthrough = isinstance(self.backend, soundfile) or dtype is None or dtype == self.dtype
-        passthrough = passthrough and (rate is None or self.rate == rate)
-        passthrough = passthrough and not (to_mono and self.num_channels > 1)
-        passthrough = passthrough and self.frame_size >= UINT32_MAX
-        passthrough = passthrough and len(self.filters) == 0
-        return passthrough
+        return len(self.filters) == 0 and not self._needs_format_filter(dtype, rate, to_mono)
+
+    def _needs_format_filter(
+        self,
+        dtype: Optional[DTypeLike] = None,
+        rate: Optional[int] = None,
+        to_mono: bool = False,
+        allow_direct_dtype: bool = True,
+    ) -> bool:
+        dtype_mismatch = dtype is not None and np.dtype(dtype) != self.dtype
+        can_read_dtype_directly = allow_direct_dtype and isinstance(self.backend, soundfile)
+        return (
+            (dtype_mismatch and not can_read_dtype_directly)
+            or (rate is not None and self.rate != rate)
+            or (to_mono and self.num_channels > 1)
+        )
 
     def pull(self, partial: bool = False) -> AudioFrame:
         for frame in self.graph.pull(partial=partial):
