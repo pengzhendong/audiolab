@@ -27,3 +27,12 @@ if loaded:
 """
 
     subprocess.run([sys.executable, "-c", script], check=True)
+
+
+def test_low_level_processing_types_are_not_top_level_api():
+    import audiolab
+    import audiolab.reader
+
+    assert not hasattr(audiolab, "Graph")
+    assert not hasattr(audiolab, "aformat")
+    assert not hasattr(audiolab.reader, "Graph")

@@ -17,7 +17,8 @@ from collections.abc import Iterator
 import numpy as np
 from numpy.typing import DTypeLike
 
-from audiolab.av import Graph, build_filter_chain
+from audiolab._processor import AudioProcessor, build_graph_filters, validate_transforms
+from audiolab.av.format import get_dtype
 from audiolab.av.frame import pad
 from audiolab.av.typing import AudioFormatLike, FilterSpec
 
@@ -34,6 +35,8 @@ class AudioPipe:
         sample_format: AudioFormatLike | None = None,
         output_sample_rate: int | None = None,
         to_mono: bool = False,
+        speed: float = 1.0,
+        pitch_shift: float = 0.0,
         frame_size: int | None = 1024,
         fill_value: float | None = None,
         always_2d: bool = True,
@@ -47,16 +50,26 @@ class AudioPipe:
             raise ValueError("frame_size is required when fill_value is set")
         if max_buffered_bytes is not None and max_buffered_bytes <= 0:
             raise ValueError("max_buffered_bytes must be positive")
+        validate_transforms(speed, pitch_shift)
         self.input_sample_rate = input_sample_rate
-        self.graph = None
-        self.filters = build_filter_chain(
-            filters,
-            dtype=dtype,
-            is_planar=is_planar,
-            sample_format=sample_format,
-            sample_rate=output_sample_rate,
-            to_mono=to_mono,
-        )
+        self.filters = None
+        if filters:
+            self.filters = build_graph_filters(
+                filters,
+                input_sample_rate=input_sample_rate,
+                speed=speed,
+                pitch_shift=pitch_shift,
+                dtype=dtype,
+                is_planar=is_planar,
+                sample_format=sample_format,
+                output_sample_rate=output_sample_rate,
+                to_mono=to_mono,
+            )
+        self.dtype = get_dtype(sample_format) if sample_format is not None and not filters else dtype
+        self.output_sample_rate = output_sample_rate
+        self.to_mono = to_mono
+        self.speed = speed
+        self.pitch_shift = pitch_shift
         self.frame_size = frame_size
         self.fill_value = fill_value
         self.always_2d = always_2d
@@ -64,6 +77,7 @@ class AudioPipe:
         self._buffered_bytes = 0
         self._finalized = False
         self._closed = False
+        self._processor = None
 
     def push(self, audio: np.ndarray) -> None:
         if self._finalized or self._closed:
@@ -72,23 +86,28 @@ class AudioPipe:
         buffered_bytes = self._buffered_bytes + audio.nbytes
         if self.max_buffered_bytes is not None and buffered_bytes > self.max_buffered_bytes:
             raise BufferError("AudioPipe buffer limit exceeded; call pull() before pushing more audio")
-        if self.graph is None:
-            self.graph = Graph(
-                sample_rate=self.input_sample_rate,
-                dtype=audio.dtype,
+        if self._processor is None:
+            self._processor = AudioProcessor(
+                input_sample_rate=self.input_sample_rate,
+                input_dtype=audio.dtype,
                 channels=audio.shape[0],
                 filters=self.filters,
+                dtype=self.dtype,
+                output_sample_rate=self.output_sample_rate,
+                to_mono=self.to_mono,
+                speed=self.speed,
+                pitch_shift=self.pitch_shift,
                 frame_size=self.frame_size,
             )
-        self.graph.push(audio)
+        self._processor.push(audio)
         self._buffered_bytes = buffered_bytes
 
     def pull(self, partial: bool = False) -> Iterator[tuple[np.ndarray, int]]:
-        if self.graph is None:
+        if self._processor is None:
             return
         completed = False
         try:
-            for audio, sample_rate in self.graph.pull(partial=partial):
+            for audio, sample_rate in self._processor.pull(partial=partial):
                 if self.fill_value is not None:
                     audio = pad(audio, self.frame_size, self.fill_value)
                 yield audio if self.always_2d else audio.squeeze(), sample_rate
@@ -103,13 +122,17 @@ class AudioPipe:
         return self._buffered_bytes
 
     def close(self) -> None:
-        self.graph = None
+        if self._processor is not None:
+            self._processor.close()
+            self._processor = None
         self._buffered_bytes = 0
         self._finalized = True
         self._closed = True
 
     def reset(self) -> None:
-        self.graph = None
+        if self._processor is not None:
+            self._processor.close()
+            self._processor = None
         self._buffered_bytes = 0
         self._finalized = False
         self._closed = False

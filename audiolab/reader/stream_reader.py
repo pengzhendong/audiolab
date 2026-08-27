@@ -14,6 +14,7 @@
 
 import contextlib
 from collections.abc import Iterator
+from dataclasses import dataclass
 from queue import Empty, SimpleQueue
 from tempfile import TemporaryFile
 from threading import Condition, Thread
@@ -21,7 +22,9 @@ from threading import Condition, Thread
 import av
 from numpy.typing import DTypeLike
 
+from audiolab._processor import AudioProcessor, build_graph_filters, validate_transforms
 from audiolab.av import build_filter_chain
+from audiolab.av.format import get_dtype
 from audiolab.av.graph import Graph
 from audiolab.av.typing import AudioFormatLike, DecodedChunk, FilterSpec
 
@@ -158,12 +161,24 @@ class _StreamingInput:
             return self._finished
 
 
+@dataclass(frozen=True)
+class _ProcessorConfig:
+    filters: list[FilterSpec] | None
+    dtype: DTypeLike | None
+    is_planar: bool
+    sample_format: AudioFormatLike | None
+    sample_rate: int | None
+    to_mono: bool
+    speed: float
+    pitch_shift: float
+    frame_size: int
+
+
 class _DecoderState:
-    def __init__(self, filters: list[FilterSpec] | None, frame_size: int):
+    def __init__(self, config: _ProcessorConfig):
         self.source = _StreamingInput()
         self.outputs: SimpleQueue[DecodedChunk] = SimpleQueue()
-        self.filters = filters
-        self.frame_size = frame_size
+        self.config = config
         self.graph: Graph | None = None
         self.error: BaseException | None = None
         self.failed = False
@@ -187,23 +202,42 @@ class StreamReader:
         sample_format: AudioFormatLike | None = None,
         sample_rate: int | None = None,
         to_mono: bool = False,
+        speed: float = 1.0,
+        pitch_shift: float = 0.0,
         frame_size: int = 1024,
     ):
         if frame_size <= 0:
             raise ValueError("frame_size must be positive")
         if sample_rate is not None and sample_rate <= 0:
             raise ValueError("sample_rate must be positive")
+        validate_transforms(speed, pitch_shift)
 
-        self.filters = build_filter_chain(
-            filters,
-            dtype=dtype,
-            is_planar=is_planar,
-            sample_format=sample_format,
-            sample_rate=sample_rate,
-            to_mono=to_mono,
+        raw_filters = None if filters is None else list(filters)
+        self.filters = (
+            build_filter_chain(
+                raw_filters,
+                dtype=dtype,
+                is_planar=is_planar,
+                sample_format=sample_format,
+                sample_rate=sample_rate,
+                to_mono=to_mono,
+            )
+            if raw_filters
+            else None
         )
         self.frame_size = frame_size
-        self._state = _DecoderState(self.filters, frame_size)
+        self._config = _ProcessorConfig(
+            raw_filters,
+            dtype,
+            is_planar,
+            sample_format,
+            sample_rate,
+            to_mono,
+            speed,
+            pitch_shift,
+            frame_size,
+        )
+        self._state = _DecoderState(self._config)
         self._thread: Thread | None = None
         self._new_bytes = 0
         self._finalized = False
@@ -311,18 +345,54 @@ class StreamReader:
     def _decode_source(state: _DecoderState, source) -> None:
         with av.open(source, metadata_encoding="latin1") as container:
             stream = container.streams.audio[0]
-            graph = Graph(stream, filters=state.filters, frame_size=state.frame_size)
-            state.graph = graph
-            for packet in container.demux(stream):
-                for audio_frame in packet.decode():
-                    graph.push(audio_frame)
-                    for chunk in graph.pull():
-                        state.outputs.put(chunk)
-                        state.output_count += 1
-            if not state.source.cancelled:
-                for chunk in graph.pull(partial=True):
-                    state.outputs.put(chunk)
-                    state.output_count += 1
+            config = state.config
+            filters = None
+            output_dtype = config.dtype
+            if config.filters:
+                filters = build_graph_filters(
+                    config.filters,
+                    input_sample_rate=stream.sample_rate,
+                    speed=config.speed,
+                    pitch_shift=config.pitch_shift,
+                    dtype=config.dtype,
+                    is_planar=config.is_planar,
+                    sample_format=config.sample_format,
+                    output_sample_rate=config.sample_rate,
+                    to_mono=config.to_mono,
+                )
+            elif config.sample_format is not None:
+                output_dtype = get_dtype(config.sample_format)
+            processor = AudioProcessor(
+                input_sample_rate=stream.sample_rate,
+                input_dtype=get_dtype(stream.format),
+                input_sample_format=stream.format,
+                input_layout=stream.layout.name,
+                input_time_base=stream.time_base,
+                channels=stream.channels,
+                filters=filters,
+                dtype=output_dtype,
+                output_sample_rate=config.sample_rate,
+                to_mono=config.to_mono,
+                speed=config.speed,
+                pitch_shift=config.pitch_shift,
+                frame_size=config.frame_size,
+            )
+            state.graph = processor.graph
+            try:
+                for packet in container.demux(stream):
+                    for audio_frame in packet.decode():
+                        processor.push(audio_frame)
+                        StreamReader._queue_chunks(state, processor.pull())
+                if not state.source.cancelled:
+                    StreamReader._queue_chunks(state, processor.pull(partial=True))
+            finally:
+                processor.close()
+
+    @staticmethod
+    def _queue_chunks(state: _DecoderState, chunks: Iterator[DecodedChunk]) -> None:
+        for chunk in chunks:
+            state.outputs.put(chunk)
+            state.output_count += 1
 
     def _drain_outputs(self) -> Iterator[DecodedChunk]:
         while True:
@@ -361,7 +431,7 @@ class StreamReader:
 
     def reset(self) -> None:
         self.close()
-        self._state = _DecoderState(self.filters, self.frame_size)
+        self._state = _DecoderState(self._config)
         self._thread = None
         self._new_bytes = 0
         self._finalized = False

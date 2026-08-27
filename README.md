@@ -29,6 +29,10 @@ from audiolab import load_audio
 
 # Load audio from 7 to 30 seconds (duration: 23s) and convert to 16kHz mono
 audio, rate = load_audio("audio.wav", offset=7, duration=23, sample_rate=16000, to_mono=True)
+
+# High-level time and pitch controls; the processing backend is selected automatically.
+faster, rate = load_audio("audio.wav", speed=1.25)
+higher, rate = load_audio("audio.wav", pitch_shift=2)
 print(f"Sample rate: {rate} Hz")
 print(f"Audio shape: {audio.shape}")
 ```
@@ -129,31 +133,29 @@ If no specific options are selected, all information will be displayed by defaul
 
 ### Apply filters during loading
 
+Common conversion, speed, and pitch operations use optimized processing paths
+automatically. Raw FFmpeg filters remain available for advanced effects.
+
 ```python
-from audiolab import info, load_audio
-from audiolab.av.filter import aresample, asetrate, atempo
+from audiolab import load_audio
+from audiolab.av.filter import highpass
 
-# Speed perturbation
-filters = [atempo(1.5)]
-audio, rate = load_audio("audio.wav", filters=filters)
+# Common transforms stay at the high-level API.
+audio, rate = load_audio("audio.wav", speed=1.5, pitch_shift=2)
 
-# Pitch perturbation
-ratio = 1.5
-rate = info("audio.wav").sample_rate
-filters = [asetrate(rate * ratio), atempo(1 / ratio), aresample(rate)]
-audio, rate = load_audio("audio.wav", filters=filters)
+# Advanced FFmpeg effects can still be supplied explicitly.
+audio, rate = load_audio("audio.wav", filters=[highpass(f=200)])
 ```
 
 ### Streaming processing
 
 ```python
 import numpy as np
-from audiolab.av.filter import atempo
 from audiolab import AudioPipe, Reader, save_audio
 
 frames = []
 reader = Reader("audio.wav")
-pipe = AudioPipe(input_sample_rate=reader.sample_rate, filters=[atempo(2)])
+pipe = AudioPipe(input_sample_rate=reader.sample_rate, speed=2)
 for frame, _ in reader:
     pipe.push(frame)
     for frame, _ in pipe.pull():

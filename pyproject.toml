@@ -23,6 +23,7 @@ dependencies = [
   "requests",
   "smart_open",
   "soundfile",
+  "soxr>=1.0.0",
 ]
 
 [project.scripts]

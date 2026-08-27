@@ -30,7 +30,7 @@ from audiolab.av import (
     to_ndarray,
 )
 from audiolab.pipe import AudioPipe
-from audiolab.reader import Reader, StreamReader, aformat, info, load_audio
+from audiolab.reader import Reader, StreamReader, info, load_audio
 from audiolab.writer import Writer, save_audio
 
 
@@ -78,7 +78,6 @@ __all__ = [
     "Reader",
     "StreamReader",
     "Writer",
-    "aformat",
     "encode",
     "from_ndarray",
     "get_dtype",

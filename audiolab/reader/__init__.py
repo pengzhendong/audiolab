@@ -17,8 +17,6 @@ from typing import Any
 import numpy as np
 from soundfile import LibsndfileError
 
-from audiolab.av import aformat
-from audiolab.av.graph import Graph
 from audiolab.reader.info import Info
 from audiolab.reader.reader import Reader
 from audiolab.reader.stream_reader import StreamReader
@@ -80,7 +78,7 @@ def load_audio(source: Any, **kwargs) -> tuple[np.ndarray, int]:
                 return output, kwargs.get("sample_rate") or reader.sample_rate
             always_2d = kwargs.get("always_2d", True)
             shape = (0, 0) if always_2d else (0,)
-            return np.empty(shape, dtype=reader.dtype), kwargs.get("sample_rate") or reader.sample_rate
+            return np.empty(shape, dtype=reader.output_dtype), reader.output_sample_rate
 
     axis = 1 if chunks[0].ndim == 2 else 0
     if output_rate is None:
@@ -104,13 +102,13 @@ def _allocate_eager_output(reader: Reader, kwargs: dict) -> np.ndarray | None:
     if duration is not None:
         num_frames = min(num_frames, int(duration * source_rate))
     output_rate = kwargs.get("sample_rate") or source_rate
-    num_frames = round(num_frames * output_rate / source_rate)
+    num_frames = round(num_frames * output_rate / source_rate / kwargs.get("speed", 1.0))
 
     num_channels = 1 if kwargs.get("to_mono") else reader.num_channels
     always_2d = kwargs.get("always_2d", True)
     shape = (num_channels, num_frames) if always_2d or num_channels > 1 else (num_frames,)
-    dtype = np.dtype(kwargs.get("dtype") or reader.dtype)
+    dtype = reader.output_dtype
     return np.empty(shape, dtype=dtype)
 
 
-__all__ = ["Graph", "Reader", "StreamReader", "aformat", "load_audio"]
+__all__ = ["Reader", "StreamReader", "load_audio"]

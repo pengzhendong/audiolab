@@ -12,15 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from inspect import signature
 from io import BytesIO
 
 import av
 import numpy as np
 import pytest
 
+from audiolab.av import aformat
 from audiolab.av.filter import aresample, atempo
 from audiolab.av.utils import generate_ndarray
-from audiolab.reader import Reader, StreamReader, aformat, load_audio
+from audiolab.reader import Reader, StreamReader, load_audio
 from audiolab.reader.reader import DEFAULT_READ_FRAMES, _iter_audio_chunks
 from audiolab.reader.source import URL_COPY_CHUNK_BYTES, URL_REQUEST_TIMEOUT
 from audiolab.writer import save_audio
@@ -175,6 +177,22 @@ class TestReader:
         assert reader._state.graph is None
         assert reader._thread is None
 
+    def test_stream_reader_supports_high_level_speed_and_pitch(self, rate):
+        source = BytesIO()
+        time = np.arange(rate, dtype=np.float32) / rate
+        tone = (16_000 * np.sin(2 * np.pi * 440 * time)).astype(np.int16).reshape(1, -1)
+        save_audio(source, tone, sample_rate=rate)
+        reader = StreamReader(dtype=np.float32, speed=1.25, pitch_shift=12, frame_size=256)
+        reader.push(source.getvalue())
+
+        chunks = list(reader.pull(partial=True))
+        audio = np.concatenate([chunk for chunk, _ in chunks], axis=1)
+
+        frequencies = np.fft.rfftfreq(audio.shape[1], 1 / rate)
+        dominant_frequency = frequencies[np.argmax(np.abs(np.fft.rfft(audio[0] * np.hanning(audio.shape[1]))))]
+        assert dominant_frequency == pytest.approx(880, abs=2)
+        assert audio.shape[1] / rate == pytest.approx(0.8, abs=0.025)
+
     def test_reader_bounds_default_read_size(self, rate):
         source = BytesIO()
         expected = generate_ndarray(1, DEFAULT_READ_FRAMES * 2 + 1, np.int16)
@@ -281,6 +299,77 @@ class TestReader:
         assert audio.shape == (1, int(output_rate * duration))
         assert output_rate == 8000
 
+    def test_common_transforms_bypass_filter_graph(self, rate):
+        source = BytesIO()
+        left = np.linspace(-20_000, 20_000, rate, dtype=np.int16)
+        right = np.linspace(10_000, -10_000, rate, dtype=np.int16)
+        save_audio(source, np.stack((left, right)), sample_rate=rate)
+
+        reader = Reader(
+            source,
+            dtype=np.float32,
+            sample_rate=8000,
+            to_mono=True,
+            frame_size=256,
+            backends=["wave"],
+        )
+        chunks = list(reader)
+
+        assert reader._processor.graph is None
+        assert chunks
+        assert all(chunk.shape == (1, 256) for chunk, _ in chunks[:-1])
+        assert all(output_rate == 8000 for _, output_rate in chunks)
+        assert all(chunk.dtype == np.float32 for chunk, _ in chunks)
+        reader.close()
+
+    def test_fast_mono_conversion_averages_normalized_channels(self, rate):
+        source = BytesIO()
+        stereo = np.array([[16_384, -16_384], [0, 16_384]], dtype=np.int16)
+        save_audio(source, stereo, sample_rate=rate)
+
+        audio, _ = load_audio(source, dtype=np.float32, to_mono=True, backends=["wave"])
+
+        expected = np.array([[0.25, 0.0]], dtype=np.float32)
+        assert np.allclose(audio, expected, atol=1 / 32_768)
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_frequency", "expected_duration"),
+        [
+            ({"speed": 1.25}, 440.0, 0.8),
+            ({"speed": 4.0}, 440.0, 0.25),
+            ({"pitch_shift": 12.0}, 880.0, 1.0),
+            ({"pitch_shift": -12.0}, 220.0, 1.0),
+            ({"speed": 1.25, "pitch_shift": 12.0}, 880.0, 0.8),
+            ({"filters": [atempo(1.0)], "speed": 1.25, "pitch_shift": 12.0}, 880.0, 0.8),
+        ],
+    )
+    def test_high_level_speed_and_pitch_controls(self, rate, kwargs, expected_frequency, expected_duration):
+        source = BytesIO()
+        time = np.arange(rate, dtype=np.float32) / rate
+        tone = (16_000 * np.sin(2 * np.pi * 440 * time)).astype(np.int16).reshape(1, -1)
+        save_audio(source, tone, sample_rate=rate)
+
+        audio, output_rate = load_audio(source, dtype=np.float32, backends=["wave"], **kwargs)
+
+        windowed = audio[0] * np.hanning(audio.shape[1])
+        frequencies = np.fft.rfftfreq(audio.shape[1], 1 / output_rate)
+        dominant_frequency = frequencies[np.argmax(np.abs(np.fft.rfft(windowed)))]
+        assert output_rate == rate
+        assert dominant_frequency == pytest.approx(expected_frequency, abs=2.0)
+        assert audio.shape[1] / output_rate == pytest.approx(expected_duration, abs=0.025)
+
+    @pytest.mark.parametrize(("name", "value"), [("speed", 0), ("pitch_shift", float("nan"))])
+    def test_high_level_transforms_validate_finite_values(self, name, value):
+        with pytest.raises(ValueError, match=name):
+            Reader(BytesIO(), **{name: value})
+
+    def test_processing_engines_are_not_exposed_in_public_reader_api(self):
+        for reader_type in (Reader, StreamReader):
+            parameters = signature(reader_type).parameters
+            assert "engine" not in parameters
+            assert "resampler" not in parameters
+            assert "quality" not in parameters
+
     def test_dtype_conversion_with_custom_filters(self, nb_channels, rate, duration):
         bytes_io = BytesIO()
         ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
@@ -291,7 +380,7 @@ class TestReader:
         assert audio.dtype == np.float32
         assert output_rate == rate
 
-    def test_reader_owns_pyav_processing_graph(self, nb_channels, rate, duration):
+    def test_reader_owns_and_releases_pyav_processing_graph(self, nb_channels, rate, duration):
         bytes_io = BytesIO()
         ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
         save_audio(bytes_io, ndarray, sample_rate=rate, container_format="webm")
@@ -304,7 +393,8 @@ class TestReader:
         )
         frames = list(reader)
 
-        assert reader.graph is not None
+        assert reader._processor._custom_graph
+        assert reader._processor.graph is None
         assert not hasattr(reader.backend, "graph")
         assert frames
         assert all(output_rate == 8000 for _, output_rate in frames)

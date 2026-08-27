@@ -79,5 +79,44 @@ class TestPipe:
 
         pipe.reset()
 
-        assert pipe.graph is None
+        assert pipe._processor is None
         assert pipe.buffered_bytes == 0
+
+    def test_audio_pipe_uses_high_level_speed_and_pitch_controls(self, rate):
+        time = np.arange(rate, dtype=np.float32) / rate
+        tone = (0.5 * np.sin(2 * np.pi * 440 * time)).reshape(1, -1)
+        pipe = AudioPipe(
+            input_sample_rate=rate,
+            speed=1.25,
+            pitch_shift=12,
+            frame_size=256,
+        )
+
+        pipe.push(tone)
+        chunks = list(pipe.pull(partial=True))
+        audio = np.concatenate([chunk for chunk, _ in chunks], axis=1)
+
+        frequencies = np.fft.rfftfreq(audio.shape[1], 1 / rate)
+        dominant_frequency = frequencies[np.argmax(np.abs(np.fft.rfft(audio[0] * np.hanning(audio.shape[1]))))]
+        assert dominant_frequency == pytest.approx(880, abs=2)
+        assert audio.shape[1] / rate == pytest.approx(0.8, abs=0.025)
+
+    def test_soxr_streaming_is_independent_of_input_chunk_boundaries(self, rate):
+        audio = generate_ndarray(2, rate, np.float32)
+
+        whole = AudioPipe(input_sample_rate=rate, output_sample_rate=8000, frame_size=None)
+        whole.push(audio)
+        expected = np.concatenate([chunk for chunk, _ in whole.pull(partial=True)], axis=1)
+
+        chunked = AudioPipe(input_sample_rate=rate, output_sample_rate=8000, frame_size=None)
+        actual_chunks = []
+        for offset in range(0, audio.shape[1], 317):
+            chunked.push(audio[:, offset : offset + 317])
+            actual_chunks.extend(chunk for chunk, _ in chunked.pull())
+        actual_chunks.extend(chunk for chunk, _ in chunked.pull(partial=True))
+        actual = np.concatenate(actual_chunks, axis=1)
+
+        assert whole._processor.graph is None
+        assert chunked._processor.graph is None
+        assert actual.shape == expected.shape
+        assert np.allclose(actual, expected, atol=1e-6)
