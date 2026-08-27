@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 from av.filter import filters_available
@@ -40,3 +42,24 @@ class TestFilter:
 
         assert aformat(to_mono=False)[2] == {}
         assert aformat(to_mono=True)[2] == {"channel_layouts": "mono"}
+
+    def test_filter_without_option_introspection(self, monkeypatch):
+        class Filter:
+            def __init__(self, name):
+                self.name = name
+                self.description = "test filter"
+
+        monkeypatch.setattr(
+            filter,
+            "filter",
+            SimpleNamespace(filters_available={"test"}, Filter=Filter),
+        )
+
+        manager = filter.FilterManager()
+        manager._generate_filter_data()
+
+        assert manager._filter_data["test"] == {
+            "name": "test",
+            "description": "test filter",
+            "options": [],
+        }

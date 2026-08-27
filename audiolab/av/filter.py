@@ -15,9 +15,18 @@
 from typing import Any, Callable, Dict, List
 
 from av import filter
-from av.option import OptionType
 
 from audiolab.av.utils import get_template
+
+# The undertested ``av.option`` and ``av.descriptor`` APIs, together with the
+# related ``Filter`` descriptor accessor (``Filter.options``), were removed in
+# PyAV 17.1.0. Fall back to an empty option list when the accessor is gone; the
+# rendered docstring still points users to ``ffmpeg -h filter=<name>`` for the
+# full option list, so no information is lost.
+try:
+    from av.option import OptionType
+except ImportError:
+    OptionType = None
 
 """
 $ ffmpeg -filters
@@ -33,12 +42,13 @@ class FilterManager:
         for name in filter.filters_available:
             options = []
             _filter = filter.Filter(name)
-            if _filter.options is not None:
-                for opt in _filter.options:
+            filter_options = getattr(_filter, "options", None)
+            if filter_options is not None:
+                for opt in filter_options:
                     try:
                         opt_type = opt.type
                     except ValueError:
-                        opt_type = OptionType.STRING
+                        opt_type = OptionType.STRING if OptionType is not None else "string"
                     options.append(
                         {
                             "name": opt.name,
@@ -47,7 +57,11 @@ class FilterManager:
                             "help": opt.help if opt.name != "temp" else "set temperature °C",
                         }
                     )
-            self._filter_data[name] = {"name": _filter.name, "description": _filter.description, "options": options}
+            self._filter_data[name] = {
+                "name": _filter.name,
+                "description": _filter.description,
+                "options": options,
+            }
 
     def _create_filter_function(self, name: str):
         def filter_func(args=None, **kwargs):

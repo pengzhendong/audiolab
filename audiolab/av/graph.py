@@ -27,7 +27,7 @@ from audiolab.av.layout import standard_channel_layouts
 from audiolab.av.typing import UINT32_MAX, AudioFormat, AudioFrame, AudioLayout, Filter
 
 
-class Graph(filter.Graph):
+class Graph:
     def __init__(
         self,
         template: Optional[av.AudioStream] = None,
@@ -42,6 +42,10 @@ class Graph(filter.Graph):
         frame_size: Optional[int] = None,
         return_ndarray: bool = True,
     ):
+        # PyAV 17.1.0 made ``av.filter.graph.Graph`` a non-subclassable Cython
+        # type, so we compose instead of subclassing it.
+        self._graph = filter.Graph()
+
         if template is not None:
             rate = template.sample_rate if rate is None else rate
             format = template.format if format is None else format
@@ -53,7 +57,7 @@ class Graph(filter.Graph):
         time_base = Fraction(1, rate) if time_base is None else time_base
         if layout is None:
             layout = standard_channel_layouts[channels][0]
-        abuffer = super().add_abuffer(None, rate, format, layout, channels, time_base=time_base)
+        abuffer = self._graph.add_abuffer(None, rate, format, layout, channels, time_base=time_base)
 
         nodes = [abuffer]
         if filters is not None:
@@ -63,14 +67,15 @@ class Graph(filter.Graph):
                     if isinstance(_filter, str)
                     else ((*_filter, {}) if len(_filter) == 2 else _filter)
                 )
-                nodes.append(super().add(name, args, **kwargs))
-        nodes.append(super().add("abuffersink"))
-        super().link_nodes(*nodes).configure()
+                nodes.append(self._graph.add(name, args, **kwargs))
+        nodes.append(self._graph.add("abuffersink"))
+        self._graph.link_nodes(*nodes)
+        self._graph.configure()
 
         self.frame_size = None
         if frame_size is not None and frame_size > 0:
             self.frame_size = min(frame_size, UINT32_MAX)
-            super().set_audio_frame_size(self.frame_size)
+            self._graph.set_audio_frame_size(self.frame_size)
 
         self.rate = rate
         self.format = format
@@ -83,14 +88,14 @@ class Graph(filter.Graph):
             assert rate == self.rate
         if isinstance(frame, np.ndarray):
             frame = from_ndarray(frame, self.format, self.layout, self.rate)
-        super().push(frame)
+        self._graph.push(frame)
 
     def pull(self, partial: bool = False, return_ndarray: Optional[bool] = None) -> AudioFrame:
         if partial:
-            super().push(None)
+            self._graph.push(None)
         while True:
             try:
-                frame = super().pull()
+                frame = self._graph.pull()
                 if return_ndarray is None:
                     return_ndarray = self.return_ndarray
                 yield (to_ndarray(frame), frame.rate) if return_ndarray else frame
