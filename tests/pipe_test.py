@@ -46,3 +46,13 @@ class TestPipe:
                         frames.append(frame)
                 audio = np.concatenate(frames, axis=1 if always_2d else 0)
                 assert np.isclose(audio.shape[1 if always_2d else 0] / rate * ratio, num_samples / rate, atol=0.05)
+
+    def test_filters_are_only_added_when_requested(self, rate):
+        pipe = AudioPipe(in_rate=rate)
+        assert pipe.filters is None
+
+        filters = [atempo(1.1)]
+        pipe = AudioPipe(in_rate=rate, filters=filters, out_rate=8000)
+
+        assert len(filters) == 1
+        assert len(pipe.filters) == 2

@@ -19,7 +19,8 @@ import pytest
 
 from audiolab.av.filter import aresample, atempo
 from audiolab.av.utils import generate_ndarray
-from audiolab.reader import Reader, aformat, load_audio
+from audiolab.reader import Reader, StreamReader, aformat, load_audio
+from audiolab.reader.reader import URL_REQUEST_TIMEOUT, _iter_audio_chunks
 from audiolab.writer import save_audio
 
 
@@ -51,46 +52,112 @@ class TestReader:
             assert reader.rate == rate
 
     def test_load_audio(self, nb_channels, rate, duration):
+        input_rate = rate
         for always_2d in (True, False):
             for offset in (0.0, 0.1, 0.2):
                 for _duration in (None, 0.1, 0.2, 0.3):
                     bytes_io = BytesIO()
-                    ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16, always_2d)
-                    save_audio(bytes_io, ndarray, rate=rate)
+                    ndarray = generate_ndarray(nb_channels, int(input_rate * duration), np.int16, always_2d)
+                    save_audio(bytes_io, ndarray, rate=input_rate)
 
                     if _duration is None:
                         _duration = duration - offset
                     _duration = min(_duration, duration - offset)
 
-                    audio, rate = load_audio(bytes_io, offset=offset, duration=_duration, always_2d=always_2d)
+                    audio, output_rate = load_audio(bytes_io, offset=offset, duration=_duration, always_2d=always_2d)
                     assert audio.dtype == np.int16
                     if always_2d:
-                        assert audio.shape == (nb_channels, int(rate * _duration))
-                        ndarray = ndarray[:, int(offset * rate) : int((offset + _duration) * rate)]
+                        assert audio.shape == (nb_channels, int(input_rate * _duration))
+                        ndarray = ndarray[:, int(offset * input_rate) : int((offset + _duration) * input_rate)]
                     else:
                         assert audio.ndim == 1
-                        assert audio.shape[0] == int(rate * _duration)
-                        ndarray = ndarray[int(offset * rate) : int((offset + _duration) * rate)]
-                    assert rate == rate
+                        assert audio.shape[0] == int(input_rate * _duration)
+                        ndarray = ndarray[int(offset * input_rate) : int((offset + _duration) * input_rate)]
+                    assert output_rate == input_rate
                     assert np.allclose(ndarray, audio)
 
     def test_load_audio_with_filters(self, nb_channels, rate, duration):
+        input_rate = rate
         for ratio in (0.9, 1.1):
             bytes_io = BytesIO()
-            ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
-            save_audio(bytes_io, ndarray, rate=rate)
+            ndarray = generate_ndarray(nb_channels, int(input_rate * duration), np.int16)
+            save_audio(bytes_io, ndarray, rate=input_rate)
 
-            audio, rate = load_audio(bytes_io, filters=[atempo(ratio), aresample(8000)])
+            audio, output_rate = load_audio(bytes_io, filters=[atempo(ratio), aresample(8000)])
             assert audio.dtype == np.int16
             assert audio.shape[0] == nb_channels
-            assert rate == 8000
-            assert np.isclose(audio.shape[1] / rate, duration / ratio, atol=0.05)
+            assert output_rate == 8000
+            assert np.isclose(audio.shape[1] / output_rate, duration / ratio, atol=0.05)
 
         bytes_io = BytesIO()
-        ndarray = generate_ndarray(2, int(rate * duration), np.int16)
-        save_audio(bytes_io, ndarray, rate=rate)
+        ndarray = generate_ndarray(2, int(input_rate * duration), np.int16)
+        save_audio(bytes_io, ndarray, rate=input_rate)
 
-        audio, rate = load_audio(bytes_io, filters=[aformat(dtype=np.float32, rate=8000, to_mono=True)])
+        audio, output_rate = load_audio(bytes_io, filters=[aformat(dtype=np.float32, rate=8000, to_mono=True)])
         assert audio.dtype == np.float32
-        assert audio.shape == (1, int(rate * duration))
-        assert rate == 8000
+        assert audio.shape == (1, int(output_rate * duration))
+        assert output_rate == 8000
+
+    def test_filter_inputs_are_not_mutated(self, nb_channels, rate, duration):
+        bytes_io = BytesIO()
+        ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
+        save_audio(bytes_io, ndarray, rate=rate)
+        filters = [atempo(1.1)]
+
+        reader = Reader(bytes_io, filters=filters, rate=8000)
+
+        assert len(filters) == 1
+        assert len(reader.filters) == 2
+        reader.close()
+
+        assert StreamReader().filters is None
+        stream_reader = StreamReader(filters=filters, rate=8000)
+        assert len(filters) == 1
+        assert len(stream_reader.filters) == 2
+
+    def test_audio_chunking_uses_the_sample_axis(self):
+        frame = np.arange(22, dtype=np.int16).reshape(2, 11)
+
+        chunks = list(_iter_audio_chunks(frame, max_bytes=24))
+
+        assert [chunk.shape[1] for chunk in chunks] == [4, 4, 3]
+        assert np.array_equal(np.concatenate(chunks, axis=1), frame)
+
+    def test_url_redirects_have_a_timeout(self, monkeypatch, nb_channels, rate, duration):
+        bytes_io = BytesIO()
+        ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
+        save_audio(bytes_io, ndarray, rate=rate)
+        calls = []
+
+        class Response:
+            url = "https://cdn.example.com/audio.wav"
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return None
+
+        def head(url, **kwargs):
+            calls.append(("head", url, kwargs))
+            return Response()
+
+        def load_url(url, cache):
+            calls.append(("load", url, cache))
+            return BytesIO(bytes_io.getvalue())
+
+        reader_module = __import__("audiolab.reader.reader", fromlist=["reader"])
+        monkeypatch.setattr(reader_module.requests, "head", head)
+        monkeypatch.setattr(reader_module, "load_url", load_url)
+
+        reader = Reader("https://example.com/audio.wav")
+
+        assert calls == [
+            (
+                "head",
+                "https://example.com/audio.wav",
+                {"allow_redirects": True, "timeout": URL_REQUEST_TIMEOUT},
+            ),
+            ("load", "https://cdn.example.com/audio.wav", False),
+        ]
+        reader.close()

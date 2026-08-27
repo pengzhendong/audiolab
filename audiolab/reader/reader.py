@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import requests
 from functools import cached_property, partial
 from io import BytesIO
 from typing import Any, Iterator, List, Optional
 
+import requests
 from numpy.typing import DTypeLike
 
 from audiolab.av import aformat, load_url
@@ -25,6 +25,16 @@ from audiolab.av.graph import Graph
 from audiolab.av.typing import UINT32_MAX, AudioFrame, Filter, Seconds
 from audiolab.reader.backend import pyav, soundfile
 from audiolab.reader.info import Info
+
+URL_REQUEST_TIMEOUT = 10
+MAX_FILTER_CHUNK_BYTES = 256 * 1024 * 1024
+
+
+def _iter_audio_chunks(frame, max_bytes: int = MAX_FILTER_CHUNK_BYTES):
+    bytes_per_sample = frame.shape[0] * frame.dtype.itemsize
+    max_length = max(1, min(frame.shape[1], max_bytes // bytes_per_sample - 2))
+    for offset in range(0, frame.shape[1], max_length):
+        yield frame[:, offset : offset + max_length]
 
 
 class Reader(Info):
@@ -63,16 +73,15 @@ class Reader(Info):
         if isinstance(file, bytes):
             file = BytesIO(file)
         elif isinstance(file, str) and "://" in file:
-            response = requests.head(file, allow_redirects=False)
-            if response.status_code in [301, 302, 303, 307, 308]:
-                file = response.headers.get("Location")
+            with requests.head(file, allow_redirects=True, timeout=URL_REQUEST_TIMEOUT) as response:
+                file = response.url
             if cache_url:
                 file = load_url(file, cache=True)
             elif offset == 0 and duration is None:
                 file = load_url(file, cache=False)
 
         super().__init__(file, frame_size, backends=backends)
-        self.filters = [] if filters is None else filters
+        self.filters = [] if filters is None else list(filters)
         if not self.is_passthrough(dtype, rate, to_mono):
             self.filters.append(aformat(dtype, rate=rate, to_mono=to_mono))
         elif isinstance(self.backend, soundfile):
@@ -116,10 +125,7 @@ class Reader(Info):
                     frame = pad(frame, self.frame_size, self.fill_value)
                 yield frame if self.always_2d else frame.squeeze(), rate
             else:
-                # 256 MB = 256 * 1024 * 1024 = 268435456 Bytes
-                max_length = min(frame.shape[1], int((268435456 / frame.shape[0]) // frame.dtype.itemsize - 2))
-                for i in range(0, frame.shape[0], max_length):
-                    chunk = frame[:, i : i + max_length]
+                for chunk in _iter_audio_chunks(frame):
                     self.graph.push(chunk)
                     yield from self.pull()
         if self.graph is not None:

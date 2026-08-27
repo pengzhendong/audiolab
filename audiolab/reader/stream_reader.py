@@ -51,8 +51,9 @@ class StreamReader:
         self._graph = None
         self.bytes_io = BytesIO()
         self.bytes_per_decode_attempt = 0
-        if not all([dtype is None, format is None, rate is None, to_mono is None]):
-            filters = filters or []
+        filters = None if filters is None else list(filters)
+        if dtype is not None or format is not None or rate is not None or to_mono:
+            filters = [] if filters is None else filters
             filters.append(aformat(dtype, is_planar, format, rate, to_mono))
         self.filters = filters
         self.frame_size = frame_size

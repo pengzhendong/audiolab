@@ -38,8 +38,9 @@ class AudioPipe:
     ):
         self.in_rate = in_rate
         self.graph = None
-        if not all([dtype is None, format is None, out_rate is None, to_mono is None]):
-            filters = filters or []
+        filters = None if filters is None else list(filters)
+        if dtype is not None or format is not None or out_rate is not None or to_mono:
+            filters = [] if filters is None else filters
             filters.append(aformat(dtype, is_planar, format, out_rate, to_mono))
         self.filters = filters
         self.frame_size = frame_size
