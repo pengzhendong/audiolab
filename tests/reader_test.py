@@ -149,6 +149,36 @@ class TestReader:
 
         assert np.array_equal(decoded, expected)
 
+    def test_stream_reader_restarts_archive_decode_after_finalization_race(self, monkeypatch):
+        reader = StreamReader()
+        reader.push(b"encoded")
+
+        class FinishingThread:
+            alive = True
+
+            def is_alive(self):
+                return self.alive
+
+            def join(self):
+                self.alive = False
+                reader._state.awaiting_archive = True
+
+        decode_calls = 0
+
+        def complete_archive_decode(state):
+            nonlocal decode_calls
+            decode_calls += 1
+            state.awaiting_archive = False
+            state.source.worker_done()
+
+        reader._thread = FinishingThread()
+        monkeypatch.setattr(StreamReader, "_decode", staticmethod(complete_archive_decode))
+
+        list(reader.pull(partial=True))
+
+        assert decode_calls == 1
+        reader.close()
+
     def test_stream_reader_rejects_input_after_decoder_failure(self, monkeypatch):
         stream_reader_module = __import__("audiolab.reader.stream_reader", fromlist=["stream_reader"])
         monkeypatch.setattr(

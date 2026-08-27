@@ -303,7 +303,11 @@ class StreamReader:
         self._start_decoder()
         if partial:
             self._finalized = True
-            self._thread.join()
+            while self._thread is not None:
+                self._thread.join()
+                if not self._state.awaiting_archive or self._state.failed:
+                    break
+                self._start_decoder()
         else:
             self._state.source.wait_until_processed(target)
 
@@ -324,6 +328,7 @@ class StreamReader:
         decode_error: BaseException | None = None
         try:
             if state.awaiting_archive:
+                state.awaiting_archive = False
                 archive = state.source.seekable_archive()
                 if archive is None:
                     raise RuntimeError("Seekable stream archive is unavailable")
@@ -332,7 +337,6 @@ class StreamReader:
                 except expected_errors as error:
                     state.failed = True
                     StreamReader._store_error(state, error)
-                state.awaiting_archive = False
                 return
 
             try:
@@ -358,6 +362,9 @@ class StreamReader:
                     state,
                     decode_error or RuntimeError("Decoder stopped before the stream was finalized"),
                 )
+            elif state.output_count == 0 and decode_error is not None:
+                state.failed = True
+                StreamReader._store_error(state, decode_error)
         except BaseException as error:
             state.failed = True
             StreamReader._store_error(state, error)
