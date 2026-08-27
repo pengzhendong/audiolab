@@ -325,9 +325,13 @@ class StreamReader:
         try:
             if state.awaiting_archive:
                 archive = state.source.seekable_archive()
-                if archive is not None:
-                    with contextlib.suppress(*expected_errors):
-                        StreamReader._decode_source(state, archive)
+                if archive is None:
+                    raise RuntimeError("Seekable stream archive is unavailable")
+                try:
+                    StreamReader._decode_source(state, archive)
+                except expected_errors as error:
+                    state.failed = True
+                    StreamReader._store_error(state, error)
                 state.awaiting_archive = False
                 return
 
