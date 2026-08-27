@@ -92,9 +92,7 @@ class Reader(Info):
 
         self.graph = None
         if len(self.filters) > 0:
-            if isinstance(self.backend, pyav):
-                self.backend.output_filters = self.filters
-            else:
+            if not isinstance(self.backend, pyav):
                 self.graph = Graph(
                     rate=self.rate,
                     dtype=self.dtype,
@@ -120,10 +118,12 @@ class Reader(Info):
 
     def __iter__(self) -> Iterator[AudioFrame]:
         for frame in self.backend.load_audio(self.offset, self._duration):
-            if self.graph is None:
+            if isinstance(self.backend, pyav):
+                self._ensure_graph(frame)
+                self.graph.push(frame)
+                yield from self.pull()
+            elif self.graph is None:
                 rate = self.rate
-                if isinstance(self.backend, pyav):
-                    frame, rate = frame
                 if self.fill_value is not None:
                     frame = pad(frame, self.frame_size, self.fill_value)
                 yield frame if self.always_2d else frame.squeeze(), rate
@@ -133,6 +133,19 @@ class Reader(Info):
                     yield from self.pull()
         if self.graph is not None:
             yield from self.pull(partial=True)
+
+    def _ensure_graph(self, frame):
+        if self.graph is not None:
+            return
+        self.graph = Graph(
+            rate=frame.rate,
+            format=frame.format,
+            layout=frame.layout.name,
+            channels=frame.layout.nb_channels,
+            time_base=frame.time_base,
+            filters=self.filters,
+            frame_size=self.frame_size,
+        )
 
     def is_passthrough(
         self, dtype: Optional[DTypeLike] = None, rate: Optional[int] = None, to_mono: bool = False

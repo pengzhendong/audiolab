@@ -119,6 +119,39 @@ class TestReader:
         assert audio.dtype == np.float32
         assert output_rate == rate
 
+    def test_reader_owns_pyav_processing_graph(self, nb_channels, rate, duration):
+        bytes_io = BytesIO()
+        ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
+        save_audio(bytes_io, ndarray, rate=rate, format="webm")
+
+        reader = Reader(
+            bytes_io,
+            filters=[aresample(8000)],
+            frame_size=1024,
+            backends=["pyav"],
+        )
+        frames = list(reader)
+
+        assert reader.graph is not None
+        assert not hasattr(reader.backend, "graph")
+        assert frames
+        assert all(output_rate == 8000 for _, output_rate in frames)
+        reader.close()
+
+    def test_pyav_offset_and_duration_are_preserved(self, nb_channels, rate, duration):
+        bytes_io = BytesIO()
+        ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
+        save_audio(bytes_io, ndarray, rate=rate, format="webm")
+
+        audio, output_rate = load_audio(
+            bytes_io,
+            offset=0.1,
+            duration=0.2,
+            backends=["pyav"],
+        )
+
+        assert np.isclose(audio.shape[1] / output_rate, 0.2, atol=1 / output_rate)
+
     def test_filter_inputs_are_not_mutated(self, nb_channels, rate, duration):
         bytes_io = BytesIO()
         ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)

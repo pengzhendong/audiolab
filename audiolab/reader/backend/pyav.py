@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from functools import cached_property
-from typing import Any, Iterator, List, Optional
+from typing import Any, Iterator, Optional
 
 import av
 from av import time_base
@@ -23,8 +23,7 @@ from av.format import Flags
 
 from audiolab.av import split_audio_frame
 from audiolab.av.format import get_dtype
-from audiolab.av.graph import Graph
-from audiolab.av.typing import UINT32_MAX, AudioFormat, AudioFrame, Filter, Seconds
+from audiolab.av.typing import UINT32_MAX, AudioFrame, Seconds
 from audiolab.reader.backend.backend import Backend
 
 
@@ -34,8 +33,6 @@ class PyAV(Backend):
         self.container = av.open(file, metadata_errors="ignore")
         self.stream = self.container.streams.audio[0]
         self.dtype = get_dtype(self.stream.format)
-        self.graph = None
-        self.output_filters: Optional[List[Filter]] = None
 
     def close(self):
         container = self.container
@@ -43,8 +40,6 @@ class PyAV(Backend):
             return
         self.container = None
         self.stream = None
-        self.graph = None
-        self.output_filters = None
         try:
             container.close()
         except Exception:
@@ -133,19 +128,6 @@ class PyAV(Backend):
         byte_seek = Flags.no_byte_seek not in flags
         return generic_index or seek_to_pts or byte_seek
 
-    def build_graph(self, format: AudioFormat, filters: Optional[List[Filter]] = None):
-        if self.graph is None:
-            filters = self.output_filters if filters is None else filters
-            self.dtype = get_dtype(format)
-            self.graph = Graph(
-                rate=self.sample_rate,
-                dtype=self.dtype,
-                is_planar=self.is_planar,
-                channels=self.num_channels,
-                filters=filters,
-                frame_size=self.frame_size,
-            )
-
     def load_audio(self, offset: Seconds = 0, duration: Optional[Seconds] = None) -> Iterator[AudioFrame]:
         offset = int(offset / self.stream.time_base)
         self.seek(offset)
@@ -154,15 +136,11 @@ class PyAV(Backend):
             frame = self.read()
             if frame is None:
                 break
-            self.build_graph(frame.format)
             frame = self.split_frame(frame, offset, frames)
             if frame is None:
                 continue
             frames -= frame.samples
-            self.graph.push(frame)
-            yield from self.graph.pull()
-        if self.graph is not None:
-            yield from self.graph.pull(partial=True)
+            yield frame
 
     def read(self) -> Optional[AudioFrame]:
         try:
