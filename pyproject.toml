@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "audiolab"
 authors = [{ name = "Zhendong Peng", email = "pzd17@tsinghua.org.cn" }]
-description = "AudioLab"
+description = "Streaming audio I/O and high-level processing for NumPy"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
@@ -13,8 +13,16 @@ requires-python = ">=3.10"
 dynamic = ["version"]
 classifiers = [
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Operating System :: OS Independent",
+  "Topic :: Multimedia :: Sound/Audio",
+  "Typing :: Typed",
 ]
+keywords = ["audio", "numpy", "resampling", "streaming"]
 dependencies = [
   "av>=17.0.0",
   "click",
@@ -26,6 +34,9 @@ dependencies = [
   "soxr>=1.0.0",
 ]
 
+[project.optional-dependencies]
+dev = ["build", "pytest", "pytest-cov", "ruff", "twine"]
+
 [project.scripts]
 audi = "audiolab.cli:main"
 
@@ -33,6 +44,7 @@ audi = "audiolab.cli:main"
 Homepage = "https://github.com/pengzhendong/audiolab"
 Documentation = "https://github.com/pengzhendong/audiolab#readme"
 BugTracker = "https://github.com/pengzhendong/audiolab/issues"
+Changelog = "https://github.com/pengzhendong/audiolab/blob/master/CHANGELOG.md"
 
 [tool.ruff]
 line-length = 120
@@ -49,4 +61,4 @@ select = ["B", "C4", "E4", "E7", "E9", "F", "I", "PIE", "RUF", "SIM", "UP"]
 version = { file = "VERSION" }
 
 [tool.setuptools.package-data]
-audiolab = ["av/templates/*"]
+audiolab = ["av/templates/*", "py.typed"]

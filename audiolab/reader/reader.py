@@ -37,6 +37,13 @@ def _iter_audio_chunks(audio: np.ndarray, max_bytes: int = MAX_FILTER_CHUNK_BYTE
 
 
 class Reader(Info):
+    """Incrementally decode an available audio source into NumPy chunks.
+
+    ``Reader`` accepts paths, URLs, encoded bytes, and binary file-like objects.
+    Use it as a context manager when decoded audio should be processed without
+    loading the complete signal into memory.
+    """
+
     def __init__(
         self,
         source: Any,

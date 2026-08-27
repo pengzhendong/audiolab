@@ -25,10 +25,11 @@ from numpy.typing import DTypeLike
 from audiolab.av.filter import asetrate, atempo
 from audiolab.av.frame import clip, to_ndarray
 from audiolab.av.graph import Graph
-from audiolab.av.processing import build_filter_chain
+from audiolab.av.processing import aformat, build_filter_chain
 from audiolab.av.typing import AudioFormatLike, AudioLayoutLike, DecodedChunk, FilterSpec, GraphInput
 
 _SOXR_DTYPES = {np.dtype(dtype) for dtype in (np.int16, np.int32, np.float32, np.float64)}
+_MAX_ATEMPO_STAGES = 32
 
 
 def validate_transforms(speed: float, pitch_shift: float) -> None:
@@ -36,6 +37,18 @@ def validate_transforms(speed: float, pitch_shift: float) -> None:
         raise ValueError("speed must be a positive finite number")
     if not math.isfinite(pitch_shift):
         raise ValueError("pitch_shift must be finite")
+    pitch_ratio = _pitch_ratio(pitch_shift)
+    _atempo_filters(speed / pitch_ratio)
+
+
+def _pitch_ratio(pitch_shift: float) -> float:
+    try:
+        ratio = math.exp2(pitch_shift / 12)
+    except OverflowError:
+        raise ValueError("pitch_shift is outside the supported range") from None
+    if not math.isfinite(ratio) or ratio <= 0:
+        raise ValueError("pitch_shift is outside the supported range")
+    return ratio
 
 
 def build_graph_filters(
@@ -52,7 +65,7 @@ def build_graph_filters(
 ) -> list[FilterSpec]:
     """Build the compatibility path used when callers request custom FFmpeg filters."""
     chain = list(filters)
-    pitch_ratio = 2 ** (pitch_shift / 12)
+    pitch_ratio = _pitch_ratio(pitch_shift)
     if not math.isclose(pitch_ratio, 1.0):
         chain.append(asetrate(input_sample_rate * pitch_ratio))
     chain.extend(_atempo_filters(speed / pitch_ratio))
@@ -81,11 +94,17 @@ def build_graph_filters(
 
 def _atempo_filters(factor: float) -> list[FilterSpec]:
     """Keep every stage in FFmpeg's high-quality 0.5x-2x tempo range."""
+    if not math.isfinite(factor) or factor <= 0:
+        raise ValueError("speed and pitch_shift require an unsupported tempo ratio")
     filters = []
     while factor > 2:
+        if len(filters) == _MAX_ATEMPO_STAGES:
+            raise ValueError("speed and pitch_shift require too many tempo stages")
         filters.append(atempo(2))
         factor /= 2
     while factor < 0.5:
+        if len(filters) == _MAX_ATEMPO_STAGES:
+            raise ValueError("speed and pitch_shift require too many tempo stages")
         filters.append(atempo(0.5))
         factor /= 0.5
     if not math.isclose(factor, 1.0):
@@ -99,6 +118,7 @@ class _FrameBuffer:
         self._chunks: deque[np.ndarray] = deque()
         self._offset = 0
         self._samples = 0
+        self._retained_bytes = 0
 
     def push(self, audio: np.ndarray) -> Iterator[np.ndarray]:
         if audio.shape[1] == 0:
@@ -108,6 +128,7 @@ class _FrameBuffer:
             return
         self._chunks.append(audio)
         self._samples += audio.shape[1]
+        self._retained_bytes += audio.nbytes
         while self._samples >= self.frame_size:
             yield self._take(self.frame_size)
 
@@ -121,6 +142,7 @@ class _FrameBuffer:
         if self._offset == 0 and available == samples:
             self._chunks.popleft()
             self._samples -= samples
+            self._retained_bytes -= first.nbytes
             return first
 
         output = np.empty((first.shape[0], samples), dtype=first.dtype)
@@ -133,6 +155,7 @@ class _FrameBuffer:
             self._offset += count
             if self._offset == chunk.shape[1]:
                 self._chunks.popleft()
+                self._retained_bytes -= chunk.nbytes
                 self._offset = 0
         self._samples -= samples
         return output
@@ -141,6 +164,11 @@ class _FrameBuffer:
         self._chunks.clear()
         self._offset = 0
         self._samples = 0
+        self._retained_bytes = 0
+
+    @property
+    def buffered_bytes(self) -> int:
+        return self._retained_bytes
 
 
 class AudioProcessor:
@@ -176,6 +204,7 @@ class AudioProcessor:
         self._finalized = False
         self._frame_buffer = _FrameBuffer(frame_size)
         self._outputs: deque[np.ndarray] = deque()
+        self._output_bytes = 0
 
         self.graph = None
         self._custom_graph = bool(filters)
@@ -198,15 +227,24 @@ class AudioProcessor:
         if to_mono or self._processing_dtype not in _SOXR_DTYPES:
             self._processing_dtype = np.dtype(np.float32)
 
-        pitch_ratio = 2 ** (pitch_shift / 12)
+        pitch_ratio = _pitch_ratio(pitch_shift)
         tempo_factor = speed / pitch_ratio
-        tempo_filters = _atempo_filters(tempo_factor)
-        if tempo_filters:
+        processing_filters = []
+        self._direct_mono_mix = to_mono and channels <= 2
+        graph_input_channels = self.output_channels
+        graph_input_layout = None
+        if to_mono and not self._direct_mono_mix:
+            processing_filters.append(aformat(to_mono=True))
+            graph_input_channels = channels
+            graph_input_layout = input_layout
+        processing_filters.extend(_atempo_filters(tempo_factor))
+        if processing_filters:
             self.graph = Graph(
                 sample_rate=input_sample_rate,
                 dtype=self._processing_dtype,
-                channels=self.output_channels,
-                filters=tempo_filters,
+                layout=graph_input_layout,
+                channels=graph_input_channels,
+                filters=processing_filters,
             )
 
         resample_rate = self.output_sample_rate / pitch_ratio
@@ -270,13 +308,15 @@ class AudioProcessor:
                 self._resampler.clear()
                 self._resampler = None
             for chunk in self._frame_buffer.flush():
-                self._outputs.append(chunk)
+                self._append_output(chunk)
 
         while self._outputs:
-            yield self._outputs.popleft(), self.output_sample_rate
+            chunk = self._outputs.popleft()
+            self._output_bytes -= chunk.nbytes
+            yield chunk, self.output_sample_rate
 
     def _prepare_audio(self, audio: np.ndarray) -> np.ndarray:
-        if self.to_mono:
+        if self._direct_mono_mix:
             audio = clip(audio, np.float32).mean(axis=0, dtype=np.float32, keepdims=True)
         elif audio.dtype != self._processing_dtype:
             audio = clip(audio, self._processing_dtype)
@@ -290,7 +330,16 @@ class AudioProcessor:
     def _queue_processed(self, audio: np.ndarray) -> None:
         if audio.dtype != self.output_dtype:
             audio = clip(audio, self.output_dtype)
-        self._outputs.extend(self._frame_buffer.push(audio))
+        for chunk in self._frame_buffer.push(audio):
+            self._append_output(chunk)
+
+    def _append_output(self, audio: np.ndarray) -> None:
+        self._outputs.append(audio)
+        self._output_bytes += audio.nbytes
+
+    @property
+    def buffered_bytes(self) -> int:
+        return self._frame_buffer.buffered_bytes + self._output_bytes
 
     def close(self) -> None:
         self.graph = None
@@ -299,4 +348,5 @@ class AudioProcessor:
         self._resampler = None
         self._frame_buffer.clear()
         self._outputs.clear()
+        self._output_bytes = 0
         self._finalized = True

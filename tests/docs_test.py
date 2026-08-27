@@ -17,7 +17,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
-MARKDOWN_FILES = [ROOT / "README.md", *sorted((ROOT / "docs").glob("*.md"))]
+MARKDOWN_FILES = [*sorted(ROOT.glob("*.md")), *sorted((ROOT / "docs").glob("*.md"))]
 
 
 def test_python_documentation_examples_are_valid_syntax():

@@ -23,6 +23,8 @@ from audiolab.writer.backend import pyav, soundfile
 
 
 class Writer:
+    """Incrementally write channels-first NumPy PCM chunks."""
+
     def __init__(
         self,
         destination: Any,

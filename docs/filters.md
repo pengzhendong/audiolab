@@ -138,6 +138,14 @@ For specialized integrations, a specification may also be written as a filter na
 - Call `pull()` regularly after `push()` so processed chunks do not remain buffered.
 - Call `pull(partial=True)` exactly once at end of input to flush delayed samples.
 
+Unusable extreme speed and pitch combinations are rejected before decoding begins. This prevents enormous internal filter chains and backend-specific overflow errors.
+
+For reproducible local comparisons of the optimized and advanced paths, run:
+
+```bash
+python benchmarks/processing.py
+```
+
 See the [streaming guide](streaming.md) for complete incremental examples.
 
 [Back to README](../README.md)

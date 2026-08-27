@@ -18,21 +18,27 @@ import numpy as np
 from numpy.typing import DTypeLike
 
 from audiolab._processor import AudioProcessor, build_graph_filters, validate_transforms
-from audiolab.av.format import get_dtype
 from audiolab.av.frame import pad
-from audiolab.av.typing import AudioFormatLike, FilterSpec
+from audiolab.av.typing import FilterSpec
 
 DEFAULT_MAX_BUFFERED_BYTES = 32 * 1024 * 1024
 
 
 class AudioPipe:
+    """Incrementally transform channels-first NumPy PCM chunks.
+
+    Push consecutive input chunks with :meth:`push`, drain available output
+    with :meth:`pull`, and call ``pull(partial=True)`` exactly once at end of
+    input. Resampling, channel mixing, dtype conversion, speed, and pitch are
+    selected through high-level arguments; custom filters remain an advanced
+    opt-in path.
+    """
+
     def __init__(
         self,
         input_sample_rate: int,
         filters: list[FilterSpec] | None = None,
         dtype: DTypeLike | None = None,
-        is_planar: bool = False,
-        sample_format: AudioFormatLike | None = None,
         output_sample_rate: int | None = None,
         to_mono: bool = False,
         speed: float = 1.0,
@@ -46,6 +52,8 @@ class AudioPipe:
             raise ValueError("input_sample_rate must be positive")
         if output_sample_rate is not None and output_sample_rate <= 0:
             raise ValueError("output_sample_rate must be positive")
+        if frame_size is not None and frame_size <= 0:
+            raise ValueError("frame_size must be positive")
         if fill_value is not None and frame_size is None:
             raise ValueError("frame_size is required when fill_value is set")
         if max_buffered_bytes is not None and max_buffered_bytes <= 0:
@@ -60,12 +68,12 @@ class AudioPipe:
                 speed=speed,
                 pitch_shift=pitch_shift,
                 dtype=dtype,
-                is_planar=is_planar,
-                sample_format=sample_format,
+                is_planar=False,
+                sample_format=None,
                 output_sample_rate=output_sample_rate,
                 to_mono=to_mono,
             )
-        self.dtype = get_dtype(sample_format) if sample_format is not None and not filters else dtype
+        self.dtype = dtype
         self.output_sample_rate = output_sample_rate
         self.to_mono = to_mono
         self.speed = speed
@@ -82,8 +90,12 @@ class AudioPipe:
     def push(self, audio: np.ndarray) -> None:
         if self._finalized or self._closed:
             raise RuntimeError("Cannot push audio after the pipe has been finalized or closed")
-        audio = np.atleast_2d(audio)
-        buffered_bytes = self._buffered_bytes + audio.nbytes
+        audio = np.asarray(audio)
+        if audio.ndim == 1:
+            audio = audio[np.newaxis, :]
+        elif audio.ndim != 2 or audio.shape[0] == 0:
+            raise ValueError("audio must have shape (samples,) or (channels, samples)")
+        buffered_bytes = self.buffered_bytes + audio.nbytes
         if self.max_buffered_bytes is not None and buffered_bytes > self.max_buffered_bytes:
             raise BufferError("AudioPipe buffer limit exceeded; call pull() before pushing more audio")
         if self._processor is None:
@@ -114,12 +126,13 @@ class AudioPipe:
             completed = True
         finally:
             if completed:
-                self._buffered_bytes = 0
+                self._buffered_bytes = self._processor.buffered_bytes
                 self._finalized = partial
 
     @property
     def buffered_bytes(self) -> int:
-        return self._buffered_bytes
+        processor_bytes = 0 if self._processor is None else self._processor.buffered_bytes
+        return max(self._buffered_bytes, processor_bytes)
 
     def close(self) -> None:
         if self._processor is not None:

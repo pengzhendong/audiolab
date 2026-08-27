@@ -15,6 +15,8 @@
 from __future__ import annotations
 
 from base64 import b64encode
+from importlib.metadata import PackageNotFoundError as _PackageNotFoundError
+from importlib.metadata import version as _distribution_version
 from io import BytesIO
 from pathlib import Path
 
@@ -32,6 +34,11 @@ from audiolab.av import (
 from audiolab.pipe import AudioPipe
 from audiolab.reader import Reader, StreamReader, info, load_audio
 from audiolab.writer import Writer, save_audio
+
+try:
+    __version__ = _distribution_version("audiolab")
+except _PackageNotFoundError:
+    __version__ = "0+unknown"
 
 
 def encode(
@@ -78,6 +85,7 @@ __all__ = [
     "Reader",
     "StreamReader",
     "Writer",
+    "__version__",
     "encode",
     "from_ndarray",
     "get_dtype",

@@ -1,6 +1,7 @@
 # audiolab
 
 [![PyPI](https://img.shields.io/pypi/v/audiolab)](https://pypi.org/project/audiolab/)
+[![Tests](https://github.com/pengzhendong/audiolab/actions/workflows/tests.yml/badge.svg)](https://github.com/pengzhendong/audiolab/actions/workflows/tests.yml)
 [![License](https://img.shields.io/github/license/pengzhendong/audiolab)](https://github.com/pengzhendong/audiolab/blob/master/LICENSE)
 
 `audiolab` is a compact Python toolkit for loading, transforming, streaming, inspecting, and saving audio. It accepts local files, URLs, encoded bytes, and file-like objects, and returns NumPy arrays with a consistent channels-first layout.
@@ -217,6 +218,18 @@ audi --help               # Show every option
 | `encode(audio, ...)` | Encode audio as a base64 data string or raw PCM base64 |
 
 Low-level frame, format, and advanced filter helpers remain available under `audiolab.av` for specialized integrations; ordinary applications should prefer the high-level interfaces above.
+
+Breaking changes and upgrade examples are tracked in the [changelog](https://github.com/pengzhendong/audiolab/blob/master/CHANGELOG.md) and [migration guide](https://github.com/pengzhendong/audiolab/blob/master/docs/migration.md).
+
+## Development
+
+```bash
+python -m pip install -e ".[dev]"
+python -m pytest -q --cov=audiolab --cov-fail-under=85
+ruff check .
+ruff format --check .
+python benchmarks/processing.py
+```
 
 ## License
 

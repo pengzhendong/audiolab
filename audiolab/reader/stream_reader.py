@@ -26,7 +26,7 @@ from audiolab._processor import AudioProcessor, build_graph_filters, validate_tr
 from audiolab.av import build_filter_chain
 from audiolab.av.format import get_dtype
 from audiolab.av.graph import Graph
-from audiolab.av.typing import AudioFormatLike, DecodedChunk, FilterSpec
+from audiolab.av.typing import DecodedChunk, FilterSpec
 
 
 class _StreamingInput:
@@ -165,8 +165,6 @@ class _StreamingInput:
 class _ProcessorConfig:
     filters: list[FilterSpec] | None
     dtype: DTypeLike | None
-    is_planar: bool
-    sample_format: AudioFormatLike | None
     sample_rate: int | None
     to_mono: bool
     speed: float
@@ -191,15 +189,15 @@ class StreamReader:
 
     The decoder stays alive across calls, so encoded bytes are consumed once and
     released as soon as FFmpeg has read them. Call ``pull(partial=True)`` once
-    when no more bytes will be pushed.
+    when no more bytes will be pushed. Common output transforms are configured
+    with dtype, sample rate, channel, speed, and pitch arguments; callers never
+    need to select a processing engine or an FFmpeg sample format.
     """
 
     def __init__(
         self,
         filters: list[FilterSpec] | None = None,
         dtype: DTypeLike | None = None,
-        is_planar: bool = False,
-        sample_format: AudioFormatLike | None = None,
         sample_rate: int | None = None,
         to_mono: bool = False,
         speed: float = 1.0,
@@ -217,8 +215,8 @@ class StreamReader:
             build_filter_chain(
                 raw_filters,
                 dtype=dtype,
-                is_planar=is_planar,
-                sample_format=sample_format,
+                is_planar=False,
+                sample_format=None,
                 sample_rate=sample_rate,
                 to_mono=to_mono,
             )
@@ -229,8 +227,6 @@ class StreamReader:
         self._config = _ProcessorConfig(
             raw_filters,
             dtype,
-            is_planar,
-            sample_format,
             sample_rate,
             to_mono,
             speed,
@@ -355,13 +351,11 @@ class StreamReader:
                     speed=config.speed,
                     pitch_shift=config.pitch_shift,
                     dtype=config.dtype,
-                    is_planar=config.is_planar,
-                    sample_format=config.sample_format,
+                    is_planar=False,
+                    sample_format=None,
                     output_sample_rate=config.sample_rate,
                     to_mono=config.to_mono,
                 )
-            elif config.sample_format is not None:
-                output_dtype = get_dtype(config.sample_format)
             processor = AudioProcessor(
                 input_sample_rate=stream.sample_rate,
                 input_dtype=get_dtype(stream.format),

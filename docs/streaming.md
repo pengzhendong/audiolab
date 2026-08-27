@@ -107,7 +107,7 @@ for audio, sample_rate in pipe.pull(partial=True):
 pipe.close()
 ```
 
-`AudioPipe` has a bounded input accounting limit by default. If `push()` raises `BufferError`, pull the available output before pushing more data. You can inspect the current value through `buffered_bytes` and configure the limit with `max_buffered_bytes`.
+`AudioPipe` has a bounded buffering limit by default. If `push()` raises `BufferError`, pull the available output before pushing more data. `buffered_bytes` includes unpulled input accounting and Python-owned PCM retained while waiting for a complete frame; small native DSP delay buffers are not included. Configure the limit with `max_buffered_bytes`.
 
 ## Finalization and ownership
 

@@ -14,6 +14,7 @@
 
 import subprocess
 import sys
+from importlib.resources import files
 
 
 def test_top_level_import_defers_catalogs_and_remote_transports():
@@ -36,3 +37,10 @@ def test_low_level_processing_types_are_not_top_level_api():
     assert not hasattr(audiolab, "Graph")
     assert not hasattr(audiolab, "aformat")
     assert not hasattr(audiolab.reader, "Graph")
+
+
+def test_package_declares_inline_type_information():
+    import audiolab
+
+    assert files("audiolab").joinpath("py.typed").is_file()
+    assert audiolab.__version__

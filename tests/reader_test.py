@@ -363,12 +363,42 @@ class TestReader:
         with pytest.raises(ValueError, match=name):
             Reader(BytesIO(), **{name: value})
 
+    @pytest.mark.parametrize(("name", "value"), [("speed", 1e100), ("pitch_shift", 20_000)])
+    def test_high_level_transforms_reject_unusable_extremes(self, name, value):
+        with pytest.raises(ValueError, match=name):
+            StreamReader(**{name: value})
+
     def test_processing_engines_are_not_exposed_in_public_reader_api(self):
         for reader_type in (Reader, StreamReader):
             parameters = signature(reader_type).parameters
             assert "engine" not in parameters
             assert "resampler" not in parameters
             assert "quality" not in parameters
+        stream_parameters = signature(StreamReader).parameters
+        assert "is_planar" not in stream_parameters
+        assert "sample_format" not in stream_parameters
+
+    def test_load_audio_has_an_explicit_keyword_api(self):
+        parameters = signature(load_audio).parameters
+
+        assert list(parameters) == [
+            "source",
+            "offset",
+            "duration",
+            "filters",
+            "dtype",
+            "sample_rate",
+            "to_mono",
+            "speed",
+            "pitch_shift",
+            "frame_size",
+            "read_size",
+            "cache_url",
+            "always_2d",
+            "fill_value",
+            "backends",
+        ]
+        assert all(parameter.kind is parameter.KEYWORD_ONLY for parameter in list(parameters.values())[1:])
 
     def test_dtype_conversion_with_custom_filters(self, nb_channels, rate, duration):
         bytes_io = BytesIO()

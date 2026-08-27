@@ -27,6 +27,7 @@ def save_audio(
     dtype: DTypeLike | None = None,
     container_format: str = "WAV",
 ) -> None:
+    """Write a complete channels-first NumPy audio array to a destination."""
     with Writer(destination, sample_rate, dtype, container_format) as writer:
         writer.write(audio)
 

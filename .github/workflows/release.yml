@@ -1,25 +1,69 @@
-name: Create Release
+name: Publish to PyPI
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Build version (e.g. 0.0.1)"
+        description: "PEP 440 release version, for example 0.6.0"
         required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pypi-release
+  cancel-in-progress: false
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Publish
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install release tools
+        run: python -m pip install --upgrade build packaging pytest pytest-cov ruff setuptools twine wheel
+      - name: Validate and set build version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF_NAME" != "master" ]]; then
+            echo "Releases must be dispatched from master" >&2
+            exit 1
+          fi
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          from packaging.version import InvalidVersion, Version
+
+          value = os.environ["RELEASE_VERSION"]
+          try:
+              parsed = Version(value)
+          except InvalidVersion as error:
+              raise SystemExit(f"Invalid release version: {value}") from error
+          if str(parsed) != value or parsed.is_devrelease or parsed.local is not None:
+              raise SystemExit(f"Release version must be canonical: {parsed}")
+          Path("VERSION").write_text(f"{value}\n")
+          PY
+      - name: Install package
+        run: python -m pip install .
+      - name: Verify source
+        run: |
+          ruff check .
+          ruff format --check --diff .
+          python -m pytest -q --cov=audiolab --cov-report=term-missing --cov-fail-under=85
+      - name: Build distributions
+        run: python -m build
+      - name: Verify distributions
+        run: python -m twine check dist/*
+      - name: Publish distributions
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: |
-          echo ${{ inputs.version }} > VERSION
-          python -m venv .venv
-          source .venv/bin/activate
-          python -m pip install -U build setuptools twine wheel
-          python -m build
-          python -m twine upload dist/*
+        run: python -m twine upload dist/*

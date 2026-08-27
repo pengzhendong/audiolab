@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from inspect import signature
+
 import numpy as np
 import pytest
 
-from audiolab.av.filter import atempo
+from audiolab.av.filter import anull, atempo
 from audiolab.av.utils import generate_ndarray
 from audiolab.pipe import AudioPipe
 
@@ -25,6 +27,17 @@ class TestPipe:
         pipe = AudioPipe(input_sample_rate=16_000)
 
         assert list(pipe.pull()) == []
+
+    def test_audio_pipe_rejects_non_positive_frame_size(self):
+        with pytest.raises(ValueError, match="frame_size must be positive"):
+            AudioPipe(input_sample_rate=16_000, frame_size=0)
+
+    @pytest.mark.parametrize("audio", [np.array(0), np.zeros((1, 2, 3)), np.zeros((0, 8))])
+    def test_audio_pipe_rejects_invalid_pcm_shapes(self, audio):
+        pipe = AudioPipe(input_sample_rate=16_000)
+
+        with pytest.raises(ValueError, match="audio must have shape"):
+            pipe.push(audio)
 
     @pytest.fixture
     def nb_channels(self):
@@ -73,6 +86,20 @@ class TestPipe:
         list(pipe.pull())
         pipe.push(chunk)
 
+    def test_audio_pipe_reports_retained_frame_buffer_bytes(self, rate):
+        pipe = AudioPipe(input_sample_rate=rate, frame_size=100, max_buffered_bytes=16)
+        chunk = np.zeros((1, 4), dtype=np.float32)
+
+        pipe.push(chunk)
+        assert list(pipe.pull()) == []
+        assert pipe.buffered_bytes == chunk.nbytes
+
+        with pytest.raises(BufferError, match="pull"):
+            pipe.push(np.zeros((1, 1), dtype=np.float32))
+
+        list(pipe.pull(partial=True))
+        assert pipe.buffered_bytes == 0
+
     def test_audio_pipe_reset_releases_buffered_graph(self, rate):
         pipe = AudioPipe(input_sample_rate=rate)
         pipe.push(np.zeros((1, 8), dtype=np.int16))
@@ -101,6 +128,21 @@ class TestPipe:
         assert dominant_frequency == pytest.approx(880, abs=2)
         assert audio.shape[1] / rate == pytest.approx(0.8, abs=0.025)
 
+    def test_multichannel_mono_conversion_uses_layout_aware_weights(self, rate):
+        audio = np.zeros((6, 1024), dtype=np.float32)
+        for channel, amplitude in enumerate((0.1, 0.2, 0.3, 0.4, 0.5, 0.6)):
+            audio[channel] = amplitude
+
+        automatic = AudioPipe(input_sample_rate=rate, to_mono=True, frame_size=None)
+        automatic.push(audio)
+        actual = np.concatenate([chunk for chunk, _ in automatic.pull(partial=True)], axis=1)
+
+        reference = AudioPipe(input_sample_rate=rate, filters=[anull()], to_mono=True, frame_size=None)
+        reference.push(audio)
+        expected = np.concatenate([chunk for chunk, _ in reference.pull(partial=True)], axis=1)
+
+        assert np.allclose(actual, expected, atol=1e-6)
+
     def test_soxr_streaming_is_independent_of_input_chunk_boundaries(self, rate):
         audio = generate_ndarray(2, rate, np.float32)
 
@@ -120,3 +162,9 @@ class TestPipe:
         assert chunked._processor.graph is None
         assert actual.shape == expected.shape
         assert np.allclose(actual, expected, atol=1e-6)
+
+    def test_low_level_formats_are_not_exposed_in_public_api(self):
+        parameters = signature(AudioPipe).parameters
+
+        assert "is_planar" not in parameters
+        assert "sample_format" not in parameters
