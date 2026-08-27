@@ -48,17 +48,36 @@ def load_audio(source: Any, **kwargs) -> tuple[np.ndarray, int]:
     chunks = []
     output_rate = None
     with Reader(source, **kwargs) as reader:
+        output = _allocate_eager_output(reader, kwargs)
+        write_position = 0
         try:
             for chunk, chunk_rate in reader:
                 if output_rate is not None and output_rate != chunk_rate:
                     raise RuntimeError("Audio sample rate changed while decoding")
                 output_rate = chunk_rate
-                chunks.append(chunk)
+                chunk_length = chunk.shape[-1]
+                if output is not None and write_position + chunk_length <= output.shape[-1]:
+                    output[..., write_position : write_position + chunk_length] = chunk
+                    write_position += chunk_length
+                else:
+                    if output is not None:
+                        chunks.append(output[..., :write_position])
+                        output = None
+                    chunks.append(chunk)
         except LibsndfileError as error:
             if str(error) != "Internal psf_fseek() failed.":
                 raise
 
+        if output is not None and write_position > 0:
+            if output_rate is None:
+                raise RuntimeError("Decoded audio did not provide a sample rate")
+            if write_position == output.shape[-1]:
+                return output, output_rate
+            return output[..., :write_position].copy(), output_rate
+
         if not chunks:
+            if output is not None and output.shape[-1] == 0:
+                return output, kwargs.get("sample_rate") or reader.sample_rate
             always_2d = kwargs.get("always_2d", True)
             shape = (0, 0) if always_2d else (0,)
             return np.empty(shape, dtype=reader.dtype), kwargs.get("sample_rate") or reader.sample_rate
@@ -66,7 +85,32 @@ def load_audio(source: Any, **kwargs) -> tuple[np.ndarray, int]:
     axis = 1 if chunks[0].ndim == 2 else 0
     if output_rate is None:
         raise RuntimeError("Decoded audio did not provide a sample rate")
+    if len(chunks) == 1:
+        return chunks[0], output_rate
     return np.concatenate(chunks, axis=axis), output_rate
+
+
+def _allocate_eager_output(reader: Reader, kwargs: dict) -> np.ndarray | None:
+    """Preallocate predictable PCM output so eager loading does not retain every chunk."""
+    backend = getattr(reader, "backend", None)
+    num_frames = getattr(reader, "num_frames", None)
+    if backend is None or kwargs.get("filters") or num_frames is None:
+        return None
+
+    source_rate = reader.sample_rate
+    offset_frames = min(int(kwargs.get("offset", 0.0) * source_rate), num_frames)
+    num_frames -= offset_frames
+    duration = kwargs.get("duration")
+    if duration is not None:
+        num_frames = min(num_frames, int(duration * source_rate))
+    output_rate = kwargs.get("sample_rate") or source_rate
+    num_frames = round(num_frames * output_rate / source_rate)
+
+    num_channels = 1 if kwargs.get("to_mono") else reader.num_channels
+    always_2d = kwargs.get("always_2d", True)
+    shape = (num_channels, num_frames) if always_2d or num_channels > 1 else (num_frames,)
+    dtype = np.dtype(kwargs.get("dtype") or reader.dtype)
+    return np.empty(shape, dtype=dtype)
 
 
 __all__ = ["Graph", "Reader", "StreamReader", "aformat", "load_audio"]

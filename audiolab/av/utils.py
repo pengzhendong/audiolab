@@ -20,6 +20,7 @@ from jinja2 import Environment, PackageLoader, Template
 from numpy.random import randint, uniform
 
 loader = PackageLoader("audiolab.av", "templates")
+environment = Environment(loader=loader)
 
 
 def generate_ndarray(num_channels: int, samples: int, dtype: np.dtype, always_2d: bool = True) -> np.ndarray:
@@ -31,7 +32,7 @@ def generate_ndarray(num_channels: int, samples: int, dtype: np.dtype, always_2d
 
 
 def get_template(name: str) -> Template:
-    return Environment(loader=loader).get_template(f"{name}.txt")
+    return environment.get_template(f"{name}.txt")
 
 
 def get_logger(name, level=logging.INFO):

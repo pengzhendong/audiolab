@@ -13,31 +13,58 @@
 # limitations under the License.
 
 from io import BytesIO
+from shutil import copyfileobj
+from tempfile import SpooledTemporaryFile
 from typing import Any
 from urllib.parse import urlsplit
-
-import requests
-from smart_open import open as smart_open
 
 from audiolab.av.typing import Seconds
 from audiolab.reader.cache import AudioCache
 
 URL_REQUEST_TIMEOUT = 10
+URL_SPOOL_MAX_BYTES = 8 * 1024 * 1024
+URL_COPY_CHUNK_BYTES = 1024 * 1024
 
 
-def load_url(url: str, cache: bool = False) -> BytesIO:
+def _http_get(url: str):
+    import requests
+
+    return requests.get(url, allow_redirects=True, timeout=URL_REQUEST_TIMEOUT, stream=True)
+
+
+def _open_remote(url: str):
+    from smart_open import open as smart_open
+
+    return smart_open(url, "rb")
+
+
+def load_url(url: str, cache: bool = False):
     audio_bytes = AudioCache.get(url) if cache else None
-    if audio_bytes is None:
+    if audio_bytes is not None:
+        return BytesIO(audio_bytes)
+
+    destination = SpooledTemporaryFile(max_size=URL_SPOOL_MAX_BYTES, mode="w+b")  # noqa: SIM115
+    try:
         if urlsplit(url).scheme in {"http", "https"}:
-            with requests.get(url, allow_redirects=True, timeout=URL_REQUEST_TIMEOUT) as response:
+            with _http_get(url) as response:
                 response.raise_for_status()
-                audio_bytes = response.content
+                for chunk in response.iter_content(chunk_size=URL_COPY_CHUNK_BYTES):
+                    if chunk:
+                        destination.write(chunk)
         else:
-            with smart_open(url, "rb") as source:
-                audio_bytes = source.read()
-        if cache:
-            AudioCache.put(url, audio_bytes)
-    return BytesIO(audio_bytes)
+            with _open_remote(url) as source:
+                copyfileobj(source, destination, length=URL_COPY_CHUNK_BYTES)
+        destination.seek(0)
+        if not cache:
+            return destination
+
+        audio_bytes = destination.read()
+        AudioCache.put(url, audio_bytes)
+        destination.close()
+        return BytesIO(audio_bytes)
+    except BaseException:
+        destination.close()
+        raise
 
 
 def prepare_source(
@@ -52,6 +79,11 @@ def prepare_source(
     if not isinstance(source, str) or "://" not in source:
         return source
 
-    if cache_url or (offset == 0 and duration is None):
+    scheme = urlsplit(source).scheme
+    if cache_url:
         return load_url(source, cache=cache_url)
+    if scheme in {"http", "https"} or offset != 0 or duration is not None:
+        return source
+    if scheme:
+        return load_url(source)
     return source

@@ -19,8 +19,9 @@ from typing import ClassVar
 class AudioCache:
     """Thread-safe, insertion-ordered cache for encoded audio bytes."""
 
-    max_bytes = 500_000_000
-    max_entries = 100
+    max_bytes = 128 * 1024 * 1024
+    max_entry_bytes = 16 * 1024 * 1024
+    max_entries = 64
 
     _entries: ClassVar[dict[str, bytes]] = {}
     _size_bytes = 0
@@ -29,11 +30,14 @@ class AudioCache:
     @classmethod
     def get(cls, key: str) -> bytes | None:
         with cls._lock:
-            return cls._entries.get(key)
+            value = cls._entries.pop(key, None)
+            if value is not None:
+                cls._entries[key] = value
+            return value
 
     @classmethod
     def put(cls, key: str, value: bytes) -> None:
-        if len(value) > cls.max_bytes:
+        if len(value) > min(cls.max_bytes, cls.max_entry_bytes):
             return
 
         with cls._lock:

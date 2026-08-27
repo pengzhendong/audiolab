@@ -38,11 +38,14 @@ def clip(audio: np.ndarray, dtype: DTypeLike) -> np.ndarray:
         return audio
 
     if source_dtype.kind == "f":
-        converted = np.clip(audio, -1.0, 1.0).astype(np.float64, copy=False)
+        converted = np.clip(audio, -1.0, 1.0)
+        if target_dtype.kind == "f":
+            return converted.astype(target_dtype, copy=False)
         source_weight = 1.0
         source_bias = 0.0
     else:
-        converted = audio.astype(np.float64)
+        work_dtype = target_dtype if target_dtype.kind == "f" else np.dtype(np.float64)
+        converted = audio.astype(work_dtype)
         if source_dtype.kind == "u":
             source_weight = 2.0 / _integer_scale(source_dtype)
             source_bias = -1.0

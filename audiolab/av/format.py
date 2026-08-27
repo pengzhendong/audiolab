@@ -23,7 +23,6 @@ from av.codec.codec import UnknownCodecError
 from numpy.typing import DTypeLike
 
 from audiolab.av import typing
-from audiolab.av.utils import get_template
 
 """
 $ ffmpeg -sample_fmts
@@ -48,21 +47,29 @@ AudioFormat = typing.AudioFormatEnum("AudioFormat", audio_formats)
 
 
 @cache
-def get_codecs(sample_format: typing.AudioFormatLike, mode: Literal["r", "w"] = "r") -> set[str]:
-    codecs = set()
-    if isinstance(sample_format, av.AudioFormat):
-        sample_format = sample_format.name
-    for codec in codecs_available:
+def _codec_formats(mode: Literal["r", "w"]) -> dict[str, set[str]]:
+    supported_codecs = {name: set() for name in audio_formats}
+    for codec_name in codecs_available:
         try:
-            codec = Codec(codec, mode)
+            codec = Codec(codec_name, mode)
             formats = codec.audio_formats
             if codec.type != "audio" or formats is None:
                 continue
-            if sample_format in {supported_format.name for supported_format in formats}:
-                codecs.add(codec.name)
+            for supported_format in formats:
+                if supported_format.name in supported_codecs:
+                    supported_codecs[supported_format.name].add(codec.name)
         except UnknownCodecError:
             pass
-    return codecs
+    return supported_codecs
+
+
+def get_codecs(sample_format: typing.AudioFormatLike, mode: Literal["r", "w"] = "r") -> set[str]:
+    if isinstance(sample_format, av.AudioFormat):
+        sample_format = sample_format.name
+    try:
+        return set(_codec_formats(mode)[sample_format])
+    except KeyError:
+        raise ValueError(f"Unsupported audio sample format: {sample_format!r}") from None
 
 
 @cache
@@ -102,13 +109,3 @@ def get_format(
         return audio_formats[dtype]
     except KeyError:
         raise ValueError(f"Unsupported audio sample format: {dtype!r}") from None
-
-
-template = get_template("format")
-for name, sample_format in audio_formats.items():
-    decoders = get_codecs(name, "r")
-    encoders = get_codecs(name, "w")
-    dtype = get_dtype(name)
-    getattr(AudioFormat, name).__doc__ = template.render(
-        format=sample_format, decoders=decoders, encoders=encoders, dtype=dtype
-    )

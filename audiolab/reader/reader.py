@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from collections.abc import Iterator
-from functools import cached_property
 from typing import Any
 
 import numpy as np
@@ -27,7 +26,8 @@ from audiolab.reader.backend import pyav, soundfile
 from audiolab.reader.info import Info
 from audiolab.reader.source import prepare_source
 
-MAX_FILTER_CHUNK_BYTES = 256 * 1024 * 1024
+DEFAULT_READ_FRAMES = 65_536
+MAX_FILTER_CHUNK_BYTES = 8 * 1024 * 1024
 
 
 def _iter_audio_chunks(audio: np.ndarray, max_bytes: int = MAX_FILTER_CHUNK_BYTES) -> Iterator[np.ndarray]:
@@ -48,6 +48,7 @@ class Reader(Info):
         sample_rate: int | None = None,
         to_mono: bool = False,
         frame_size: int | None = None,
+        read_size: int = DEFAULT_READ_FRAMES,
         cache_url: bool = False,
         always_2d: bool = True,
         fill_value: float | None = None,
@@ -65,6 +66,7 @@ class Reader(Info):
             sample_rate: The target sample rate of the decoded audio.
             to_mono: Whether to convert the audio frames to mono.
             frame_size: The frame size of the audio frames.
+            read_size: Maximum number of source frames read into memory at once.
             cache_url: Whether to cache the audio file.
             always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
             fill_value: The fill value to pad the audio to the frame size.
@@ -72,12 +74,23 @@ class Reader(Info):
         """
         if frame_size is not None and frame_size <= 0:
             raise ValueError("frame_size must be positive")
+        if read_size <= 0:
+            raise ValueError("read_size must be positive")
         if sample_rate is not None and sample_rate <= 0:
             raise ValueError("sample_rate must be positive")
         if fill_value is not None and frame_size is None:
             raise ValueError("frame_size is required when fill_value is set")
+        original_source = source
         source = prepare_source(source, offset=offset, duration=duration, cache_url=cache_url)
-        super().__init__(source, frame_size, backends=backends)
+        self._owned_source = source if source is not original_source and hasattr(source, "close") else None
+        self.frame_size = frame_size
+        try:
+            super().__init__(source, frame_size or read_size, backends=backends)
+        except BaseException:
+            if self._owned_source is not None:
+                self._owned_source.close()
+                self._owned_source = None
+            raise
         needs_format_filter = self._needs_format_filter(
             dtype,
             sample_rate,
@@ -113,14 +126,14 @@ class Reader(Info):
         self.fill_value = fill_value
 
     def close(self):
-        if self.backend is None:
-            return
+        owned_source = self._owned_source
+        self._owned_source = None
         self.graph = None
-        super().close()
-
-    @cached_property
-    def frame_size(self) -> int:
-        return self.backend.frame_size
+        try:
+            super().close()
+        finally:
+            if owned_source is not None:
+                owned_source.close()
 
     def __iter__(self) -> Iterator[DecodedChunk]:
         for audio in self.backend.load_audio(self.offset, self._duration):

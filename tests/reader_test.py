@@ -20,8 +20,8 @@ import pytest
 from audiolab.av.filter import aresample, atempo
 from audiolab.av.utils import generate_ndarray
 from audiolab.reader import Reader, StreamReader, aformat, load_audio
-from audiolab.reader.reader import _iter_audio_chunks
-from audiolab.reader.source import URL_REQUEST_TIMEOUT
+from audiolab.reader.reader import DEFAULT_READ_FRAMES, _iter_audio_chunks
+from audiolab.reader.source import URL_COPY_CHUNK_BYTES, URL_REQUEST_TIMEOUT
 from audiolab.writer import save_audio
 
 
@@ -83,6 +83,79 @@ class TestReader:
         with pytest.raises(RuntimeError, match="finalized"):
             reader.push(b"more")
 
+    def test_stream_reader_keeps_one_decoder_and_releases_consumed_input(
+        self, monkeypatch, nb_channels, rate, duration
+    ):
+        source = BytesIO()
+        expected = generate_ndarray(nb_channels, int(rate * duration), np.int16)
+        save_audio(source, expected, sample_rate=rate)
+        encoded = source.getvalue()
+        stream_reader_module = __import__("audiolab.reader.stream_reader", fromlist=["stream_reader"])
+        original_open = stream_reader_module.av.open
+        open_calls = 0
+
+        def counted_open(*args, **kwargs):
+            nonlocal open_calls
+            open_calls += 1
+            return original_open(*args, **kwargs)
+
+        monkeypatch.setattr(stream_reader_module.av, "open", counted_open)
+        reader = StreamReader(frame_size=256)
+        chunks = []
+        for offset in range(0, len(encoded), 500):
+            reader.push(encoded[offset : offset + 500])
+            chunks.extend(reader.pull())
+            assert reader.buffered_bytes <= 500
+        chunks.extend(reader.pull(partial=True))
+
+        decoded = np.concatenate([audio for audio, _ in chunks], axis=1)
+        assert np.array_equal(decoded, expected)
+        assert open_calls == 1
+        assert reader.buffered_bytes == 0
+
+    def test_stream_reader_falls_back_to_disk_for_seekable_containers(self, rate):
+        source = BytesIO()
+        expected = generate_ndarray(1, rate, np.int16)
+        save_audio(source, expected, sample_rate=rate, container_format="mp4")
+        encoded = source.getvalue()
+        reader = StreamReader(frame_size=256)
+        chunks = []
+
+        for offset in range(0, len(encoded), 500):
+            reader.push(encoded[offset : offset + 500])
+            chunks.extend(reader.pull())
+        chunks.extend(reader.pull(partial=True))
+
+        decoded = np.concatenate([audio for audio, _ in chunks], axis=1)
+        assert np.array_equal(decoded, expected)
+        assert all(output_rate == rate for _, output_rate in chunks)
+        assert reader.buffered_bytes == 0
+
+    def test_stream_reader_can_drain_after_a_partially_consumed_pull(self, nb_channels, rate, duration):
+        source = BytesIO()
+        expected = generate_ndarray(nb_channels, int(rate * duration), np.int16)
+        save_audio(source, expected, sample_rate=rate)
+        reader = StreamReader(frame_size=256)
+        reader.push(source.getvalue())
+
+        final_pull = reader.pull(partial=True)
+        first = next(final_pull)
+        remaining = list(reader.pull())
+        decoded = np.concatenate([first[0], *(audio for audio, _ in remaining)], axis=1)
+
+        assert np.array_equal(decoded, expected)
+
+    def test_reader_bounds_default_read_size(self, rate):
+        source = BytesIO()
+        expected = generate_ndarray(1, DEFAULT_READ_FRAMES * 2 + 1, np.int16)
+        save_audio(source, expected, sample_rate=rate)
+
+        with Reader(source) as reader:
+            first, output_rate = next(iter(reader))
+
+        assert output_rate == rate
+        assert first.shape == (1, DEFAULT_READ_FRAMES)
+
     def test_reader_frame_size_without_filters(self, nb_channels, rate, duration):
         bytes_io = BytesIO()
         ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
@@ -103,6 +176,33 @@ class TestReader:
 
         assert output_rate == rate
         assert np.array_equal(audio, expected)
+
+    def test_load_audio_does_not_copy_a_single_decoded_chunk(self, monkeypatch):
+        expected = np.arange(12, dtype=np.int16).reshape(1, -1)
+
+        class FakeReader:
+            dtype = expected.dtype
+            sample_rate = 16_000
+
+            def __init__(self, source, **kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return None
+
+            def __iter__(self):
+                yield expected, self.sample_rate
+
+        reader_module = __import__("audiolab.reader", fromlist=["reader"])
+        monkeypatch.setattr(reader_module, "Reader", FakeReader)
+
+        actual, output_rate = reader_module.load_audio("source")
+
+        assert output_rate == FakeReader.sample_rate
+        assert actual is expected
 
     def test_load_audio(self, nb_channels, rate, duration):
         input_rate = rate
@@ -219,7 +319,7 @@ class TestReader:
         assert [chunk.shape[1] for chunk in chunks] == [4, 4, 3]
         assert np.array_equal(np.concatenate(chunks, axis=1), frame)
 
-    def test_url_redirects_have_a_timeout(self, monkeypatch, nb_channels, rate, duration):
+    def test_cached_url_redirects_have_a_timeout(self, monkeypatch, nb_channels, rate, duration):
         bytes_io = BytesIO()
         ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
         save_audio(bytes_io, ndarray, sample_rate=rate)
@@ -237,39 +337,99 @@ class TestReader:
             def raise_for_status(self):
                 return None
 
-            @property
-            def content(self):
-                return bytes_io.getvalue()
+            def iter_content(self, chunk_size):
+                assert chunk_size == URL_COPY_CHUNK_BYTES
+                yield bytes_io.getvalue()
 
         def get(url, **kwargs):
             calls.append(("get", url, kwargs))
             return Response()
 
         source_module = __import__("audiolab.reader.source", fromlist=["source"])
-        monkeypatch.setattr(source_module.requests, "get", get)
+        monkeypatch.setattr(
+            source_module,
+            "_http_get",
+            lambda url: get(
+                url,
+                allow_redirects=True,
+                timeout=URL_REQUEST_TIMEOUT,
+                stream=True,
+            ),
+        )
 
-        reader = Reader("https://example.com/audio.wav")
+        reader = Reader("https://example.com/audio.wav", cache_url=True)
 
         assert calls == [
-            ("get", "https://example.com/audio.wav", {"allow_redirects": True, "timeout": URL_REQUEST_TIMEOUT}),
+            (
+                "get",
+                "https://example.com/audio.wav",
+                {"allow_redirects": True, "timeout": URL_REQUEST_TIMEOUT, "stream": True},
+            ),
         ]
         reader.close()
+
+    def test_http_urls_stream_without_preloading(self, monkeypatch):
+        source_module = __import__("audiolab.reader.source", fromlist=["source"])
+        monkeypatch.setattr(
+            source_module,
+            "load_url",
+            lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("HTTP source was preloaded")),
+        )
+
+        url = "https://example.com/audio.wav"
+
+        assert source_module.prepare_source(url) == url
 
     def test_non_http_urls_use_smart_open(self, monkeypatch):
         calls = []
         source_module = __import__("audiolab.reader.source", fromlist=["source"])
 
-        def smart_open(url, mode):
-            calls.append((url, mode))
+        def remote_open(url):
+            calls.append(url)
             return BytesIO(b"encoded audio")
 
-        def unexpected_request(*args, **kwargs):
-            raise AssertionError("requests must only handle HTTP URLs")
-
-        monkeypatch.setattr(source_module, "smart_open", smart_open)
-        monkeypatch.setattr(source_module.requests, "get", unexpected_request)
+        monkeypatch.setattr(source_module, "_open_remote", remote_open)
 
         loaded = source_module.load_url("s3://bucket/audio.wav")
 
         assert loaded.read() == b"encoded audio"
-        assert calls == [("s3://bucket/audio.wav", "rb")]
+        assert calls == ["s3://bucket/audio.wav"]
+        loaded.close()
+
+    def test_reader_closes_downloaded_source(self, monkeypatch, nb_channels, rate, duration):
+        source = BytesIO()
+        expected = generate_ndarray(nb_channels, int(rate * duration), np.int16)
+        save_audio(source, expected, sample_rate=rate)
+        downloaded = BytesIO(source.getvalue())
+        source_module = __import__("audiolab.reader.source", fromlist=["source"])
+        monkeypatch.setattr(source_module, "load_url", lambda url, cache=False: downloaded)
+
+        reader = Reader("https://example.com/audio.wav", cache_url=True)
+        reader.close()
+
+        assert downloaded.closed
+
+    def test_large_url_payload_spills_to_disk(self, monkeypatch):
+        source_module = __import__("audiolab.reader.source", fromlist=["source"])
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return None
+
+            def raise_for_status(self):
+                return None
+
+            def iter_content(self, chunk_size):
+                yield b"12345678"
+
+        monkeypatch.setattr(source_module, "URL_SPOOL_MAX_BYTES", 4)
+        monkeypatch.setattr(source_module, "_http_get", lambda url: Response())
+
+        loaded = source_module.load_url("https://example.com/large.wav")
+
+        assert loaded._rolled
+        assert loaded.read() == b"12345678"
+        loaded.close()

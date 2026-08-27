@@ -67,6 +67,15 @@ class TestFrame:
         assert np.array_equal(clip(audio, np.int16), [-32768, 0, 32767])
         assert np.array_equal(clip(audio, np.uint8), [0, 127, 255])
 
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64])
+    def test_clip_preserves_float_dtype_when_only_clamping(self, dtype):
+        audio = np.array([-2.0, -0.5, 0.5, 2.0], dtype=dtype)
+
+        converted = clip(audio, dtype)
+
+        assert converted.dtype == dtype
+        assert np.array_equal(converted, [-1.0, -0.5, 0.5, 1.0])
+
     def test_clip_rejects_non_numeric_dtypes(self):
         with pytest.raises(TypeError, match="numeric"):
             clip(np.array([True]), np.float32)

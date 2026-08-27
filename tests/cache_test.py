@@ -28,3 +28,23 @@ class TestAudioCache:
 
         assert AudioCache.get("source") == b"45"
         assert AudioCache.size_bytes() == 2
+
+    def test_reading_an_entry_refreshes_its_eviction_order(self, monkeypatch):
+        monkeypatch.setattr(AudioCache, "max_bytes", 4)
+        AudioCache.put("first", b"12")
+        AudioCache.put("second", b"34")
+
+        assert AudioCache.get("first") == b"12"
+        AudioCache.put("third", b"56")
+
+        assert AudioCache.get("first") == b"12"
+        assert AudioCache.get("second") is None
+        assert AudioCache.get("third") == b"56"
+
+    def test_oversized_entries_are_not_retained(self, monkeypatch):
+        monkeypatch.setattr(AudioCache, "max_entry_bytes", 2)
+
+        AudioCache.put("large", b"123")
+
+        assert AudioCache.get("large") is None
+        assert AudioCache.size_bytes() == 0

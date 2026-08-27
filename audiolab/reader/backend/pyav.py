@@ -16,6 +16,7 @@ import contextlib
 from collections.abc import Iterator
 from functools import cached_property
 from typing import Any
+from urllib.parse import urlsplit
 
 import av
 from av import time_base
@@ -28,11 +29,16 @@ from audiolab.av.format import get_dtype
 from audiolab.av.typing import UINT32_MAX, Seconds
 from audiolab.reader.backend.backend import Backend
 
+NETWORK_TIMEOUT = 10
+
 
 class PyAV(Backend):
     def __init__(self, source: Any, frame_size: int | None = None, forced_decoding: bool = False):
         super().__init__(source, frame_size, forced_decoding)
-        self.container = av.open(source, metadata_errors="ignore")
+        options = {}
+        if isinstance(source, str) and urlsplit(source).scheme in {"http", "https"}:
+            options["timeout"] = NETWORK_TIMEOUT
+        self.container = av.open(source, metadata_errors="ignore", **options)
         self.stream = self.container.streams.audio[0]
         self.dtype = get_dtype(self.stream.format)
 
