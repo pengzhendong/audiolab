@@ -26,6 +26,7 @@ from audiolab.reader import Reader, StreamReader, load_audio
 from audiolab.reader.reader import DEFAULT_READ_FRAMES, _iter_audio_chunks
 from audiolab.reader.source import URL_COPY_CHUNK_BYTES, URL_REQUEST_TIMEOUT
 from audiolab.writer import save_audio
+from audiolab.writer.backend.pyav import PyAV as PyAVWriter
 
 
 class TestReader:
@@ -192,6 +193,57 @@ class TestReader:
         dominant_frequency = frequencies[np.argmax(np.abs(np.fft.rfft(audio[0] * np.hanning(audio.shape[1]))))]
         assert dominant_frequency == pytest.approx(880, abs=2)
         assert audio.shape[1] / rate == pytest.approx(0.8, abs=0.025)
+
+    @pytest.mark.parametrize("container_format", ["wav", "flac", "mp3", "mp4"])
+    @pytest.mark.parametrize(
+        "transforms",
+        [
+            pytest.param({}, id="identity"),
+            pytest.param({"dtype": np.float32}, id="dtype"),
+            pytest.param({"to_mono": True}, id="mono"),
+            pytest.param({"sample_rate": 8000}, id="resample"),
+            pytest.param(
+                {"dtype": np.float32, "sample_rate": 8000, "to_mono": True},
+                id="combined",
+            ),
+        ],
+    )
+    def test_stream_reader_matches_complete_pyav_decode(self, tmp_path, rate, container_format, transforms):
+        samples = rate // 4 + 13
+        time = np.arange(samples, dtype=np.float64) / rate
+        source_audio = np.stack(
+            (
+                np.rint(24_000 * np.sin(2 * np.pi * 437 * time)).astype(np.int16),
+                np.rint(18_000 * np.sin(2 * np.pi * 733 * time + 0.31)).astype(np.int16),
+            )
+        )
+        source = tmp_path / f"source.{container_format}"
+        with PyAVWriter(source, rate, container_format=container_format) as writer:
+            writer.write(source_audio)
+
+        expected, expected_rate = load_audio(source, backends=["pyav"], **transforms)
+        encoded = source.read_bytes()
+        reader = StreamReader(frame_size=257, **transforms)
+        chunks = []
+        chunk_sizes = (257, 1024, 4096, 701)
+        offset = 0
+        index = 0
+        while offset < len(encoded):
+            chunk_size = chunk_sizes[index % len(chunk_sizes)]
+            reader.push(encoded[offset : offset + chunk_size])
+            chunks.extend(reader.pull())
+            offset += chunk_size
+            index += 1
+        chunks.extend(reader.pull(partial=True))
+
+        actual = np.concatenate([chunk for chunk, _ in chunks], axis=1)
+        assert {output_rate for _, output_rate in chunks} == {expected_rate}
+        assert actual.shape == expected.shape
+        if transforms.get("sample_rate") is None:
+            assert np.array_equal(actual, expected)
+        else:
+            tolerance = 2 if np.issubdtype(actual.dtype, np.integer) else 1e-4
+            np.testing.assert_allclose(actual, expected, rtol=0, atol=tolerance)
 
     def test_reader_bounds_default_read_size(self, rate):
         source = BytesIO()

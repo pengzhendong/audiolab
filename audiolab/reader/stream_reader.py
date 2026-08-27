@@ -25,8 +25,21 @@ from numpy.typing import DTypeLike
 from audiolab._processor import AudioProcessor, build_graph_filters, validate_transforms
 from audiolab.av import build_filter_chain
 from audiolab.av.format import get_dtype
+from audiolab.av.frame import split_audio_frame
 from audiolab.av.graph import Graph
 from audiolab.av.typing import DecodedChunk, FilterSpec
+
+
+def _looks_like_mp3(signature: bytes | bytearray) -> bool:
+    if signature[:3] == b"ID3":
+        return True
+    if len(signature) < 3 or signature[0] != 0xFF or signature[1] & 0xE0 != 0xE0:
+        return False
+    version = signature[1] >> 3 & 0x03
+    layer = signature[1] >> 1 & 0x03
+    bit_rate = signature[2] >> 4 & 0x0F
+    sample_rate = signature[2] >> 2 & 0x03
+    return version != 1 and layer != 0 and bit_rate not in (0, 15) and sample_rate != 3
 
 
 class _StreamingInput:
@@ -46,6 +59,7 @@ class _StreamingInput:
         self._signature = bytearray()
         self._signature_checked = False
         self._seekable_archive = None
+        self._trim_to_duration = False
 
     def push(self, data: bytes) -> None:
         with self._condition:
@@ -65,10 +79,13 @@ class _StreamingInput:
         if len(self._signature) < 12:
             return
         self._signature_checked = True
-        if self._signature[4:8] == b"ftyp":
+        is_mp4 = self._signature[4:8] == b"ftyp"
+        is_mp3 = _looks_like_mp3(self._signature)
+        if is_mp4 or is_mp3:
             self._seekable_archive = TemporaryFile(mode="w+b")  # noqa: SIM115
             self._seekable_archive.write(self._signature)
             self._seekable_archive.write(data[needed:])
+            self._trim_to_duration = is_mp3
         self._signature.clear()
 
     def release(self, final: bool = False) -> int:
@@ -138,6 +155,25 @@ class _StreamingInput:
             self._seekable_archive.seek(0)
             return self._seekable_archive
 
+    def expected_audio_samples(self) -> int | None:
+        """Read the finalized archive metadata used to remove codec end padding."""
+        with self._condition:
+            archive = self._seekable_archive
+            if archive is None or not self._finished or not self._trim_to_duration:
+                return None
+            archive.flush()
+            archive.seek(0)
+            try:
+                with av.open(archive, metadata_encoding="latin1") as container:
+                    stream = container.streams.audio[0]
+                    if stream.duration is None:
+                        return None
+                    return round(stream.duration * stream.time_base * stream.sample_rate)
+            except (av.EOFError, av.InvalidDataError, av.OSError, av.PermissionError):
+                return None
+            finally:
+                archive.seek(0, 2)
+
     def close_archive(self) -> None:
         with self._condition:
             archive = self._seekable_archive
@@ -159,6 +195,11 @@ class _StreamingInput:
     def finished(self) -> bool:
         with self._condition:
             return self._finished
+
+    @property
+    def trims_trailing_padding(self) -> bool:
+        with self._condition:
+            return self._trim_to_duration
 
 
 @dataclass(frozen=True)
@@ -373,8 +414,38 @@ class StreamReader:
             )
             state.graph = processor.graph
             try:
+                trim_trailing_padding = source is state.source and state.source.trims_trailing_padding
+                pending_frames = []
+                processed_samples = 0
                 for packet in container.demux(stream):
-                    for audio_frame in packet.decode():
+                    decoded_frames = packet.decode()
+                    if trim_trailing_padding and decoded_frames:
+                        for audio_frame in pending_frames:
+                            processed_samples += audio_frame.samples
+                            processor.push(audio_frame)
+                            StreamReader._queue_chunks(state, processor.pull())
+                        pending_frames = decoded_frames
+                        continue
+                    for audio_frame in decoded_frames:
+                        processor.push(audio_frame)
+                        StreamReader._queue_chunks(state, processor.pull())
+                if trim_trailing_padding:
+                    expected_samples = state.source.expected_audio_samples()
+                    pending_samples = sum(audio_frame.samples for audio_frame in pending_frames)
+                    if expected_samples is None or not (
+                        processed_samples <= expected_samples <= processed_samples + pending_samples
+                    ):
+                        remaining_samples = None
+                    else:
+                        remaining_samples = expected_samples - processed_samples
+                    for audio_frame in pending_frames:
+                        if remaining_samples is not None:
+                            if remaining_samples == 0:
+                                break
+                            audio_frame, _ = split_audio_frame(audio_frame, remaining_samples)
+                            if audio_frame is None:
+                                break
+                            remaining_samples -= audio_frame.samples
                         processor.push(audio_frame)
                         StreamReader._queue_chunks(state, processor.pull())
                 if not state.source.cancelled:
