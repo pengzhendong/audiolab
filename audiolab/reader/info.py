@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from functools import cached_property
-from io import BytesIO
 from typing import Any, List, Optional, Union
 
 import numpy as np
@@ -22,15 +21,7 @@ from humanize import naturalsize
 
 from audiolab.av.typing import Seconds
 from audiolab.av.utils import get_template
-from audiolab.reader.backend import pyav, soundfile, wave
-
-_backends = {
-    "av": pyav,
-    "pyav": pyav,
-    "sf": soundfile,
-    "soundfile": soundfile,
-    "wave": wave,
-}
+from audiolab.reader.backend.registry import open_backend
 
 
 class Info:
@@ -42,30 +33,7 @@ class Info:
         backends: Optional[List[str]] = None,
     ):
         self.file = file
-        self.backend = None
-        if backends is None:
-            backends = ["soundfile", "pyav"]
-
-        for idx, backend in enumerate(backends):
-            pos = file.tell() if isinstance(file, BytesIO) else 0
-            try:
-                backend = _backends.get(backend, pyav)
-                self.backend = backend(file, frame_size, forced_decoding)
-                if self.duration is None and not isinstance(self.backend, pyav):
-                    self.backend.close()
-                    self.backend = None
-                    if isinstance(file, BytesIO):
-                        file.seek(pos)
-                    continue
-                break
-            except Exception as e:
-                if self.backend is not None:
-                    self.backend.close()
-                    self.backend = None
-                if isinstance(file, BytesIO):
-                    file.seek(pos)
-                if idx == len(backends) - 1:
-                    raise e
+        self.backend = open_backend(file, frame_size, forced_decoding, backends)
 
     def close(self):
         backend = self.backend

@@ -20,13 +20,12 @@ from soundfile import LibsndfileError
 from audiolab.av import aformat
 from audiolab.av.graph import Graph
 from audiolab.av.typing import UINT32_MAX, AudioFrame
-from audiolab.reader.backend import Backend
 from audiolab.reader.info import Info
 from audiolab.reader.reader import Reader
 from audiolab.reader.stream_reader import StreamReader
 
 
-def info(file: Any, forced_decoding: bool = False, backends: Optional[List[Backend]] = None) -> Info:
+def info(file: Any, forced_decoding: bool = False, backends: Optional[List[str]] = None) -> Info:
     """
     Get the information of an audio file.
 

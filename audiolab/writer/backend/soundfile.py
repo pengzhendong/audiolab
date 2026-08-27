@@ -56,10 +56,9 @@ class SoundFile(Backend):
 
     def close(self):
         _sf = self.sf
-        if _sf is not None:
-            self.sf = None
-            try:
+        self.sf = None
+        try:
+            if _sf is not None:
                 _sf.close()
-            except Exception:
-                pass
-        super().close()
+        finally:
+            super().close()

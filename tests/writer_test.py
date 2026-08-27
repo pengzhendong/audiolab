@@ -19,7 +19,8 @@ import pytest
 
 from audiolab.av.utils import generate_ndarray
 from audiolab.reader import info
-from audiolab.writer import save_audio
+from audiolab.writer import Writer, save_audio
+from audiolab.writer.backend.pyav import PyAV
 
 
 class TestWriter:
@@ -63,3 +64,39 @@ class TestWriter:
             assert np.isclose(_info.duration, duration + 0.014, atol=0.001)  # Pre-skip / Encoder Delay for opus
             assert _info.precision == 32  # always float32 for opus
             assert _info.rate == 48000  # always 48k for opus
+
+    def test_explicit_close_propagates_backend_errors(self):
+        class Backend:
+            def close(self):
+                raise RuntimeError("close failed")
+
+        writer = object.__new__(Writer)
+        writer.backend = Backend()
+
+        with pytest.raises(RuntimeError, match="close failed"):
+            writer.close()
+        assert writer.backend is None
+
+    def test_pyav_close_propagates_flush_errors_and_closes_container(self):
+        class Stream:
+            def encode(self):
+                raise RuntimeError("flush failed")
+
+        class Container:
+            closed = False
+
+            def close(self):
+                self.closed = True
+
+        container = Container()
+        backend = object.__new__(PyAV)
+        backend.file = BytesIO()
+        backend.container = container
+        backend.stream = Stream()
+
+        with pytest.raises(RuntimeError, match="flush failed"):
+            backend.close()
+        assert backend.container is None
+        assert backend.stream is None
+        assert backend.file is None
+        assert container.closed

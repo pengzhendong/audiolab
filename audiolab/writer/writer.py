@@ -33,10 +33,7 @@ class Writer:
         backend = self.backend
         if backend is not None:
             self.backend = None
-            try:
-                backend.close()
-            except Exception:
-                pass
+            backend.close()
 
     def __enter__(self):
         return self

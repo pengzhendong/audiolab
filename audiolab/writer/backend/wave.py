@@ -49,10 +49,9 @@ class Wave(Backend):
 
     def close(self):
         _wave = self.wave
-        if _wave is not None:
-            self.wave = None
-            try:
+        self.wave = None
+        try:
+            if _wave is not None:
                 _wave.close()
-            except Exception:
-                pass
-        super().close()
+        finally:
+            super().close()

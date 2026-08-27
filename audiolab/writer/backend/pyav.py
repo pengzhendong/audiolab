@@ -78,18 +78,23 @@ class PyAV(Backend):
 
     def close(self):
         container = self.container
-        if container is not None:
-            self.container = None
-            try:
-                if self.stream is not None:
-                    for packet in self.stream.encode():
-                        container.mux(packet)
-            except Exception:
-                pass
-            finally:
-                try:
-                    container.close()
-                except Exception:
-                    pass
+        stream = self.stream
+        self.container = None
         self.stream = None
-        super().close()
+        failure = None
+        try:
+            if container is not None and stream is not None:
+                for packet in stream.encode():
+                    container.mux(packet)
+        except Exception as error:
+            failure = error
+        try:
+            if container is not None:
+                container.close()
+        except Exception as error:
+            if failure is None:
+                failure = error
+        finally:
+            super().close()
+        if failure is not None:
+            raise failure
