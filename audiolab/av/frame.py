@@ -75,6 +75,13 @@ def clip(audio: np.ndarray, dtype: DTypeLike) -> np.ndarray:
     return converted.astype(target_dtype)
 
 
+def squeeze_mono(audio: np.ndarray) -> np.ndarray:
+    """Remove only a singleton channel axis, preserving the sample axis."""
+    if audio.ndim == 2 and audio.shape[0] == 1:
+        return audio[0]
+    return audio
+
+
 def from_ndarray(
     audio: np.ndarray,
     sample_format: AudioFormatLike,

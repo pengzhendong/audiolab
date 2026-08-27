@@ -43,7 +43,7 @@ def validate_transforms(speed: float, pitch_shift: float) -> None:
 
 def _pitch_ratio(pitch_shift: float) -> float:
     try:
-        ratio = math.exp2(pitch_shift / 12)
+        ratio = math.pow(2.0, pitch_shift / 12)
     except OverflowError:
         raise ValueError("pitch_shift is outside the supported range") from None
     if not math.isfinite(ratio) or ratio <= 0:

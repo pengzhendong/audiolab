@@ -19,7 +19,7 @@ import numpy as np
 from numpy.typing import DTypeLike
 
 from audiolab._processor import AudioProcessor, build_graph_filters, validate_transforms
-from audiolab.av.frame import pad
+from audiolab.av.frame import pad, squeeze_mono
 from audiolab.av.typing import DecodedChunk, FilterSpec, Seconds
 from audiolab.reader.backend import pyav, soundfile
 from audiolab.reader.info import Info
@@ -203,4 +203,4 @@ class Reader(Info):
         for audio, sample_rate in self._processor.pull(partial=partial):
             if self.fill_value is not None:
                 audio = pad(audio, self.frame_size, self.fill_value)
-            yield audio if self.always_2d else audio.squeeze(), sample_rate
+            yield audio if self.always_2d else squeeze_mono(audio), sample_rate

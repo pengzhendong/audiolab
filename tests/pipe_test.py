@@ -39,6 +39,14 @@ class TestPipe:
         with pytest.raises(ValueError, match="audio must have shape"):
             pipe.push(audio)
 
+    def test_audio_pipe_preserves_single_sample_axis(self):
+        pipe = AudioPipe(input_sample_rate=16_000, frame_size=1, always_2d=False)
+        pipe.push(np.ones((1, 1), dtype=np.float32))
+
+        chunks = list(pipe.pull(partial=True))
+
+        assert chunks[0][0].shape == (1,)
+
     @pytest.fixture
     def nb_channels(self):
         return 1

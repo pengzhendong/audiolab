@@ -225,6 +225,15 @@ class TestReader:
         assert output_rate == rate
         assert np.array_equal(audio, expected)
 
+    def test_load_audio_preserves_single_sample_axis(self, rate):
+        source = BytesIO()
+        save_audio(source, np.ones((1, 1), dtype=np.int16), sample_rate=rate)
+
+        audio, output_rate = load_audio(source, always_2d=False)
+
+        assert output_rate == rate
+        assert audio.shape == (1,)
+
     def test_load_audio_does_not_copy_a_single_decoded_chunk(self, monkeypatch):
         expected = np.arange(12, dtype=np.int16).reshape(1, -1)
 
