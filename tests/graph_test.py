@@ -28,15 +28,29 @@ class TestGraph:
     def test_push_pull(self, sample_rate):
         duration = 0.5
         frame_size = 1024
-        filters = [aformat(dtype=np.int16, rate=16000)]
+        filters = [aformat(dtype=np.int16, sample_rate=16000)]
         num_samples = int(sample_rate * duration)
-        graph = Graph(rate=sample_rate, dtype=np.float32, layout="mono", filters=filters, frame_size=frame_size)
-        assert graph.rate == sample_rate
+        graph = Graph(
+            sample_rate=sample_rate,
+            dtype=np.float32,
+            layout="mono",
+            filters=filters,
+            frame_size=frame_size,
+        )
+        assert graph.sample_rate == sample_rate
         ndarray = generate_ndarray(1, num_samples, np.float32)
         graph.push(ndarray)
         frames = []
-        for frame, rate in graph.pull(True, True):
+        for frame, rate in graph.pull(partial=True):
             assert rate == 16000
             frames.append(frame)
         samples = np.concatenate(frames, axis=1)
         assert samples.shape[1] == 16000 * duration
+
+    def test_constructor_validates_required_audio_parameters(self, sample_rate):
+        with pytest.raises(ValueError, match="sample_rate is required"):
+            Graph(dtype=np.float32, layout="mono")
+        with pytest.raises(ValueError, match="dtype or sample_format is required"):
+            Graph(sample_rate=sample_rate, layout="mono")
+        with pytest.raises(ValueError, match="frame_size must be positive"):
+            Graph(sample_rate=sample_rate, dtype=np.float32, layout="mono", frame_size=0)

@@ -12,39 +12,65 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 from io import BytesIO
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 from numpy.typing import DTypeLike
 
+from audiolab.av.frame import clip
+from audiolab.av.typing import ContainerFormatLike
+
 
 class Backend:
-    def __init__(self, file: Any, sample_rate: int, dtype: Optional[DTypeLike] = None, format: str = "WAV"):
-        self.file = file
+    def __init__(
+        self,
+        destination: Any,
+        sample_rate: int,
+        dtype: DTypeLike | None = None,
+        container_format: ContainerFormatLike = "WAV",
+    ):
+        if sample_rate <= 0:
+            raise ValueError("sample_rate must be positive")
+        self.destination = destination
         self.sample_rate = sample_rate
         self.dtype = np.dtype(dtype) if dtype is not None else None
-        self.format = format
+        self.container_format = container_format
+        self.num_channels = None
+
+    def prepare_audio(self, audio: np.ndarray) -> np.ndarray:
+        audio = np.asarray(audio)
+        if audio.ndim == 1:
+            audio = audio[np.newaxis, :]
+        elif audio.ndim != 2:
+            raise ValueError("audio must have shape (samples,) or (channels, samples)")
+        if audio.shape[0] == 0:
+            raise ValueError("audio must contain at least one channel")
+        if self.dtype is None:
+            self.dtype = audio.dtype
+        audio = clip(audio, self.dtype)
+        if self.num_channels is None:
+            self.num_channels = audio.shape[0]
+        elif audio.shape[0] != self.num_channels:
+            raise ValueError(f"Expected {self.num_channels} channels, received {audio.shape[0]}")
+        return audio
 
     def close(self):
-        file = self.file
-        if file is None:
+        destination = self.destination
+        if destination is None:
             return
-        self.file = None
-        if isinstance(file, BytesIO):
-            try:
-                file.seek(0)
-            except (AttributeError, ValueError):
-                pass
+        self.destination = None
+        if isinstance(destination, BytesIO):
+            with contextlib.suppress(AttributeError, ValueError):
+                destination.seek(0)
 
     def __del__(self):
-        try:
+        with contextlib.suppress(Exception):
             self.close()
-        except Exception:
-            pass
 
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
         self.close()

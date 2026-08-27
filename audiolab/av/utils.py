@@ -14,24 +14,23 @@
 
 import logging
 import sys
-from importlib.resources import files
 
 import numpy as np
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, PackageLoader, Template
 from numpy.random import randint, uniform
 
-loader = FileSystemLoader(files("audiolab.av").joinpath("templates"))
+loader = PackageLoader("audiolab.av", "templates")
 
 
-def generate_ndarray(nb_channels: int, samples: int, dtype: np.dtype, always_2d: bool = True) -> np.ndarray:
+def generate_ndarray(num_channels: int, samples: int, dtype: np.dtype, always_2d: bool = True) -> np.ndarray:
     if np.dtype(dtype).kind in ("i", "u"):
-        ndarray = randint(np.iinfo(dtype).min, np.iinfo(dtype).max, size=(nb_channels, samples), dtype=dtype)
+        audio = randint(np.iinfo(dtype).min, np.iinfo(dtype).max, size=(num_channels, samples), dtype=dtype)
     else:
-        ndarray = uniform(-1, 1, size=(nb_channels, samples)).astype(dtype)
-    return ndarray if always_2d else ndarray.squeeze()
+        audio = uniform(-1, 1, size=(num_channels, samples)).astype(dtype)
+    return audio if always_2d else audio.squeeze()
 
 
-def get_template(name: str) -> str:
+def get_template(name: str) -> Template:
     return Environment(loader=loader).get_template(f"{name}.txt")
 
 

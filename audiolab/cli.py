@@ -18,7 +18,6 @@ from typing import Any
 import click
 
 import audiolab
-from audiolab.reader.backend import pyav
 from audiolab.reader.info import Info
 
 
@@ -128,37 +127,36 @@ def main(
     # Process each audio file
     for audio_file in audio_files:
         # ffmpeg -i audio.flac -f wav - | > audio.wav
-        info = audiolab.info(audio_file, forced_decoding, backends=[pyav])
-        # If no specific options are selected, show all information (default behavior)
-        if not show_any:
-            print(info)
-            # Accumulate total duration
-            total_duration += info.duration or 0.0
+        with audiolab.info(audio_file, forced_decoding, backends=["pyav"]) as audio_info:
+            # If no specific options are selected, show all information (default behavior)
+            if not show_any:
+                print(audio_info)
+                # Accumulate total duration
+                total_duration += audio_info.duration or 0.0
 
-        # Display information based on selected options
-        if show_file_type:
-            print(info.format)
-        if show_sample_rate:
-            print(info.sample_rate)
-        if show_channels:
-            print(info.channels)
-        if show_samples:
-            print(info.num_samples or 0)
-        if show_duration_hms:
-            print(Info.format_duration(info.duration))
-        if show_duration_seconds:
-            print(info.duration or 0)
-        if show_bits_per_sample:
-            print(info.precision)
-        if show_bitrate:
-            print(Info.format_bit_rate(info.bit_rate))
-        if show_precision:
-            print(info.precision)
-        if show_encoding:
-            print(info.codec)
-        if show_comments:
-            if info.metadata:
-                for key, value in info.metadata.items():
+            # Display information based on selected options
+            if show_file_type:
+                print(audio_info.format)
+            if show_sample_rate:
+                print(audio_info.sample_rate)
+            if show_channels:
+                print(audio_info.num_channels)
+            if show_samples:
+                print(audio_info.num_frames or 0)
+            if show_duration_hms:
+                print(Info.format_duration(audio_info.duration))
+            if show_duration_seconds:
+                print(audio_info.duration or 0)
+            if show_bits_per_sample:
+                print(audio_info.bits_per_sample)
+            if show_bitrate:
+                print(Info.format_bit_rate(audio_info.bit_rate))
+            if show_precision:
+                print(audio_info.bits_per_sample)
+            if show_encoding:
+                print(audio_info.codec)
+            if show_comments and audio_info.metadata:
+                for key, value in audio_info.metadata.items():
                     print(f"{key}: {value}")
 
     # Print total duration if any files were processed and any options were selected

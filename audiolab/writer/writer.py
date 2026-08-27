@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional
+import contextlib
+from typing import Any
 
 import numpy as np
 import soundfile as sf
@@ -22,12 +23,18 @@ from audiolab.writer.backend import pyav, soundfile
 
 
 class Writer:
-    def __init__(self, file: Any, rate: int, dtype: Optional[DTypeLike] = None, format: str = "WAV"):
-        backend = soundfile if format.upper() in sf.available_formats() else pyav
-        self.backend = backend(file, rate, dtype, format)
+    def __init__(
+        self,
+        destination: Any,
+        sample_rate: int,
+        dtype: DTypeLike | None = None,
+        container_format: str = "WAV",
+    ):
+        backend = soundfile if container_format.upper() in sf.available_formats() else pyav
+        self.backend = backend(destination, sample_rate, dtype, container_format)
 
-    def write(self, frame: np.ndarray):
-        self.backend.write(frame)
+    def write(self, audio: np.ndarray) -> None:
+        self.backend.write(audio)
 
     def close(self):
         backend = self.backend
@@ -38,11 +45,9 @@ class Writer:
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
         self.close()
 
     def __del__(self):
-        try:
+        with contextlib.suppress(Exception):
             self.close()
-        except Exception:
-            pass

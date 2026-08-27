@@ -28,7 +28,7 @@ pip install audiolab
 from audiolab import load_audio
 
 # Load audio from 7 to 30 seconds (duration: 23s) and convert to 16kHz mono
-audio, rate = load_audio("audio.wav", offset=7, duration=23, rate=16000, to_mono=True)
+audio, rate = load_audio("audio.wav", offset=7, duration=23, sample_rate=16000, to_mono=True)
 print(f"Sample rate: {rate} Hz")
 print(f"Audio shape: {audio.shape}")
 ```
@@ -139,7 +139,7 @@ audio, rate = load_audio("audio.wav", filters=filters)
 
 # Pitch perturbation
 ratio = 1.5
-rate = info("audio.wav").rate
+rate = info("audio.wav").sample_rate
 filters = [asetrate(rate * ratio), atempo(1 / ratio), aresample(rate)]
 audio, rate = load_audio("audio.wav", filters=filters)
 ```
@@ -153,14 +153,14 @@ from audiolab import AudioPipe, Reader, save_audio
 
 frames = []
 reader = Reader("audio.wav")
-pipe = AudioPipe(in_rate=reader.rate, filters=[atempo(2)])
+pipe = AudioPipe(input_sample_rate=reader.sample_rate, filters=[atempo(2)])
 for frame, _ in reader:
     pipe.push(frame)
     for frame, _ in pipe.pull():
         frames.append(frame)
 for frame, _ in pipe.pull(True):
     frames.append(frame)
-save_audio("output.wav", np.concatenate(frames, axis=1), reader.rate)
+save_audio("output.wav", np.concatenate(frames, axis=1), reader.sample_rate)
 ```
 
 ## License

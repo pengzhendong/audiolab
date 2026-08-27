@@ -13,8 +13,11 @@
 # limitations under the License.
 
 from io import BytesIO
+from typing import ClassVar
 
+import numpy as np
 import pytest
+import soundfile as sf
 
 from audiolab.reader.backend.registry import BACKENDS
 from audiolab.reader.info import Info
@@ -35,7 +38,7 @@ class SeekableSource:
 
 
 class WorkingBackend:
-    positions = []
+    positions: ClassVar[list[int]] = []
 
     def __init__(self, source, frame_size=None, forced_decoding=False):
         self.positions.append(source.tell())
@@ -53,6 +56,33 @@ class FailingBackend:
 
 
 class TestInfo:
+    def test_rstrip_zeros_only_removes_fractional_zeros(self):
+        assert Info.rstrip_zeros(16_000) == "16000"
+        assert Info.rstrip_zeros("1.00 MB") == "1 MB"
+
+    def test_explicit_close_propagates_backend_errors(self):
+        class Backend:
+            def close(self):
+                raise RuntimeError("close failed")
+
+        info = object.__new__(Info)
+        info.backend = Backend()
+
+        with pytest.raises(RuntimeError, match="close failed"):
+            info.close()
+        assert info.backend is None
+
+    def test_wave_forced_decoding_counts_frames_per_channel(self):
+        sample_rate = 16_000
+        num_frames = 800
+        source = BytesIO()
+        sf.write(source, np.zeros((num_frames, 2), dtype=np.int16), sample_rate, format="WAV", subtype="PCM_16")
+        source.seek(0)
+
+        with Info(source, forced_decoding=True, backends=["wave"]) as info:
+            assert info.num_channels == 2
+            assert info.num_frames == num_frames
+
     def test_unknown_backend_is_rejected(self):
         with pytest.raises(ValueError, match="Unknown audio backend"):
             Info(BytesIO(b"invalid"), backends=["missing"])

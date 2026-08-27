@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict
 
 import av
 
@@ -38,7 +37,7 @@ standard_channel_layouts = {
     24: ["22.2"],
 }
 
-audio_layouts: Dict[str, av.AudioLayout] = {
+audio_layouts: dict[str, av.AudioLayout] = {
     name: av.AudioLayout(name) for layouts in standard_channel_layouts.values() for name in layouts
 }
 AudioLayout = AudioLayoutEnum("AudioLayout", audio_layouts)

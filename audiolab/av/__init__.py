@@ -13,41 +13,38 @@
 # limitations under the License.
 
 from audiolab.av import filter as filter
-from audiolab.av.codec import Decodec, Encodec, canonical_names, decodecs, encodecs
+from audiolab.av.codec import AudioDecoder, AudioEncoder, audio_decoders, audio_encoders, codec_aliases
 from audiolab.av.container import ContainerFormat, container_formats, extension_formats
 from audiolab.av.format import AudioFormat, audio_formats, get_codecs, get_dtype, get_format
 from audiolab.av.frame import clip, from_ndarray, split_audio_frame, to_ndarray
 from audiolab.av.graph import Graph
 from audiolab.av.layout import AudioLayout, audio_layouts, standard_channel_layouts
-from audiolab.av.lhotse import AudioCache, load_url
 from audiolab.av.processing import aformat, build_filter_chain
-from audiolab.av.typing import Filter
+from audiolab.av.typing import FilterSpec
 
 __all__ = [
-    "AudioCache",
+    "AudioDecoder",
+    "AudioEncoder",
     "AudioFormat",
     "AudioLayout",
     "ContainerFormat",
-    "Decodec",
-    "Encodec",
-    "Filter",
+    "FilterSpec",
     "Graph",
     "aformat",
+    "audio_decoders",
+    "audio_encoders",
     "audio_formats",
     "audio_layouts",
     "build_filter_chain",
-    "canonical_names",
     "clip",
+    "codec_aliases",
     "container_formats",
-    "decodecs",
-    "encodecs",
     "extension_formats",
     "filter",
     "from_ndarray",
     "get_codecs",
     "get_dtype",
     "get_format",
-    "load_url",
     "split_audio_frame",
     "standard_channel_layouts",
     "to_ndarray",

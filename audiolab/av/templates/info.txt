@@ -2,7 +2,7 @@
 Input File     : {{ name }}
 Channels       : {{ channels }}
 Sample Rate    : {{ rate }}
-Precision      : {{ precision }}-bit
+Precision      : {{ precision }}{% if precision != "N/A" %}-bit{% endif %}
 Duration       : {{ duration }} = {{ samples }} samples ~ {{ cdda_sectors }} CDDA sectors
 File Size      : {{ size }}
 Bit Rate       : {{ bit_rate }}

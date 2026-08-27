@@ -13,122 +13,127 @@
 # limitations under the License.
 
 from fractions import Fraction
-from typing import Optional, Tuple
 
 import av
 import numpy as np
 from numpy.typing import DTypeLike
 
 from audiolab.av.format import get_dtype
-from audiolab.av.typing import AudioFormat, AudioLayout
-
-_IINFO_CACHE = {np.dtype("int8"): 128, np.dtype("uint8"): 255, np.dtype("int16"): 32768, np.dtype("int32"): 2147483648}
+from audiolab.av.typing import AudioFormatLike, AudioLayoutLike
 
 
-def clip(ndarray: np.ndarray, dtype: DTypeLike) -> np.ndarray:
-    if ndarray.size == 0:
-        return ndarray
-    src_dtype = ndarray.dtype
-    dst_dtype = dtype if isinstance(dtype, np.dtype) else np.dtype(dtype)
-    if src_dtype.kind != "f" and src_dtype == dst_dtype:
-        return ndarray
+def _integer_scale(dtype: np.dtype) -> int:
+    limits = np.iinfo(dtype)
+    return limits.max if dtype.kind == "u" else limits.max + 1
 
-    if src_dtype.kind == "f":
-        ndarray = np.clip(ndarray, -1.0, 1.0)
-        src_weight = 1.0
-        src_bias = 0.0
+
+def clip(audio: np.ndarray, dtype: DTypeLike) -> np.ndarray:
+    source_dtype = audio.dtype
+    target_dtype = np.dtype(dtype)
+    if source_dtype.kind not in "fiu" or target_dtype.kind not in "fiu":
+        raise TypeError("Audio conversion requires numeric integer or floating-point dtypes")
+    if audio.size == 0:
+        return audio.astype(target_dtype, copy=False)
+    if source_dtype.kind != "f" and source_dtype == target_dtype:
+        return audio
+
+    if source_dtype.kind == "f":
+        converted = np.clip(audio, -1.0, 1.0).astype(np.float64, copy=False)
+        source_weight = 1.0
+        source_bias = 0.0
     else:
-        ndarray = ndarray.astype(np.float64)
-        if src_dtype.kind == "u":
-            src_weight = 1.0 / _IINFO_CACHE[src_dtype] * 2
-            src_bias = -1.0
-        elif src_dtype.kind == "i":
-            src_weight = 1.0 / _IINFO_CACHE[src_dtype]
-            src_bias = 0.0
+        converted = audio.astype(np.float64)
+        if source_dtype.kind == "u":
+            source_weight = 2.0 / _integer_scale(source_dtype)
+            source_bias = -1.0
+        else:
+            source_weight = 1.0 / _integer_scale(source_dtype)
+            source_bias = 0.0
 
-    if dst_dtype.kind == "f":
-        dst_weight = 1.0
-        dst_bias = 0.0
-    elif dst_dtype.kind == "u":
-        dst_weight = 0.5 * _IINFO_CACHE[dst_dtype]
-        dst_bias = dst_weight
-    elif dst_dtype.kind == "i":
-        dst_weight = _IINFO_CACHE[dst_dtype]
-        dst_bias = 0.0
+    if target_dtype.kind == "f":
+        target_weight = 1.0
+        target_bias = 0.0
+    elif target_dtype.kind == "u":
+        target_weight = 0.5 * _integer_scale(target_dtype)
+        target_bias = target_weight
+    else:
+        target_weight = _integer_scale(target_dtype)
+        target_bias = 0.0
 
-    weight = src_weight * dst_weight
-    bias = src_bias * dst_weight + dst_bias
+    weight = source_weight * target_weight
+    bias = source_bias * target_weight + target_bias
     if weight != 1.0:
-        np.multiply(ndarray, weight, out=ndarray)
+        np.multiply(converted, weight, out=converted)
     if bias != 0.0:
-        np.add(ndarray, bias, out=ndarray)
-    return ndarray.astype(dst_dtype)
+        np.add(converted, bias, out=converted)
+    if target_dtype.kind in "iu":
+        limits = np.iinfo(target_dtype)
+        np.clip(converted, limits.min, limits.max, out=converted)
+    return converted.astype(target_dtype)
 
 
 def from_ndarray(
-    ndarray: np.ndarray,
-    format: AudioFormat,
-    layout: AudioLayout,
-    rate: int,
-    pts: Optional[int] = None,
-    time_base: Optional[Fraction] = None,
+    audio: np.ndarray,
+    sample_format: AudioFormatLike,
+    layout: AudioLayoutLike,
+    sample_rate: int,
+    pts: int | None = None,
+    time_base: Fraction | None = None,
 ) -> av.AudioFrame:
-    ndarray = np.atleast_2d(ndarray)
-    if isinstance(format, str):
-        format = av.AudioFormat(format)
-    if format.is_packed:
+    audio = np.atleast_2d(audio)
+    if isinstance(sample_format, str):
+        sample_format = av.AudioFormat(sample_format)
+    if sample_format.is_packed:
         # [num_channels, num_samples] => [1, num_channels * num_samples]
-        ndarray = ndarray.T.reshape(1, -1)
+        audio = audio.T.reshape(1, -1)
     if isinstance(layout, str):
         layout = av.AudioLayout(layout)
 
-    dtype = get_dtype(format)
-    ndarray = clip(ndarray, dtype)
-    ndarray = np.ascontiguousarray(ndarray)
-    frame = av.AudioFrame.from_ndarray(ndarray, format.name, layout)
-    frame.rate = rate
+    dtype = get_dtype(sample_format)
+    audio = np.ascontiguousarray(clip(audio, dtype))
+    audio_frame = av.AudioFrame.from_ndarray(audio, sample_format.name, layout)
+    audio_frame.rate = sample_rate
     if pts is not None:
-        frame.pts = pts
+        audio_frame.pts = pts
     if time_base is not None:
-        frame.time_base = time_base
-    return frame
+        audio_frame.time_base = time_base
+    return audio_frame
 
 
-def to_ndarray(frame: av.AudioFrame) -> np.ndarray:
+def to_ndarray(audio_frame: av.AudioFrame) -> np.ndarray:
     # packed: [num_channels, num_samples]
     # planar: [1, num_channels * num_samples]
-    ndarray = frame.to_ndarray()
-    if frame.format.is_packed:
-        ndarray = ndarray.reshape(-1, frame.layout.nb_channels).T
-    return ndarray
+    audio = audio_frame.to_ndarray()
+    if audio_frame.format.is_packed:
+        audio = audio.reshape(-1, audio_frame.layout.nb_channels).T
+    return audio
 
 
-def split_audio_frame(frame: av.AudioFrame, offset: int) -> Tuple[av.AudioFrame, av.AudioFrame]:
+def split_audio_frame(audio_frame: av.AudioFrame, offset: int) -> tuple[av.AudioFrame | None, av.AudioFrame | None]:
     if offset <= 0:
-        return None, frame
+        return None, audio_frame
     # number of samples per channel
-    if offset >= frame.samples:
-        return frame, None
+    if offset >= audio_frame.samples:
+        return audio_frame, None
 
-    ndarray = to_ndarray(frame)
-    left, right = ndarray[:, :offset], ndarray[:, offset:]
-    if frame.format.is_packed:
+    audio = to_ndarray(audio_frame)
+    left, right = audio[:, :offset], audio[:, offset:]
+    if audio_frame.format.is_packed:
         left, right = left.T.reshape(1, -1), right.T.reshape(1, -1)
-    left = av.AudioFrame.from_ndarray(left, frame.format.name, frame.layout)
-    right = av.AudioFrame.from_ndarray(right, frame.format.name, frame.layout)
-    left.rate, right.rate = frame.rate, frame.rate
-    if frame.pts is not None:
-        left.pts, right.pts = frame.pts, frame.pts + offset
-    if frame.time_base is not None:
-        left.time_base, right.time_base = frame.time_base, frame.time_base
+    left = av.AudioFrame.from_ndarray(left, audio_frame.format.name, audio_frame.layout)
+    right = av.AudioFrame.from_ndarray(right, audio_frame.format.name, audio_frame.layout)
+    left.rate, right.rate = audio_frame.rate, audio_frame.rate
+    if audio_frame.pts is not None:
+        left.pts, right.pts = audio_frame.pts, audio_frame.pts + offset
+    if audio_frame.time_base is not None:
+        left.time_base, right.time_base = audio_frame.time_base, audio_frame.time_base
     return left, right
 
 
-def pad(frame: np.ndarray, frame_size: int, fill_value: float = 0) -> np.ndarray:
-    pad_needed = frame_size - frame.shape[0 if frame.ndim == 1 else 1]
+def pad(audio: np.ndarray, frame_size: int, fill_value: float = 0) -> np.ndarray:
+    pad_needed = frame_size - audio.shape[0 if audio.ndim == 1 else 1]
     if pad_needed <= 0:
-        return frame
-    if frame.ndim == 1:
-        return np.pad(frame, (0, pad_needed), constant_values=fill_value)
-    else:
-        return np.pad(frame, ((0, 0), (0, pad_needed)), constant_values=fill_value)
+        return audio
+    if audio.ndim == 1:
+        return np.pad(audio, (0, pad_needed), constant_values=fill_value)
+    return np.pad(audio, ((0, 0), (0, pad_needed)), constant_values=fill_value)

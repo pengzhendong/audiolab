@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
+from collections.abc import Iterator
 from functools import cached_property
-from typing import Any, Iterator, Optional
+from typing import Any
 
 import av
 from av import time_base
@@ -23,14 +25,14 @@ from av.format import Flags
 
 from audiolab.av import split_audio_frame
 from audiolab.av.format import get_dtype
-from audiolab.av.typing import UINT32_MAX, AudioFrame, Seconds
+from audiolab.av.typing import UINT32_MAX, Seconds
 from audiolab.reader.backend.backend import Backend
 
 
 class PyAV(Backend):
-    def __init__(self, file: Any, frame_size: Optional[int] = None, forced_decoding: bool = False):
-        super().__init__(file, frame_size, forced_decoding)
-        self.container = av.open(file, metadata_errors="ignore")
+    def __init__(self, source: Any, frame_size: int | None = None, forced_decoding: bool = False):
+        super().__init__(source, frame_size, forced_decoding)
+        self.container = av.open(source, metadata_errors="ignore")
         self.stream = self.container.streams.audio[0]
         self.dtype = get_dtype(self.stream.format)
 
@@ -40,10 +42,8 @@ class PyAV(Backend):
             return
         self.container = None
         self.stream = None
-        try:
+        with contextlib.suppress(Exception):
             container.close()
-        except Exception:
-            pass
         super().close()
 
     @cached_property
@@ -51,7 +51,7 @@ class PyAV(Backend):
         return self.stream.format.bits
 
     @cached_property
-    def bit_rate(self) -> Optional[int]:
+    def bit_rate(self) -> int | None:
         bit_rate = None
         if self.stream.bit_rate is not None:
             bit_rate = self.stream.bit_rate
@@ -70,12 +70,12 @@ class PyAV(Backend):
         return self.container.format.name
 
     @cached_property
-    def duration(self) -> Optional[Seconds]:
+    def duration(self) -> Seconds | None:
         if self.forced_decoding:
             num_frames = 0
             try:
-                for frame in self.container.decode(self.stream):
-                    num_frames += frame.samples
+                for audio_frame in self.container.decode(self.stream):
+                    num_frames += audio_frame.samples
             except (EOFError, InvalidDataError, StopIteration):
                 pass
             duration = num_frames / self.stream.rate
@@ -100,7 +100,7 @@ class PyAV(Backend):
         return self.stream.channels
 
     @cached_property
-    def num_frames(self) -> Optional[int]:
+    def num_frames(self) -> int | None:
         if self.duration is None:
             return None
         return int(self.duration * self.stream.rate)
@@ -114,7 +114,7 @@ class PyAV(Backend):
         return self.stream.sample_rate
 
     @cached_property
-    def size(self) -> Optional[int]:
+    def size(self) -> int | None:
         size = super().size
         if size is None:
             size = self.container.size
@@ -128,21 +128,21 @@ class PyAV(Backend):
         byte_seek = Flags.no_byte_seek not in flags
         return generic_index or seek_to_pts or byte_seek
 
-    def load_audio(self, offset: Seconds = 0, duration: Optional[Seconds] = None) -> Iterator[AudioFrame]:
+    def load_audio(self, offset: Seconds = 0, duration: Seconds | None = None) -> Iterator[av.AudioFrame]:
         offset = int(offset / self.stream.time_base)
         self.seek(offset)
-        frames = UINT32_MAX if duration is None else int(duration * self.sample_rate)
-        while frames > 0:
-            frame = self.read()
-            if frame is None:
+        remaining_frames = UINT32_MAX if duration is None else int(duration * self.sample_rate)
+        while remaining_frames > 0:
+            audio_frame = self.read()
+            if audio_frame is None:
                 break
-            frame = self.split_frame(frame, offset, frames)
-            if frame is None:
+            audio_frame = self.split_frame(audio_frame, offset, remaining_frames)
+            if audio_frame is None:
                 continue
-            frames -= frame.samples
-            yield frame
+            remaining_frames -= audio_frame.samples
+            yield audio_frame
 
-    def read(self) -> Optional[AudioFrame]:
+    def read(self) -> av.AudioFrame | None:
         try:
             return next(self.container.decode(self.stream))
         except (EOFError, InvalidDataError, StopIteration):
@@ -152,9 +152,9 @@ class PyAV(Backend):
         if offset > 0:
             self.container.seek(offset, stream=self.stream)
 
-    def split_frame(self, frame: AudioFrame, offset: int, frames: int):
-        offset = max(offset - frame.pts, 0) * frame.time_base * frame.sample_rate
-        _, frame = split_audio_frame(frame, int(offset))
-        if frame is not None:
-            frame, _ = split_audio_frame(frame, frames)
-        return frame
+    def split_frame(self, audio_frame: av.AudioFrame, offset: int, frames: int) -> av.AudioFrame | None:
+        offset = max(offset - audio_frame.pts, 0) * audio_frame.time_base * audio_frame.sample_rate
+        _, audio_frame = split_audio_frame(audio_frame, int(offset))
+        if audio_frame is not None:
+            audio_frame, _ = split_audio_frame(audio_frame, frames)
+        return audio_frame

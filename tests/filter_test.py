@@ -38,7 +38,7 @@ class TestFilter:
                 assert aformat(dtype=np.dtype(dtype).name, is_planar=is_planar)[2] == {"sample_fmts": format.name}
 
         for rate in (8000, 16000, 24000, 48000):
-            assert aformat(rate=rate)[2] == {"sample_rates": str(rate)}
+            assert aformat(sample_rate=rate)[2] == {"sample_rates": str(rate)}
 
         assert aformat(to_mono=False)[2] == {}
         assert aformat(to_mono=True)[2] == {"channel_layouts": "mono"}
@@ -63,3 +63,7 @@ class TestFilter:
             "description": "test filter",
             "options": [],
         }
+
+    def test_missing_filter_raises_attribute_error(self):
+        with pytest.raises(AttributeError, match="not an FFmpeg audio filter"):
+            _ = filter.definitely_missing

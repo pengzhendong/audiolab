@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 import os
+from collections.abc import Iterator
 from functools import cached_property
 from io import BytesIO
-from typing import Any, Iterator, Optional
+from typing import Any
 
 import numpy as np
 
@@ -24,35 +26,33 @@ from audiolab.av.typing import UINT32_MAX, Seconds
 
 
 class Backend:
-    def __init__(self, file: Any, frame_size: Optional[int] = None, forced_decoding: bool = False):
-        self.file = file
+    def __init__(self, source: Any, frame_size: int | None = None, forced_decoding: bool = False):
+        if frame_size is not None and frame_size <= 0:
+            raise ValueError("frame_size must be positive")
+        self.source = source
         self.frame_size = UINT32_MAX if frame_size is None else min(frame_size, UINT32_MAX)
         self.forced_decoding = forced_decoding
 
     def close(self):
-        file = self.file
-        if file is None:
+        if self.source is None:
             return
-        self.file = None
+        self.source = None
 
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
         self.close()
 
     def __del__(self):
-        try:
+        with contextlib.suppress(Exception):
             self.close()
-        except Exception:
-            pass
 
     @cached_property
-    def bit_rate(self) -> Optional[int]:
+    def bit_rate(self) -> float | int | None:
         bit_rate = None
-        if self.size is not None:
-            if self.duration is not None and self.duration > 0:
-                bit_rate = self.size * 8 / self.duration
+        if self.size is not None and self.duration is not None and self.duration > 0:
+            bit_rate = self.size * 8 / self.duration
         return bit_rate
 
     @cached_property
@@ -70,24 +70,24 @@ class Backend:
 
     @cached_property
     def name(self) -> str:
-        return "<none>" if isinstance(self.file, BytesIO) else self.file
+        return "<none>" if isinstance(self.source, BytesIO) else self.source
 
     @cached_property
-    def size(self) -> Optional[int]:
-        if isinstance(self.file, str):
-            if os.path.exists(self.file):
-                return os.stat(self.file).st_size
-        elif isinstance(self.file, BytesIO):
-            return len(self.file.getbuffer())
+    def size(self) -> int | None:
+        if isinstance(self.source, str):
+            if os.path.exists(self.source):
+                return os.stat(self.source).st_size
+        elif isinstance(self.source, BytesIO):
+            return len(self.source.getbuffer())
         return None
 
-    def load_audio(self, offset: Seconds = 0, duration: Optional[Seconds] = None) -> Iterator[np.ndarray]:
+    def load_audio(self, offset: Seconds = 0, duration: Seconds | None = None) -> Iterator[np.ndarray]:
         self.seek(int(offset * self.sample_rate))
-        frames = UINT32_MAX if duration is None else int(duration * self.sample_rate)
-        while frames > 0:
-            frame_size = min(frames, self.frame_size)
-            ndarray = self.read(frame_size)
-            if ndarray is None:
+        remaining_frames = UINT32_MAX if duration is None else int(duration * self.sample_rate)
+        while remaining_frames > 0:
+            frame_size = min(remaining_frames, self.frame_size)
+            audio = self.read(frame_size)
+            if audio is None:
                 break
-            frames -= ndarray.shape[1]
-            yield ndarray
+            remaining_frames -= audio.shape[1]
+            yield audio

@@ -14,14 +14,14 @@
 
 import pytest
 
-from audiolab.av.codec import Decodec, Encodec, decodecs, encodecs
+from audiolab.av.codec import AudioDecoder, AudioEncoder, audio_decoders, audio_encoders
 from audiolab.av.format import get_codecs
 
 
 class TestCodec:
-    @pytest.mark.parametrize("name, codec", decodecs.items())
+    @pytest.mark.parametrize("name, codec", audio_decoders.items())
     def test_decoder_codec(self, name, codec):
-        _codec = Decodec[name]
+        _codec = AudioDecoder[name]
         assert _codec.value == codec
         assert _codec.is_decoder
         assert _codec.mode == "r"
@@ -30,9 +30,9 @@ class TestCodec:
         for format in _codec.audio_formats:
             assert _codec.name in get_codecs(format.name, "r")
 
-    @pytest.mark.parametrize("name, codec", encodecs.items())
+    @pytest.mark.parametrize("name, codec", audio_encoders.items())
     def test_encoder_codec(self, name, codec):
-        _codec = Encodec[name]
+        _codec = AudioEncoder[name]
         assert _codec.value == codec
         assert _codec.is_encoder
         assert _codec.mode == "w"

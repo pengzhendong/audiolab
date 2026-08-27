@@ -12,24 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Type
+import contextlib
+from collections.abc import Sequence
+from typing import Any
 
 from audiolab.reader.backend.backend import Backend
 from audiolab.reader.backend.pyav import PyAV
 from audiolab.reader.backend.soundfile import SoundFile
 from audiolab.reader.backend.wave import Wave
 
-BACKENDS: Dict[str, Type[Backend]] = {
+BACKENDS: dict[str, type[Backend]] = {
     "av": PyAV,
     "pyav": PyAV,
     "sf": SoundFile,
     "soundfile": SoundFile,
     "wave": Wave,
 }
-DEFAULT_BACKENDS: Tuple[str, ...] = ("soundfile", "pyav")
+DEFAULT_BACKENDS: tuple[str, ...] = ("soundfile", "pyav")
 
 
-def resolve_backends(names: Optional[Sequence[str]] = None) -> List[Type[Backend]]:
+def resolve_backends(names: Sequence[str] | None = None) -> list[type[Backend]]:
     names = DEFAULT_BACKENDS if names is None else names
     unknown = [name for name in names if name not in BACKENDS]
     if unknown:
@@ -54,17 +56,15 @@ def _restore_position(source: Any, position):
     seek = getattr(source, "seek", None)
     if seek is None:
         return
-    try:
+    with contextlib.suppress(OSError, ValueError):
         seek(position)
-    except (OSError, ValueError):
-        pass
 
 
 def open_backend(
     source: Any,
-    frame_size: Optional[int] = None,
+    frame_size: int | None = None,
     forced_decoding: bool = False,
-    names: Optional[Sequence[str]] = None,
+    names: Sequence[str] | None = None,
 ) -> Backend:
     backend_types = resolve_backends(names)
     initial_position = _get_position(source)

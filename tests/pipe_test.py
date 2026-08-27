@@ -21,6 +21,11 @@ from audiolab.pipe import AudioPipe
 
 
 class TestPipe:
+    def test_pull_before_push_is_empty(self):
+        pipe = AudioPipe(input_sample_rate=16_000)
+
+        assert list(pipe.pull()) == []
+
     @pytest.fixture
     def nb_channels(self):
         return 1
@@ -38,7 +43,7 @@ class TestPipe:
         num_samples = int(rate * duration * num_chunks)
         for ratio in (0.9, 1.1):
             for always_2d in (True, False):
-                pipe = AudioPipe(in_rate=rate, filters=[atempo(ratio)], always_2d=always_2d)
+                pipe = AudioPipe(input_sample_rate=rate, filters=[atempo(ratio)], always_2d=always_2d)
                 frames = []
                 for idx in range(num_chunks):
                     pipe.push(generate_ndarray(nb_channels, int(rate * duration), np.int16))
@@ -48,11 +53,11 @@ class TestPipe:
                 assert np.isclose(audio.shape[1 if always_2d else 0] / rate * ratio, num_samples / rate, atol=0.05)
 
     def test_filters_are_only_added_when_requested(self, rate):
-        pipe = AudioPipe(in_rate=rate)
+        pipe = AudioPipe(input_sample_rate=rate)
         assert pipe.filters is None
 
         filters = [atempo(1.1)]
-        pipe = AudioPipe(in_rate=rate, filters=filters, out_rate=8000)
+        pipe = AudioPipe(input_sample_rate=rate, filters=filters, output_sample_rate=8000)
 
         assert len(filters) == 1
         assert len(pipe.filters) == 2

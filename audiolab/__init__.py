@@ -17,13 +17,11 @@ from __future__ import annotations
 from base64 import b64encode
 from io import BytesIO
 from pathlib import Path
-from typing import Optional, Tuple, Union
 
 import numpy as np
 from numpy.typing import DTypeLike
 
 from audiolab.av import (
-    AudioCache,
     clip,
     from_ndarray,
     get_dtype,
@@ -37,43 +35,45 @@ from audiolab.writer import Writer, save_audio
 
 
 def encode(
-    audio: Union[str, Path, np.ndarray],
-    rate: Optional[int] = None,
-    dtype: Optional[DTypeLike] = None,
+    audio: str | Path | np.ndarray,
+    sample_rate: int | None = None,
+    dtype: DTypeLike | None = None,
     to_mono: bool = False,
-    make_wav: bool = True,
-    format: str = "WAV",
-) -> Tuple[str, int]:
+    include_container: bool = True,
+    container_format: str = "WAV",
+) -> tuple[str, int]:
     """
     Transform an audio to a PCM bytestring.
 
     Args:
         audio: The file path to an audio file or a numpy array.
-        rate: The sample rate of the audio.
+        sample_rate: The sample rate of the audio.
         dtype: The data type of the audio.
         to_mono: Whether to convert the audio to mono.
-        make_wav: Whether to make the audio a WAV file.
-        format: The format of the audio container.
+        include_container: Encode a complete audio container instead of raw PCM bytes.
+        container_format: The format of the audio container.
     Returns:
         The audio as a PCM bytestring and the sample rate of the audio.
     """
     if isinstance(audio, (str, Path)):
-        audio, rate = load_audio(audio, dtype=dtype, rate=rate, to_mono=to_mono)
+        audio, sample_rate = load_audio(audio, dtype=dtype, sample_rate=sample_rate, to_mono=to_mono)
+
+    if sample_rate is None:
+        raise ValueError("sample_rate is required when encoding a NumPy array")
 
     audio = clip(audio, np.int16)
-    if make_wav:
+    if include_container:
         bytestream = BytesIO()
-        save_audio(bytestream, audio, rate, format=format)
+        save_audio(bytestream, audio, sample_rate, container_format=container_format)
         audio = b64encode(bytestream.getvalue()).decode("ascii")
-        audio = f"data:audio/{format};base64,{audio}"
+        audio = f"data:audio/{container_format};base64,{audio}"
     else:
         audio = np.ascontiguousarray(audio)
         audio = b64encode(audio).decode("ascii")
-    return audio, rate
+    return audio, sample_rate
 
 
 __all__ = [
-    "AudioCache",
     "AudioPipe",
     "Reader",
     "StreamReader",

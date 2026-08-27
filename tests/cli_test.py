@@ -12,23 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any
-
 import numpy as np
-from numpy.typing import DTypeLike
+from click.testing import CliRunner
 
-from audiolab.writer.writer import Writer
-
-
-def save_audio(
-    destination: Any,
-    audio: np.ndarray,
-    sample_rate: int,
-    dtype: DTypeLike | None = None,
-    container_format: str = "WAV",
-) -> None:
-    with Writer(destination, sample_rate, dtype, container_format) as writer:
-        writer.write(audio)
+from audiolab.cli import main
+from audiolab.writer import save_audio
 
 
-__all__ = ["Writer", "save_audio"]
+def test_cli_reads_audio_with_registered_backend_name(tmp_path):
+    audio_path = tmp_path / "audio.wav"
+    save_audio(audio_path, np.zeros((1, 800), dtype=np.int16), sample_rate=16_000)
+
+    result = CliRunner().invoke(main, [str(audio_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "Sample Rate    : 16000" in result.output

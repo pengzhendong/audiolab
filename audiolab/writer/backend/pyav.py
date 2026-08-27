@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional, Tuple
+from typing import Any
 
 import av
 import numpy as np
@@ -21,17 +21,21 @@ from numpy.typing import DTypeLike
 
 from audiolab.av import from_ndarray
 from audiolab.av.format import dtype_formats
-from audiolab.av.frame import clip
 from audiolab.av.layout import standard_channel_layouts
-from audiolab.av.typing import ContainerFormat
+from audiolab.av.typing import ContainerFormatLike
 from audiolab.writer.backend.backend import Backend
 
 
 class PyAV(Backend):
-    def __init__(self, file: Any, sample_rate: int, dtype: Optional[DTypeLike] = None, format: ContainerFormat = "WAV"):
-        super().__init__(file, sample_rate, dtype, format)
-        self.container = av.open(self.file, "w", format=self.format)
-        self.num_channels = None
+    def __init__(
+        self,
+        destination: Any,
+        sample_rate: int,
+        dtype: DTypeLike | None = None,
+        container_format: ContainerFormatLike = "WAV",
+    ):
+        super().__init__(destination, sample_rate, dtype, container_format)
+        self.container = av.open(self.destination, "w", format=self.container_format)
         self.stream = None
 
     def open(self):
@@ -41,39 +45,39 @@ class PyAV(Backend):
             kwargs["format"] = audio_format
         self.stream = self.container.add_stream(audio_codec, self.sample_rate, **kwargs)
 
-    def guess_codec_format(self) -> Tuple[str, str]:
+    def guess_codec_format(self) -> tuple[str, str | None]:
         default_codec = self.container.default_audio_codec
+        if default_codec is None:
+            raise ValueError(f"Container {self.container.format.name} has no default audio codec")
         if self.dtype is None:
             return default_codec, None
-        else:
-            dtype_format = dtype_formats[self.dtype]
-            for audio_format in av.Codec(default_codec, "w").audio_formats:
-                if audio_format.name.startswith(dtype_format):
-                    return default_codec, audio_format.name
+        dtype_format = dtype_formats.get(self.dtype)
+        if dtype_format is None:
+            raise ValueError(f"Unsupported output dtype: {self.dtype.name}")
+        for audio_format in av.Codec(default_codec, "w").audio_formats or []:
+            if audio_format.name.startswith(dtype_format):
+                return default_codec, audio_format.name
 
-            supported_codecs = self.container.supported_codecs
-            codecs = sorted(supported_codecs, key=lambda x: (not x.startswith("pcm_") or x.endswith("law"), x))
-            for codec in codecs:
-                try:
-                    audio_formats = av.Codec(codec, "w").audio_formats
-                    if audio_formats is None:
-                        continue
-                    for audio_format in audio_formats:
-                        if audio_format.name.startswith(dtype_format):
-                            return codec, audio_format.name
-                except UnknownCodecError:
-                    pass
+        supported_codecs = self.container.supported_codecs
+        codecs = sorted(supported_codecs, key=lambda x: (not x.startswith("pcm_") or x.endswith("law"), x))
+        for codec in codecs:
+            try:
+                audio_formats = av.Codec(codec, "w").audio_formats
+                if audio_formats is None:
+                    continue
+                for audio_format in audio_formats:
+                    if audio_format.name.startswith(dtype_format):
+                        return codec, audio_format.name
+            except UnknownCodecError:
+                pass
+        raise ValueError(f"No {self.container.format.name} audio encoder supports dtype {self.dtype.name}")
 
-    def write(self, frame: np.ndarray):
-        if self.dtype is None:
-            self.dtype = frame.dtype
-        frame = np.atleast_2d(clip(frame, self.dtype))
-        if self.num_channels is None:
-            self.num_channels = frame.shape[0]
+    def write(self, audio: np.ndarray):
+        audio = self.prepare_audio(audio)
         if self.stream is None:
             self.open()
-        frame = from_ndarray(frame, self.stream.format.name, self.stream.layout, self.stream.rate)
-        for packet in self.stream.encode(frame):
+        audio_frame = from_ndarray(audio, self.stream.format.name, self.stream.layout, self.stream.rate)
+        for packet in self.stream.encode(audio_frame):
             self.container.mux(packet)
 
     def close(self):

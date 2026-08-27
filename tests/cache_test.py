@@ -12,23 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any
-
-import numpy as np
-from numpy.typing import DTypeLike
-
-from audiolab.writer.writer import Writer
+from audiolab.reader.cache import AudioCache
 
 
-def save_audio(
-    destination: Any,
-    audio: np.ndarray,
-    sample_rate: int,
-    dtype: DTypeLike | None = None,
-    container_format: str = "WAV",
-) -> None:
-    with Writer(destination, sample_rate, dtype, container_format) as writer:
-        writer.write(audio)
+class TestAudioCache:
+    def setup_method(self):
+        AudioCache.clear()
 
+    def teardown_method(self):
+        AudioCache.clear()
 
-__all__ = ["Writer", "save_audio"]
+    def test_replacing_an_entry_updates_memory_usage(self):
+        AudioCache.put("source", b"123")
+        AudioCache.put("source", b"45")
+
+        assert AudioCache.get("source") == b"45"
+        assert AudioCache.size_bytes() == 2

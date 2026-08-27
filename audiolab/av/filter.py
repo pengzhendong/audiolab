@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, List
+from collections.abc import Callable, Collection
+from typing import Any
 
 from av import filter
 
@@ -35,7 +36,8 @@ $ ffmpeg -filters
 
 class FilterManager:
     def __init__(self):
-        self._filter_data: Dict[str, Dict[str, Any]] = {}
+        self._filter_data: dict[str, dict[str, Any]] = {}
+        self._functions: dict[str, Callable] = {}
         self._initialized: bool = False
 
     def _generate_filter_data(self) -> None:
@@ -81,16 +83,19 @@ class FilterManager:
             filter_func.__doc__ = get_template("filter").render(
                 name=data["name"], description=data["description"], options=data["options"]
             )
-            globals()[name] = filter_func
+            self._functions[name] = filter_func
 
         self._initialized = True
 
     def __getattr__(self, name: str) -> Callable:
         self._initialize_filters()
-        return globals().get(name, None)
+        try:
+            return self._functions[name]
+        except KeyError:
+            raise AttributeError(f"{name!r} is not an FFmpeg audio filter") from None
 
     @property
-    def filters(self) -> List[str]:
+    def filters(self) -> Collection[str]:
         return filter.filters_available
 
 

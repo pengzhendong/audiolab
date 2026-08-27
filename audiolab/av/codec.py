@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from collections import defaultdict
-from typing import Dict, Set
 
 import av
 import numpy as np
@@ -31,11 +30,11 @@ $ ffmpeg -encoders
 """
 
 
-class CodecManager:
+class CodecCatalog:
     def __init__(self):
-        self.canonical_names: Dict[str, Set[str]] = defaultdict(set)
-        self.decodecs: Dict[str, av.Codec] = {}
-        self.encodecs: Dict[str, av.Codec] = {}
+        self.aliases: dict[str, set[str]] = defaultdict(set)
+        self.decoders: dict[str, av.Codec] = {}
+        self.encoders: dict[str, av.Codec] = {}
 
         for codec in codecs_available:
             try:
@@ -45,33 +44,31 @@ class CodecManager:
                 if decoder_codec.audio_formats is not None:
                     canonical_name = decoder_codec.canonical_name
                     codec_name = decoder_codec.name
-                    self.canonical_names[canonical_name].add(codec_name)
-                    if codec_name not in self.decodecs:
-                        self.decodecs[codec_name] = decoder_codec
+                    self.aliases[canonical_name].add(codec_name)
+                    self.decoders.setdefault(codec_name, decoder_codec)
 
                 encoder_codec = av.Codec(codec, "w")
                 if encoder_codec.audio_formats is not None:
                     canonical_name = encoder_codec.canonical_name
                     codec_name = encoder_codec.name
-                    self.canonical_names[canonical_name].add(codec_name)
-                    if codec_name not in self.encodecs:
-                        self.encodecs[codec_name] = encoder_codec
+                    self.aliases[canonical_name].add(codec_name)
+                    self.encoders.setdefault(codec_name, encoder_codec)
             except UnknownCodecError:
                 pass
 
-        self.Decodec = CodecEnum("Decodec", self.decodecs)
-        self.Encodec = CodecEnum("Encodec", self.encodecs)
+        self.AudioDecoder = CodecEnum("AudioDecoder", self.decoders)
+        self.AudioEncoder = CodecEnum("AudioEncoder", self.encoders)
 
         template = get_template("codec")
-        for name, codec in self.decodecs.items():
-            getattr(self.Decodec, name).__doc__ = template.render(codec=codec, format_dtypes=format_dtypes, np=np)
-        for name, codec in self.encodecs.items():
-            getattr(self.Encodec, name).__doc__ = template.render(codec=codec, format_dtypes=format_dtypes, np=np)
+        for name, codec in self.decoders.items():
+            getattr(self.AudioDecoder, name).__doc__ = template.render(codec=codec, format_dtypes=format_dtypes, np=np)
+        for name, codec in self.encoders.items():
+            getattr(self.AudioEncoder, name).__doc__ = template.render(codec=codec, format_dtypes=format_dtypes, np=np)
 
 
-_codec_manager = CodecManager()
-canonical_names = _codec_manager.canonical_names
-decodecs = _codec_manager.decodecs
-encodecs = _codec_manager.encodecs
-Decodec = _codec_manager.Decodec
-Encodec = _codec_manager.Encodec
+_catalog = CodecCatalog()
+codec_aliases = _catalog.aliases
+audio_decoders = _catalog.decoders
+audio_encoders = _catalog.encoders
+AudioDecoder = _catalog.AudioDecoder
+AudioEncoder = _catalog.AudioEncoder

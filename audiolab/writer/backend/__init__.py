@@ -15,6 +15,5 @@
 from audiolab.writer.backend.backend import Backend
 from audiolab.writer.backend.pyav import PyAV as pyav
 from audiolab.writer.backend.soundfile import SoundFile as soundfile
-from audiolab.writer.backend.wave import Wave as wave
 
-__all__ = ["Backend", "pyav", "soundfile", "wave"]
+__all__ = ["Backend", "pyav", "soundfile"]

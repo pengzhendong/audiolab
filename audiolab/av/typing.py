@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from enum import Enum
-from typing import Dict, Tuple, Union
+from typing import TypeAlias
 
 import av
 import numpy as np
@@ -46,10 +46,10 @@ class ContainerFormatEnum(BaseEnum):
 
 
 UINT32_MAX = np.iinfo(np.uint32).max
-AudioFormat = Union[str, av.AudioFormat]
-AudioFrame = Union[np.ndarray, av.AudioFrame, Tuple[np.ndarray, int]]
-AudioLayout = Union[int, str, av.AudioLayout]
-Codec = Union[str, av.Codec]
-ContainerFormat = Union[str, av.ContainerFormat]
-Filter = Union[str, Tuple[str, str], Tuple[str, Dict[str, str]], Tuple[str, str, Dict[str, str]]]
-Seconds = float
+AudioFormatLike: TypeAlias = str | av.AudioFormat
+AudioLayoutLike: TypeAlias = str | av.AudioLayout
+ContainerFormatLike: TypeAlias = str | av.ContainerFormat
+DecodedChunk: TypeAlias = tuple[np.ndarray, int]
+FilterSpec: TypeAlias = str | tuple[str, str] | tuple[str, dict[str, str]] | tuple[str, str, dict[str, str]]
+GraphInput: TypeAlias = np.ndarray | av.AudioFrame | DecodedChunk
+Seconds: TypeAlias = float

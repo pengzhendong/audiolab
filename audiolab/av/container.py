@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from collections import defaultdict
-from typing import Dict, Set
 
 import av
 
@@ -23,8 +22,8 @@ from audiolab.av.utils import get_template
 """
 $ ffmpeg -formats
 """
-container_formats: Dict[str, av.ContainerFormat] = {}
-extension_formats: Dict[str, Set[str]] = defaultdict(set)
+container_formats: dict[str, av.ContainerFormat] = {}
+extension_formats: dict[str, set[str]] = defaultdict(set)
 for name in av.formats_available:
     container_formats[name] = av.ContainerFormat(name)
     for extension in container_formats[name].extensions:
@@ -33,5 +32,5 @@ ContainerFormat = ContainerFormatEnum("ContainerFormat", container_formats)
 
 
 template = get_template("container")
-for name, format in container_formats.items():
-    getattr(ContainerFormat, name).__doc__ = template.render(format=format)
+for name, container_format in container_formats.items():
+    getattr(ContainerFormat, name).__doc__ = template.render(format=container_format)

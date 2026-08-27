@@ -43,24 +43,66 @@ class TestReader:
         for always_2d in (True, False):
             bytes_io = BytesIO()
             ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16, always_2d)
-            save_audio(bytes_io, ndarray, rate=rate)
+            save_audio(bytes_io, ndarray, sample_rate=rate)
 
             reader = Reader(bytes_io, frame_size=frame_size, always_2d=always_2d)
-            assert reader.channels == nb_channels
+            assert reader.num_channels == nb_channels
             assert "signed 16" in reader.codec.lower()
             assert reader.duration == duration
-            assert reader.precision == 16
-            assert reader.rate == rate
+            assert reader.bits_per_sample == 16
+            assert reader.sample_rate == rate
+
+    def test_stream_reader_rejects_non_positive_frame_size(self):
+        with pytest.raises(ValueError, match="frame_size must be positive"):
+            StreamReader(frame_size=0)
+
+    def test_reader_rejects_non_positive_frame_size(self):
+        with pytest.raises(ValueError, match="frame_size must be positive"):
+            Reader(BytesIO(), frame_size=0)
+
+    def test_reader_requires_frame_size_when_padding(self):
+        with pytest.raises(ValueError, match="frame_size is required"):
+            Reader(BytesIO(), fill_value=0)
+
+    def test_stream_reader_decodes_incremental_bytes_once(self, nb_channels, rate, duration):
+        source = BytesIO()
+        expected = generate_ndarray(nb_channels, int(rate * duration), np.int16)
+        save_audio(source, expected, sample_rate=rate)
+        encoded = source.getvalue()
+        reader = StreamReader(frame_size=256)
+        chunks = []
+
+        for offset in range(0, len(encoded), 500):
+            reader.push(encoded[offset : offset + 500])
+            chunks.extend(reader.pull())
+        chunks.extend(reader.pull(partial=True))
+
+        decoded = np.concatenate([audio for audio, _ in chunks], axis=1)
+        assert all(output_rate == rate for _, output_rate in chunks)
+        assert np.array_equal(decoded, expected)
+        with pytest.raises(RuntimeError, match="finalized"):
+            reader.push(b"more")
 
     def test_reader_frame_size_without_filters(self, nb_channels, rate, duration):
         bytes_io = BytesIO()
         ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
-        save_audio(bytes_io, ndarray, rate=rate)
+        save_audio(bytes_io, ndarray, sample_rate=rate)
 
-        frames = list(load_audio(bytes_io, frame_size=1024))
+        with Reader(bytes_io, frame_size=1024) as reader:
+            frames = list(reader)
 
         assert [frame.shape[1] for frame, _ in frames] == [1024] * 7 + [832]
         assert np.array_equal(np.concatenate([frame for frame, _ in frames], axis=1), ndarray)
+
+    def test_load_audio_is_eager_even_when_frame_size_is_set(self, nb_channels, rate, duration):
+        source = BytesIO()
+        expected = generate_ndarray(nb_channels, int(rate * duration), np.int16)
+        save_audio(source, expected, sample_rate=rate)
+
+        audio, output_rate = load_audio(source, frame_size=1024)
+
+        assert output_rate == rate
+        assert np.array_equal(audio, expected)
 
     def test_load_audio(self, nb_channels, rate, duration):
         input_rate = rate
@@ -69,7 +111,7 @@ class TestReader:
                 for _duration in (None, 0.1, 0.2, 0.3):
                     bytes_io = BytesIO()
                     ndarray = generate_ndarray(nb_channels, int(input_rate * duration), np.int16, always_2d)
-                    save_audio(bytes_io, ndarray, rate=input_rate)
+                    save_audio(bytes_io, ndarray, sample_rate=input_rate)
 
                     if _duration is None:
                         _duration = duration - offset
@@ -92,7 +134,7 @@ class TestReader:
         for ratio in (0.9, 1.1):
             bytes_io = BytesIO()
             ndarray = generate_ndarray(nb_channels, int(input_rate * duration), np.int16)
-            save_audio(bytes_io, ndarray, rate=input_rate)
+            save_audio(bytes_io, ndarray, sample_rate=input_rate)
 
             audio, output_rate = load_audio(bytes_io, filters=[atempo(ratio), aresample(8000)])
             assert audio.dtype == np.int16
@@ -102,9 +144,9 @@ class TestReader:
 
         bytes_io = BytesIO()
         ndarray = generate_ndarray(2, int(input_rate * duration), np.int16)
-        save_audio(bytes_io, ndarray, rate=input_rate)
+        save_audio(bytes_io, ndarray, sample_rate=input_rate)
 
-        audio, output_rate = load_audio(bytes_io, filters=[aformat(dtype=np.float32, rate=8000, to_mono=True)])
+        audio, output_rate = load_audio(bytes_io, filters=[aformat(dtype=np.float32, sample_rate=8000, to_mono=True)])
         assert audio.dtype == np.float32
         assert audio.shape == (1, int(output_rate * duration))
         assert output_rate == 8000
@@ -112,7 +154,7 @@ class TestReader:
     def test_dtype_conversion_with_custom_filters(self, nb_channels, rate, duration):
         bytes_io = BytesIO()
         ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
-        save_audio(bytes_io, ndarray, rate=rate)
+        save_audio(bytes_io, ndarray, sample_rate=rate)
 
         audio, output_rate = load_audio(bytes_io, filters=[atempo(1.0)], dtype=np.float32)
 
@@ -122,7 +164,7 @@ class TestReader:
     def test_reader_owns_pyav_processing_graph(self, nb_channels, rate, duration):
         bytes_io = BytesIO()
         ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
-        save_audio(bytes_io, ndarray, rate=rate, format="webm")
+        save_audio(bytes_io, ndarray, sample_rate=rate, container_format="webm")
 
         reader = Reader(
             bytes_io,
@@ -141,7 +183,7 @@ class TestReader:
     def test_pyav_offset_and_duration_are_preserved(self, nb_channels, rate, duration):
         bytes_io = BytesIO()
         ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
-        save_audio(bytes_io, ndarray, rate=rate, format="webm")
+        save_audio(bytes_io, ndarray, sample_rate=rate, container_format="webm")
 
         audio, output_rate = load_audio(
             bytes_io,
@@ -155,17 +197,17 @@ class TestReader:
     def test_filter_inputs_are_not_mutated(self, nb_channels, rate, duration):
         bytes_io = BytesIO()
         ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
-        save_audio(bytes_io, ndarray, rate=rate)
+        save_audio(bytes_io, ndarray, sample_rate=rate)
         filters = [atempo(1.1)]
 
-        reader = Reader(bytes_io, filters=filters, rate=8000)
+        reader = Reader(bytes_io, filters=filters, sample_rate=8000)
 
         assert len(filters) == 1
         assert len(reader.filters) == 2
         reader.close()
 
         assert StreamReader().filters is None
-        stream_reader = StreamReader(filters=filters, rate=8000)
+        stream_reader = StreamReader(filters=filters, sample_rate=8000)
         assert len(filters) == 1
         assert len(stream_reader.filters) == 2
 
@@ -180,7 +222,7 @@ class TestReader:
     def test_url_redirects_have_a_timeout(self, monkeypatch, nb_channels, rate, duration):
         bytes_io = BytesIO()
         ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16)
-        save_audio(bytes_io, ndarray, rate=rate)
+        save_audio(bytes_io, ndarray, sample_rate=rate)
         calls = []
 
         class Response:
@@ -192,26 +234,42 @@ class TestReader:
             def __exit__(self, *args):
                 return None
 
-        def head(url, **kwargs):
-            calls.append(("head", url, kwargs))
+            def raise_for_status(self):
+                return None
+
+            @property
+            def content(self):
+                return bytes_io.getvalue()
+
+        def get(url, **kwargs):
+            calls.append(("get", url, kwargs))
             return Response()
 
-        def load_url(url, cache):
-            calls.append(("load", url, cache))
-            return BytesIO(bytes_io.getvalue())
-
         source_module = __import__("audiolab.reader.source", fromlist=["source"])
-        monkeypatch.setattr(source_module.requests, "head", head)
-        monkeypatch.setattr(source_module, "load_url", load_url)
+        monkeypatch.setattr(source_module.requests, "get", get)
 
         reader = Reader("https://example.com/audio.wav")
 
         assert calls == [
-            (
-                "head",
-                "https://example.com/audio.wav",
-                {"allow_redirects": True, "timeout": URL_REQUEST_TIMEOUT},
-            ),
-            ("load", "https://cdn.example.com/audio.wav", False),
+            ("get", "https://example.com/audio.wav", {"allow_redirects": True, "timeout": URL_REQUEST_TIMEOUT}),
         ]
         reader.close()
+
+    def test_non_http_urls_use_smart_open(self, monkeypatch):
+        calls = []
+        source_module = __import__("audiolab.reader.source", fromlist=["source"])
+
+        def smart_open(url, mode):
+            calls.append((url, mode))
+            return BytesIO(b"encoded audio")
+
+        def unexpected_request(*args, **kwargs):
+            raise AssertionError("requests must only handle HTTP URLs")
+
+        monkeypatch.setattr(source_module, "smart_open", smart_open)
+        monkeypatch.setattr(source_module.requests, "get", unexpected_request)
+
+        loaded = source_module.load_url("s3://bucket/audio.wav")
+
+        assert loaded.read() == b"encoded audio"
+        assert calls == [("s3://bucket/audio.wav", "rb")]

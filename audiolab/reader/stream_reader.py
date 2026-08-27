@@ -12,108 +12,115 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections.abc import Iterator
+from fractions import Fraction
 from io import BytesIO
-from typing import Iterator, List, Optional
 
 import av
-from av import AudioCodecContext
 from numpy.typing import DTypeLike
 
 from audiolab.av import build_filter_chain
+from audiolab.av.frame import split_audio_frame
 from audiolab.av.graph import Graph
-from audiolab.av.typing import AudioFormat, AudioFrame, Filter
+from audiolab.av.typing import AudioFormatLike, DecodedChunk, FilterSpec
 
 
 class StreamReader:
+    """Incrementally decode encoded audio bytes.
+
+    Each call to :meth:`pull` retries the complete buffered container and emits
+    only frames that have not been returned before. Call ``pull(partial=True)``
+    once when no more bytes will be pushed.
+    """
+
     def __init__(
         self,
-        filters: Optional[List[Filter]] = None,
-        dtype: Optional[DTypeLike] = None,
+        filters: list[FilterSpec] | None = None,
+        dtype: DTypeLike | None = None,
         is_planar: bool = False,
-        format: Optional[AudioFormat] = None,
-        rate: Optional[int] = None,
+        sample_format: AudioFormatLike | None = None,
+        sample_rate: int | None = None,
         to_mono: bool = False,
-        frame_size: Optional[int] = 1024,
+        frame_size: int = 1024,
     ):
-        """
-        Create a StreamReader object.
+        if frame_size <= 0:
+            raise ValueError("frame_size must be positive")
+        if sample_rate is not None and sample_rate <= 0:
+            raise ValueError("sample_rate must be positive")
 
-        Args:
-            filters: The filters to apply to the audio stream.
-            dtype: The data type of the output audio frames.
-            is_planar: Whether the output audio frames are planar.
-            format: The format of the output audio frames.
-            rate: The sample rate of the output audio frames.
-            to_mono: Whether to convert the output audio frames to mono.
-            frame_size: The frame size of the audio frames.
-        """
-        self._codec_context = None
-        self._graph = None
-        self.bytes_io = BytesIO()
-        self.bytes_per_decode_attempt = 0
         self.filters = build_filter_chain(
             filters,
             dtype=dtype,
             is_planar=is_planar,
-            format=format,
-            rate=rate,
+            sample_format=sample_format,
+            sample_rate=sample_rate,
             to_mono=to_mono,
         )
         self.frame_size = frame_size
-        self.offset = None
-        self.packet = None
+        self._graph: Graph | None = None
+        self._buffer = BytesIO()
+        self._new_bytes = 0
+        self._next_pts: int | None = None
+        self._finalized = False
 
-    @property
-    def codec_context(self) -> Optional[AudioCodecContext]:
-        if self._codec_context is None:
-            if self.packet is None:
-                return None
-            self._codec_context = self.packet.stream.codec_context
-        return self._codec_context
+    def push(self, data: bytes) -> None:
+        if self._finalized:
+            raise RuntimeError("Cannot push data after the stream has been finalized")
+        self._buffer.seek(0, 2)
+        self._buffer.write(data)
+        self._new_bytes += len(data)
 
-    @property
-    def graph(self) -> Optional[Graph]:
-        if self._graph is None:
-            if self.packet is None:
-                return None
-            self._graph = Graph(self.packet.stream, filters=self.filters, frame_size=self.frame_size)
-        return self._graph
+    def pull(self, partial: bool = False) -> Iterator[DecodedChunk]:
+        if self._finalized or (self._new_bytes == 0 and not partial):
+            return
 
-    def push(self, frame: bytes):
-        self.bytes_io.write(frame)
-        self.bytes_per_decode_attempt += len(frame)
+        self._new_bytes = 0
+        container = None
+        try:
+            self._buffer.seek(0)
+            container = av.open(self._buffer, metadata_encoding="latin1")
+            stream = container.streams.audio[0]
+            if self._graph is None:
+                self._graph = Graph(stream, filters=self.filters, frame_size=self.frame_size)
 
-    def pull(self, partial: bool = False) -> Iterator[AudioFrame]:
-        if partial or self.bytes_per_decode_attempt * 2 >= self.frame_size:
-            self.bytes_per_decode_attempt = 0
-            try:
-                self.bytes_io.seek(0)
-                container = av.open(self.bytes_io, metadata_encoding="latin1")
-                for packet in container.demux():
-                    self.packet = packet
-                    if self.packet.pts is None and not partial:
+            for packet in container.demux(stream):
+                for audio_frame in packet.decode():
+                    audio_frame = self._remove_decoded_prefix(audio_frame)
+                    if audio_frame is None:
                         continue
-                    # o: current frame
-                    # pts: self.offset, frame.pts, packet.pts
-                    # +---+---+---+---+---+
-                    # | x | x | x | o |   |
-                    # +---+---+---+---+---+
-                    #             ↑
-                    #             pts
-                    if self.offset is not None and (self.packet.pts is None or self.offset > self.packet.pts):
-                        continue
-                    for frame in self.codec_context.decode(packet):
-                        self.offset = frame.pts + int(frame.samples / packet.stream.rate / packet.stream.time_base)
-                        self.graph.push(frame)
-                        yield from self.graph.pull()
-                    yield from self.graph.pull(partial=partial)
-            except (av.EOFError, av.InvalidDataError, av.OSError, av.PermissionError):
-                pass
+                    self._graph.push(audio_frame)
+                    yield from self._graph.pull()
+        except (av.EOFError, av.InvalidDataError, av.OSError, av.PermissionError):
+            pass
+        finally:
+            if container is not None:
+                container.close()
 
-    def reset(self):
-        self._codec_context = None
+        if partial:
+            self._finalized = True
+            if self._graph is not None:
+                yield from self._graph.pull(partial=True)
+
+    def _remove_decoded_prefix(self, audio_frame: av.AudioFrame) -> av.AudioFrame | None:
+        if audio_frame.pts is None or audio_frame.time_base is None:
+            return audio_frame
+
+        duration_pts = Fraction(audio_frame.samples, audio_frame.rate) / audio_frame.time_base
+        frame_end = audio_frame.pts + int(duration_pts)
+        if self._next_pts is not None:
+            if frame_end <= self._next_pts:
+                return None
+            if audio_frame.pts < self._next_pts:
+                overlap = int(Fraction(self._next_pts - audio_frame.pts) * audio_frame.time_base * audio_frame.rate)
+                _, audio_frame = split_audio_frame(audio_frame, overlap)
+                if audio_frame is None:
+                    return None
+        self._next_pts = frame_end
+        return audio_frame
+
+    def reset(self) -> None:
         self._graph = None
-        self.bytes_io = BytesIO()
-        self.bytes_per_decode_attempt = 0
-        self.offset = None
-        self.packet = None
+        self._buffer = BytesIO()
+        self._new_bytes = 0
+        self._next_pts = None
+        self._finalized = False

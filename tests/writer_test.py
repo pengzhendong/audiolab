@@ -36,34 +36,35 @@ class TestWriter:
     def duration(self):
         return 0.5
 
-    # def test_writer(self, nb_channels, rate, duration):
-    #     for always_2d in (True, False):
-    #         bytes_io = BytesIO()
-    #         # always int16 for pcm_s16le even if dtype of ndarray is float32
-    #         ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16, always_2d)
-    #         writer = Writer(bytes_io, rate)
-    #         writer.write(ndarray)
-    #         writer.close()
-
-    #         _info = info(bytes_io)
-    #         assert _info.channels == nb_channels
-    #         assert "signed 16" in _info.codec.lower()
-    #         assert _info.duration == duration
-    #         assert _info.precision == 16
-    #         assert _info.rate == rate
-
     def test_save_audio(self, nb_channels, rate, duration):
         for always_2d in (True, False):
             bytes_io = BytesIO()
             ndarray = generate_ndarray(nb_channels, int(rate * duration), np.int16, always_2d)
-            save_audio(bytes_io, ndarray, rate, format="webm")
+            save_audio(bytes_io, ndarray, rate, container_format="webm")
 
             _info = info(bytes_io)
-            assert _info.channels == nb_channels
+            assert _info.num_channels == nb_channels
             assert _info.codec == "Opus"
             assert np.isclose(_info.duration, duration + 0.014, atol=0.001)  # Pre-skip / Encoder Delay for opus
-            assert _info.precision == 32  # always float32 for opus
-            assert _info.rate == 48000  # always 48k for opus
+            assert _info.bits_per_sample == 32  # always float32 for opus
+            assert _info.sample_rate == 48000  # always 48k for opus
+
+    def test_writer_validates_sample_rate_and_audio_shape(self, rate):
+        with pytest.raises(ValueError, match="sample_rate must be positive"):
+            Writer(BytesIO(), 0)
+
+        writer = Writer(BytesIO(), rate)
+        with pytest.raises(ValueError, match="audio must have shape"):
+            writer.write(np.zeros((1, 2, 3), dtype=np.int16))
+        writer.close()
+
+    def test_writer_rejects_channel_count_changes(self, rate):
+        writer = Writer(BytesIO(), rate)
+        writer.write(np.zeros((2, 4), dtype=np.int16))
+
+        with pytest.raises(ValueError, match="Expected 2 channels"):
+            writer.write(np.zeros((1, 4), dtype=np.int16))
+        writer.close()
 
     def test_explicit_close_propagates_backend_errors(self):
         class Backend:
@@ -90,7 +91,7 @@ class TestWriter:
 
         container = Container()
         backend = object.__new__(PyAV)
-        backend.file = BytesIO()
+        backend.destination = BytesIO()
         backend.container = container
         backend.stream = Stream()
 
@@ -98,5 +99,5 @@ class TestWriter:
             backend.close()
         assert backend.container is None
         assert backend.stream is None
-        assert backend.file is None
+        assert backend.destination is None
         assert container.closed

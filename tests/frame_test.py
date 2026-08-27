@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import numpy as np
+import pytest
 from av.audio.frame import format_dtypes
 from numpy.random import randint
 
@@ -27,6 +28,7 @@ class TestFrame:
         dtypes = [
             (np.uint8, np.int16),
             (np.int16, np.int32),
+            (np.int16, np.int64),
             (np.int16, np.float32),
             (np.int32, np.float64),
             (np.float32, np.float64),
@@ -47,11 +49,35 @@ class TestFrame:
             else:
                 assert np.allclose(original_ndarray, reconverted_ndarray, rtol=1e-5, atol=1e-8)
 
+    def test_clip_supports_int64_input(self):
+        audio = np.array([[np.iinfo(np.int64).min, 0, np.iinfo(np.int64).max]], dtype=np.int64)
+
+        converted = clip(audio, np.float64)
+
+        assert np.allclose(converted, [[-1.0, 0.0, 1.0]])
+
+    def test_clip_converts_empty_arrays(self):
+        converted = clip(np.array([], dtype=np.int16), np.float32)
+
+        assert converted.dtype == np.float32
+
+    def test_clip_maps_float_endpoints_without_integer_overflow(self):
+        audio = np.array([-1.0, 0.0, 1.0])
+
+        assert np.array_equal(clip(audio, np.int16), [-32768, 0, 32767])
+        assert np.array_equal(clip(audio, np.uint8), [0, 127, 255])
+
+    def test_clip_rejects_non_numeric_dtypes(self):
+        with pytest.raises(TypeError, match="numeric"):
+            clip(np.array([True]), np.float32)
+        with pytest.raises(TypeError, match="numeric"):
+            clip(np.array([0.0]), np.bool_)
+
     def test_from_to_ndarray(self):
         for layout_name in ("mono", "stereo", "2.1", "3.0"):
             layout = AudioLayout[layout_name].value
             nb_channels = layout.nb_channels
-            for format_name in format_dtypes.keys():
+            for format_name in format_dtypes:
                 format = AudioFormat[format_name].value
                 dtype = get_dtype(format)
                 for rate in (8000, 16000, 24000, 48000):
@@ -67,7 +93,7 @@ class TestFrame:
         for layout_name in ("mono", "stereo", "2.1", "3.0"):
             layout = AudioLayout[layout_name].value
             nb_channels = layout.nb_channels
-            for format_name in format_dtypes.keys():
+            for format_name in format_dtypes:
                 format = AudioFormat[format_name].value
                 dtype = get_dtype(format)
                 for rate in (8000, 16000, 24000, 48000):

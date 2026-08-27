@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Union
 
 import av
 import numpy as np
@@ -20,41 +19,43 @@ from numpy.typing import DTypeLike
 
 from audiolab.av import filter
 from audiolab.av.format import get_format
-from audiolab.av.typing import Filter
+from audiolab.av.typing import FilterSpec
 
 
 def aformat(
-    dtype: Optional[Union[str, type, np.dtype]] = None,
+    dtype: str | type | np.dtype | None = None,
     is_planar: bool = False,
-    format: Optional[Union[str, av.AudioFormat]] = None,
-    rate: Optional[int] = None,
+    sample_format: str | av.AudioFormat | None = None,
+    sample_rate: int | None = None,
     to_mono: bool = False,
-) -> Filter:
+) -> FilterSpec:
+    if sample_rate is not None and sample_rate <= 0:
+        raise ValueError("sample_rate must be positive")
     kwargs = {}
     if dtype is not None:
         kwargs["sample_fmts"] = get_format(dtype, is_planar).name
-    if format is not None:
-        kwargs["sample_fmts"] = format.name if isinstance(format, av.AudioFormat) else format
-    if rate is not None:
-        kwargs["sample_rates"] = rate
+    if sample_format is not None:
+        kwargs["sample_fmts"] = sample_format.name if isinstance(sample_format, av.AudioFormat) else sample_format
+    if sample_rate is not None:
+        kwargs["sample_rates"] = sample_rate
     if to_mono:
         kwargs["channel_layouts"] = "mono"
     return filter.aformat(**kwargs)
 
 
 def build_filter_chain(
-    filters: Optional[List[Filter]] = None,
+    filters: list[FilterSpec] | None = None,
     *,
-    dtype: Optional[DTypeLike] = None,
+    dtype: DTypeLike | None = None,
     is_planar: bool = False,
-    format: Optional[Union[str, av.AudioFormat]] = None,
-    rate: Optional[int] = None,
+    sample_format: str | av.AudioFormat | None = None,
+    sample_rate: int | None = None,
     to_mono: bool = False,
-    add_format: Optional[bool] = None,
-) -> Optional[List[Filter]]:
+    add_format: bool | None = None,
+) -> list[FilterSpec] | None:
     chain = [] if filters is None else list(filters)
     if add_format is None:
-        add_format = dtype is not None or format is not None or rate is not None or to_mono
+        add_format = dtype is not None or sample_format is not None or sample_rate is not None or to_mono
     if add_format:
-        chain.append(aformat(dtype, is_planar, format, rate, to_mono))
+        chain.append(aformat(dtype, is_planar, sample_format, sample_rate, to_mono))
     return chain or None
