@@ -209,7 +209,7 @@ class TestReader:
         ],
     )
     def test_stream_reader_matches_complete_pyav_decode(self, tmp_path, rate, container_format, transforms):
-        samples = rate // 4 + 13
+        samples = rate + 13
         time = np.arange(samples, dtype=np.float64) / rate
         source_audio = np.stack(
             (
@@ -222,19 +222,20 @@ class TestReader:
             writer.write(source_audio)
 
         expected, expected_rate = load_audio(source, backends=["pyav"], **transforms)
+        assert expected.shape[1] > 0
         encoded = source.read_bytes()
-        reader = StreamReader(frame_size=257, **transforms)
         chunks = []
-        chunk_sizes = (257, 1024, 4096, 701)
-        offset = 0
-        index = 0
-        while offset < len(encoded):
-            chunk_size = chunk_sizes[index % len(chunk_sizes)]
-            reader.push(encoded[offset : offset + chunk_size])
-            chunks.extend(reader.pull())
-            offset += chunk_size
-            index += 1
-        chunks.extend(reader.pull(partial=True))
+        with StreamReader(frame_size=257, **transforms) as reader:
+            chunk_sizes = (257, 1024, 4096, 701)
+            offset = 0
+            index = 0
+            while offset < len(encoded):
+                chunk_size = chunk_sizes[index % len(chunk_sizes)]
+                reader.push(encoded[offset : offset + chunk_size])
+                chunks.extend(reader.pull())
+                offset += chunk_size
+                index += 1
+            chunks.extend(reader.pull(partial=True))
 
         actual = np.concatenate([chunk for chunk, _ in chunks], axis=1)
         assert {output_rate for _, output_rate in chunks} == {expected_rate}
