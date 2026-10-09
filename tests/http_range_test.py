@@ -85,6 +85,11 @@ def server():
                 self.send_header("Content-Range", content_range)
             if mode != "no_etag":
                 self.send_header("ETag", 'W/"weak"' if mode == "weak" else etag)
+            if item.get("modified"):
+                modified = item["modified"]
+                if mode == "modified_change":
+                    modified = "Thu, 02 Jan 2025 00:00:00 GMT"
+                self.send_header("Last-Modified", modified)
             if mode == "encoding":
                 self.send_header("Content-Encoding", "gzip")
             self.end_headers()
@@ -189,7 +194,7 @@ def test_midstream_failure_cannot_return_cached_or_mixed_bytes(server, mode):
         source.read(1)
 
 
-@pytest.mark.parametrize("mode", ["ignore", "no_etag", "weak"])
+@pytest.mark.parametrize("mode", ["ignore"])
 def test_initial_non_admission_falls_back_only_in_opt_in_api(server, mode):
     add, _, _ = server
     url = add(b"x" * 100, mode=mode)
@@ -351,7 +356,7 @@ def test_invalid_audio_releases_owned_source(server, monkeypatch):
     assert closed and all(source.closed for source in closed)
 
 
-@pytest.mark.parametrize("mode", ["ignore", "no_etag", "weak"])
+@pytest.mark.parametrize("mode", ["ignore"])
 def test_fallback_decodes_original_url(server, mode):
     add, _, _ = server
     encoded = io.BytesIO()
@@ -384,3 +389,73 @@ def test_repeated_decoder_seeks_including_zero_and_nonstandard_wav_header(server
             reference.seek(offset)
             np.testing.assert_array_equal(decoder.read(1000), reference.read(1000))
     assert source.closed
+
+
+@pytest.mark.parametrize("mode", ["no_etag", "weak"])
+def test_ranges_without_strong_etag_are_admitted_and_decode(server, mode):
+    add, calls, _ = server
+    encoded = io.BytesIO()
+    sf.write(encoded, np.linspace(-0.3, 0.3, 160001), 16000, format="WAV", subtype="FLOAT")
+    data = encoded.getvalue()
+    url = add(data, mode=mode)
+    with HTTPRangeSource(url, block_size=4096) as source:
+        source.seek(100000)
+        assert source.read(100) == data[100000:100100]
+    own_calls = [c for c in calls if c[0] == urlsplit(url).path]
+    assert all("If-Match" not in c[1] and "If-Unmodified-Since" not in c[1] for c in own_calls)
+    expected, rate = load_audio(data, offset=3, duration=0.2)
+    actual, actual_rate = load_audio(url, http_range=True, offset=3, duration=0.2)
+    assert actual_rate == rate
+    np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.parametrize("mode", ["no_etag", "weak"])
+def test_explicit_strict_mode_can_require_strong_etag(server, mode):
+    add, _, _ = server
+    with pytest.raises(RangeNotSupported):
+        HTTPRangeSource(add(b"x" * 100, mode=mode), require_strong_etag=True)
+
+
+def test_last_modified_is_optional_best_effort_validator(server):
+    add, calls, _ = server
+    modified = "Wed, 01 Jan 2025 00:00:00 GMT"
+    url = add(b"a" * 1000, mode="no_etag", modified=modified)
+    with HTTPRangeSource(url, block_size=20) as source:
+        source.seek(100)
+        assert source.read(5) == b"a" * 5
+    own_calls = [c for c in calls if c[0] == urlsplit(url).path]
+    assert own_calls[-1][1]["If-Unmodified-Since"] == modified
+    assert "If-Match" not in own_calls[-1][1]
+
+
+def test_last_modified_change_fails_closed(server):
+    add, _, _ = server
+    source = HTTPRangeSource(
+        add(
+            b"a" * 1000, mode="no_etag", etag="", modified="Wed, 01 Jan 2025 00:00:00 GMT", later_mode="modified_change"
+        ),
+        block_size=20,
+    )
+    source.seek(100)
+    with pytest.raises(OSError):
+        source.read(1)
+    assert source.closed
+
+
+@pytest.mark.parametrize("modified", ["invalid", "Wed, 01 Jan 2025 00:00:00"])
+def test_unusable_last_modified_does_not_block_generic_range(server, modified):
+    add, calls, _ = server
+    url = add(b"a" * 1000, mode="no_etag", modified=modified)
+    with HTTPRangeSource(url, block_size=20) as source:
+        source.seek(100)
+        assert source.read(1) == b"a"
+    own_calls = [c for c in calls if c[0] == urlsplit(url).path]
+    assert all("If-Unmodified-Since" not in c[1] for c in own_calls)
+
+
+def test_generic_no_validator_mode_still_rejects_length_change(server):
+    add, _, _ = server
+    source = HTTPRangeSource(add(b"a" * 1000, mode="no_etag", etag="", later_mode="resize"), block_size=20)
+    source.seek(100)
+    with pytest.raises(OSError):
+        source.read(1)

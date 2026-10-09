@@ -18,6 +18,7 @@ import io
 import operator
 import re
 from collections import OrderedDict
+from email.utils import parsedate_to_datetime
 from threading import RLock
 from urllib.parse import urlsplit
 
@@ -29,7 +30,9 @@ class RangeNotSupported(OSError):
 class HTTPRangeSource(io.RawIOBase):
     """Seekable HTTP(S) file with a private session and bounded read cache.
 
-    Requires finite 206 responses and a stable strong ETag. No HEAD request or
+    Requires finite 206 responses; HTTP validators are used when available.
+    Without a strong ETag, same-size content changes cannot be reliably detected.
+    No HEAD request or
     whole-file preload is performed. Each instance owns its session; use a
     separate instance for each concurrent decoder. ``read()`` can return the
     remaining file, like a normal binary file, but network requests and cached
@@ -44,6 +47,7 @@ class HTTPRangeSource(io.RawIOBase):
         cache_blocks: int = 4,
         initial_size: int = 64 * 1024,
         timeout: float = 10,
+        require_strong_etag: bool = False,
     ):
         super().__init__()
         self._session = None
@@ -62,9 +66,11 @@ class HTTPRangeSource(io.RawIOBase):
         self._cache_blocks = operator.index(cache_blocks)
         self._initial_size = min(operator.index(initial_size), self._block_size)
         self._timeout = timeout
+        self._require_strong_etag = require_strong_etag
         self._position = 0
         self._length = None
         self._etag = None
+        self._last_modified = None
         import requests
 
         self._session = requests.Session()
@@ -83,6 +89,8 @@ class HTTPRangeSource(io.RawIOBase):
         headers = {"Range": f"bytes={start}-{end}", "Accept-Encoding": "identity"}
         if self._etag is not None:
             headers["If-Match"] = self._etag
+        elif self._last_modified is not None:
+            headers["If-Unmodified-Since"] = self._last_modified
         try:
             with self._session.get(
                 self._url, headers=headers, stream=True, allow_redirects=True, timeout=self._timeout
@@ -99,18 +107,34 @@ class HTTPRangeSource(io.RawIOBase):
                 first, last, length = map(int, match.groups())
                 if length <= 0 or first != start or last != min(end, length - 1) or last < first:
                     raise OSError("HTTP range response does not match the requested bytes")
+                # ETag and Last-Modified are optional HTTP fields, not Range
+                # requirements. Weak tags do not identify exact representation bytes.
                 etag = response.headers.get("ETag", "")
-                if len(etag) < 2 or not etag.startswith('"') or not etag.endswith('"'):
-                    error = RangeNotSupported if self._length is None else OSError
-                    raise error("HTTP range source requires a strong ETag")
-                if self._length is not None and (length != self._length or etag != self._etag):
+                if re.fullmatch(r'"[\x21\x23-\x7e\x80-\xff]*"', etag) is None:
+                    etag = None
+                modified = response.headers.get("Last-Modified")
+                if modified is not None:
+                    try:
+                        if parsedate_to_datetime(modified).tzinfo is None:
+                            modified = None
+                    except (TypeError, ValueError, OverflowError):
+                        modified = None
+                if self._length is None:
+                    if self._require_strong_etag and etag is None:
+                        raise RangeNotSupported("HTTP range source requires a strong ETag in strict mode")
+                elif (
+                    length != self._length
+                    or (self._etag is not None and etag != self._etag)
+                    or (self._etag is None and self._last_modified is not None and modified != self._last_modified)
+                ):
                     raise OSError("HTTP range source changed while reading")
                 # Reading one extra byte detects oversized responses without buffering
                 # an ignored Range's whole object. raw.read does not decompress bytes.
                 data = response.raw.read(last - first + 2)
                 if len(data) != last - first + 1:
                     raise OSError("HTTP range response has an incorrect payload length")
-                self._length, self._etag = length, etag
+                if self._length is None:
+                    self._length, self._etag, self._last_modified = length, etag, modified
         except (requests.RequestException, OSError) as error:
             self._failure = True
             self.close()
