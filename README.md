@@ -234,3 +234,10 @@ python benchmarks/processing.py
 ## License
 
 [Apache License 2.0](https://github.com/pengzhendong/audiolab/blob/master/LICENSE)
+
+### Optional HTTP Range transport
+
+For HTTP(S) clips, `load_audio(url, offset=120, duration=10, http_range=True)`
+uses a validated seekable HTTP source with a bounded per-reader cache. The
+default URL path and `cache_url` are preserved. See [HTTP Range reading](docs/HTTP_RANGE.md)
+for server requirements, fallback, explicit file-like use, and performance limits.

@@ -73,7 +73,10 @@ def prepare_source(
     offset: Seconds = 0.0,
     duration: Seconds | None = None,
     cache_url: bool = False,
+    http_range: bool = False,
 ):
+    if http_range and cache_url:
+        raise ValueError("http_range and cache_url cannot be enabled together")
     if isinstance(source, bytes):
         return BytesIO(source)
     if not isinstance(source, str) or "://" not in source:
@@ -82,6 +85,15 @@ def prepare_source(
     scheme = urlsplit(source).scheme
     if cache_url:
         return load_url(source, cache=cache_url)
+    if http_range and scheme in {"http", "https"}:
+        from audiolab.reader.http_range import HTTPRangeSource, RangeNotSupported
+
+        try:
+            return HTTPRangeSource(source)
+        except RangeNotSupported:
+            # Only initial non-admission can fall back. Failed or changed range
+            # responses after admission must never restart on a different object.
+            return source
     if scheme in {"http", "https"} or offset != 0 or duration is not None:
         return source
     if scheme:

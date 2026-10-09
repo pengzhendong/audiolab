@@ -489,6 +489,7 @@ class TestReader:
             "always_2d",
             "fill_value",
             "backends",
+            "http_range",
         ]
         assert all(parameter.kind is parameter.KEYWORD_ONLY for parameter in list(parameters.values())[1:])
 
