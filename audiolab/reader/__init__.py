@@ -55,6 +55,7 @@ def load_audio(
     always_2d: bool = True,
     fill_value: float | None = None,
     backends: list[str] | None = None,
+    http_range: bool = False,
 ) -> tuple[np.ndarray, int]:
     """Decode an entire audio source into memory.
 
@@ -77,6 +78,7 @@ def load_audio(
         "always_2d": always_2d,
         "fill_value": fill_value,
         "backends": backends,
+        "http_range": http_range,
     }
     chunks = []
     output_rate = None

@@ -22,6 +22,7 @@ from audiolab._processor import AudioProcessor, build_graph_filters, validate_tr
 from audiolab.av.frame import pad, squeeze_mono
 from audiolab.av.typing import DecodedChunk, FilterSpec, Seconds
 from audiolab.reader.backend import pyav, soundfile
+from audiolab.reader.http_range import HTTPRangeSource
 from audiolab.reader.info import Info
 from audiolab.reader.source import prepare_source
 
@@ -61,6 +62,7 @@ class Reader(Info):
         always_2d: bool = True,
         fill_value: float | None = None,
         backends: list[str] | None = None,
+        http_range: bool = False,
     ):
         """
         Create a Reader object.
@@ -81,6 +83,7 @@ class Reader(Info):
             always_2d: Whether to return 2d ndarrays even if the audio frame is mono.
             fill_value: The fill value to pad the audio to the frame size.
             backends: The backends to use.
+            http_range: Use validated HTTP ranges with a bounded cache (opt-in).
         """
         if frame_size is not None and frame_size <= 0:
             raise ValueError("frame_size must be positive")
@@ -92,11 +95,12 @@ class Reader(Info):
             raise ValueError("frame_size is required when fill_value is set")
         validate_transforms(speed, pitch_shift)
         original_source = source
-        source = prepare_source(source, offset=offset, duration=duration, cache_url=cache_url)
+        source = prepare_source(source, offset=offset, duration=duration, cache_url=cache_url, http_range=http_range)
         self._owned_source = source if source is not original_source and hasattr(source, "close") else None
         self.frame_size = frame_size
         try:
             super().__init__(source, frame_size or read_size, backends=backends)
+            self._check_source_error()
         except BaseException:
             if self._owned_source is not None:
                 self._owned_source.close()
@@ -164,7 +168,15 @@ class Reader(Info):
                 owned_source.close()
 
     def __iter__(self) -> Iterator[DecodedChunk]:
+        try:
+            yield from self._iter_chunks()
+        except Exception:
+            self._check_source_error()
+            raise
+
+    def _iter_chunks(self) -> Iterator[DecodedChunk]:
         for audio in self.backend.load_audio(self.offset, self._duration):
+            self._check_source_error()
             if isinstance(audio, np.ndarray) and self.filters:
                 for chunk in _iter_audio_chunks(audio):
                     self._processor.push(chunk)
@@ -172,7 +184,12 @@ class Reader(Info):
             else:
                 self._processor.push(audio)
                 yield from self.pull()
+        self._check_source_error()
         yield from self.pull(partial=True)
+
+    def _check_source_error(self):
+        if isinstance(self.source, HTTPRangeSource):
+            self.source.raise_if_failed()
 
     def is_passthrough(
         self, dtype: DTypeLike | None = None, sample_rate: int | None = None, to_mono: bool = False

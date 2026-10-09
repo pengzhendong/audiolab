@@ -33,6 +33,7 @@ from audiolab.av import (
 )
 from audiolab.pipe import AudioPipe
 from audiolab.reader import Reader, StreamReader, info, load_audio
+from audiolab.reader.http_range import HTTPRangeSource
 from audiolab.writer import Writer, save_audio
 
 try:
@@ -82,6 +83,7 @@ def encode(
 
 __all__ = [
     "AudioPipe",
+    "HTTPRangeSource",
     "Reader",
     "StreamReader",
     "Writer",
